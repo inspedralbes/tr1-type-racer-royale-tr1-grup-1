@@ -1,0 +1,4 @@
+CREATE TABLE QUESTIONS (ID INT AUTO_INCREMENT PRIMARY KEY,
+                        TEXT_CONTENT VARCHAR(255), 
+                        LANGUAGE_CODE VARCHAR(255)
+                        , DIFFICULTY INT);

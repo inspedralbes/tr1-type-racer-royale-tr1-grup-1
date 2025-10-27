@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  tr1g1-front:
+    image: httpd:2.4-alpine
+    command: sh -c "npm run build"
+    restart: always
+    volumes:
+      - ./front/dist/:/usr/local/apache2/htdocs/:ro
+    ports:
+      - 80:80
+    depends_on:
+      - tr1g1-back
+
+  tr1g1-back:
+    image: node:23-bookworm-slim
+    command: sh -c "cp .env.PROD .env && npm install && node index.js"
+    volumes:
+      - ./back:/usr/src/app
+    working_dir: /usr/src/app
+    ports:
+      - 3000:3000
+
+  tr1g1-mysql:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: QUESTIONS
+    volumes:
+      - mysql-db:/var/lib/mysql:rw
+      - ./back/data/create_db.sql:/docker-entrypoint-initdb.d/create.sql
+      - ./back/data/insert_db.sql:/docker-entrypoint-initdb.d/inserts.sql
+    ports:
+      - 3306:3306
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    environment:
+      ADMINER_DEFAULT_SERVER: tr1g1-mysql
+    depends_on:
+      - tr1g1-mysql
+
+volumes:
+  mysql-db:
