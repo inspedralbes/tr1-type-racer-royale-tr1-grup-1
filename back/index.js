@@ -1,4 +1,8 @@
 import express from "express";
+import {con} from "./db.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 /*
     Ejemplo mínimo de proyecto con un GET usando Express.
@@ -13,19 +17,20 @@ import express from "express";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // GET raíz: devuelve un mensaje simple
 app.get("/", (req, res) => {
   res.json({ message: "Hola mundo desde GET /" });
 });
 
-// GET que devuelve lista ejemplo
-app.get("/users", (req, res) => {
-  const users = [
-    { id: 1, name: "Ana" },
-    { id: 2, name: "Luis" },
-    { id: 3, name: "María" },
-  ];
-  res.json(users);
+app.get("/questions", (req, res) => {
+  con.query("SELECT * FROM QUESTIONS", (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error al obtenir les dades" });
+    }
+    res.json(results);
+  });
 });
 
 app.listen(PORT, () => {
