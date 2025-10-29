@@ -15,13 +15,13 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const user = useUserStore()
+  const user = useUserStore();
   if (to.meta.requiresNick && !user.hasNick) {
     return {
-      name: 'home',
-      query: { needNick: '1', redirectTo: to.fullPath }
-    }
+      name: "home",
+      query: { needNick: "1", redirectTo: to.fullPath },
+    };
   }
-})
+});
 
-export default router
+export default router;
