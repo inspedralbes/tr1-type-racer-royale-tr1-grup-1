@@ -1,8 +1,18 @@
-{
+/*{
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "exclude": ["node_modules", "dist"]
+}*/
+// I'll keep previous version just in case - Roman
+
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
 }
