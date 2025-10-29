@@ -1,5 +1,5 @@
 import express from "express";
-import {con} from "./db.js";
+import { con } from "./db.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -17,20 +17,43 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-
 // GET raíz: devuelve un mensaje simple
 app.get("/", (req, res) => {
   res.json({ message: "Hola mundo desde GET /" });
 });
 
-app.get("/questions", (req, res) => {
-  con.query("SELECT * FROM QUESTIONS", (err, results) => {
+app.get("/words", (req, res) => {
+  con.query("SELECT * FROM WORDS", (err, results) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ error: "Error al obtenir les dades" });
     }
     res.json(results);
   });
+});
+
+app.get("/texts", (req, res) => {
+  con.query("SELECT * FROM TEXTS", (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error al obtenir les dades" });
+    }
+    res.json(results);
+  });
+});
+
+app.get("/texts/:id", (req, res) => {
+  con.query(
+    "SELECT * FROM TEXTS WHERE ID = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Error al obtenir les dades" });
+      }
+      res.json(results);
+    }
+  );
 });
 
 app.listen(PORT, () => {
