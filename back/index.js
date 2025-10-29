@@ -61,6 +61,34 @@ io.on("connection", (socket) => {
   }); 
 });
 
+app.get("/texts/:id", (req, res) => {
+  con.query(
+    "SELECT * FROM TEXTS WHERE ID = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Error al obtenir les dades" });
+      }
+      res.json(results);
+    }
+  );
+});
+
+app.get("/texts/:id", (req, res) => {
+  con.query(
+    "SELECT * FROM TEXTS WHERE ID = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Error al obtenir les dades" });
+      }
+      res.json(results);
+    }
+  );
+});
+
 // Iniciar servidor
 server.listen(PORT, () => {
   console.log(`✅ Servidor Socket.io corriendo en http://localhost:${PORT}`);
