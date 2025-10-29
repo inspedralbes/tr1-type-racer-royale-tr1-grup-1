@@ -57,8 +57,8 @@ function join() {
   if (!nick.value?.trim()) return
   user.setNickname(nick.value)
 
-  // go back where they intended, else /play
-  const redirectTo = route.query.redirectTo || '/play'
+  // go back where they intended, else /lobby
+  const redirectTo = route.query.redirectTo || '/lobby'
   router.push(redirectTo)
 }
 </script>

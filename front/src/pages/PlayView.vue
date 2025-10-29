@@ -1,26 +1,32 @@
 <template>
-  <section style="padding:1.5rem;">
-    <h2 style="font-size:1.5rem;font-weight:600;">Lobby / Play</h2>
-    <p style="margin-top:.5rem;">Welcome, <strong>{{ user.nickname }}</strong>!</p>
+  <main class="p-8">
+    <h1 class="text-2xl font-bold mb-4">Typing Test</h1>
 
-    <!-- Attention dear compañeros, you all can add socket.io lobby join here later -->
-    <div style="margin-top:1rem;">
-      <button @click="logout" style="border:1px solid #D1D5DB;padding:.5rem .75rem;border-radius:.5rem;">
-        Change nickname
-      </button>
+    <div v-if="currentText" class="p-4 bg-gray-100 rounded-lg">
+      <h2 class="font-semibold mb-2">{{ currentText.title }}</h2>
+      <p class="text-gray-700 whitespace-pre-wrap">{{ currentText.text }}</p>
     </div>
-  </section>
+
+    <button
+      class="mt-4 bg-blue-500 text-white py-2 px-4 rounded"
+      @click="nextText"
+    >
+      Load Random Text
+    </button>
+  </main>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
+import { ref } from 'vue'
+import typingTexts from '@/data/typingTexts.json'
 
-const router = useRouter()
-const user = useUserStore()
+const currentText = ref(null)
 
-function logout() {
-  user.clearNickname()
-  router.push({ name: 'home' })
+function nextText() {
+  const randomIndex = Math.floor(Math.random() * typingTexts.length)
+  currentText.value = typingTexts[randomIndex]
 }
+
+// Load one immediately
+nextText()
 </script>

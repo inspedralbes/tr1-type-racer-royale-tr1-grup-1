@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/pages/HomeView.vue'
+import LobbyView from '@/pages/LobbyView.vue'
 import PlayView from '@/pages/PlayView.vue'
 import { useUserStore } from '@/stores/user'
 
@@ -8,6 +9,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/play', name: 'play', component: PlayView, meta: { requiresNick: true } },
+    { path: '/lobby', name: 'lobby', component: LobbyView, meta: { requiresNick: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
