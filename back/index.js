@@ -42,13 +42,13 @@ io.on("connection", (socket) => {
   });
 
   // El client demana les preguntes
- const sql = "SELECT * FROM QUESTIONS";
+ /*const sql = "SELECT * FROM TEXTS";
     con.query( sql , (err, results) => {
 
       //Enviamos a los clientes que estan dentro de la sala las preguntas
-      io.to(room).emit("questions", results);
+      io.to(room).emit("texts", results);
       console.log(`Preguntes enviades a la sala ${room}`);
-  });
+  });*/
 
   socket.on("joinRoom", (data) => {
     const room = data.room;
