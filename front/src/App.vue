@@ -7,7 +7,8 @@
   <router-view />
 </template>
 
-<script setup> 
+<script setup>
+import HomeView from "./pages/HomeView.vue";
 // no App part for now, layout can go here later
 </script>
 

@@ -1,25 +1,30 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '@/pages/HomeView.vue'
-import PlayView from '@/pages/PlayView.vue'
-import { useUserStore } from '@/stores/user'
+import { createRouter, createWebHistory } from "vue-router";
+import HomeView from "@/pages/HomeView.vue";
+import LobbyView from "@/pages/LobbyView.vue";
+import { useUserStore } from "@/stores/user";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'home', component: HomeView },
-    { path: '/play', name: 'play', component: PlayView, meta: { requiresNick: true } },
-    { path: '/:pathMatch(.*)*', redirect: '/' }
-  ]
-})
+    { path: "/", name: "home", component: HomeView },
+    {
+      path: "/lobby",
+      name: "lobby",
+      component: LobbyView,
+      meta: { requiresNick: true },
+    },
+    { path: "/:pathMatch(.*)*", redirect: "/" },
+  ],
+});
 
 router.beforeEach((to) => {
-  const user = useUserStore()
+  const user = useUserStore();
   if (to.meta.requiresNick && !user.hasNick) {
     return {
-      name: 'home',
-      query: { needNick: '1', redirectTo: to.fullPath }
-    }
+      name: "home",
+      query: { needNick: "1", redirectTo: to.fullPath },
+    };
   }
-})
+});
 
-export default router
+export default router;
