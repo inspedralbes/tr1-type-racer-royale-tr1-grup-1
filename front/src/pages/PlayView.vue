@@ -12,13 +12,10 @@
     <section class="text-area" @click="focusInput">
       <!-- Render target text with overlays -->
       <div class="text-wrapper" ref="textWrapper">
-        <span
-          v-for="(ch, i) in targetChars"
-          :key="i"
-          :class="charClass(i)"
-        >{{ ch }}</span>
-
-        <!-- blinking caret -->
+        <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
+          ch
+        }}</span>
+        <!-- blinking caret positioned dynamically -->
         <span v-if="!finished" class="caret" :style="caretStyle"></span>
       </div>
 
@@ -43,124 +40,165 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import typingTexts from '@/data/typingTexts.json'
-import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted, nextTick } from "vue";
+import typingTexts from "@/data/typingTexts.json";
+import { useUserStore } from "@/stores/user";
+import { useRouter } from "vue-router";
 
-const router = useRouter()
-const user = useUserStore()
-if (!user.hasNick) router.replace({ name: 'home', query: { needNick: '1' } })
+const router = useRouter();
+const user = useUserStore();
+if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
 // ----- DATA LOADING -----
-const current = ref(null)
-const target = ref('')
-const targetChars = computed(() => Array.from(target.value))
+const current = ref(null);
+const target = ref("");
+const targetChars = computed(() => Array.from(target.value));
 
 function pickRandom() {
-  const idx = Math.floor(Math.random() * typingTexts.length)
-  current.value = typingTexts[idx]
-  target.value = current.value.text
+  const idx = Math.floor(Math.random() * typingTexts.length);
+  current.value = typingTexts[idx];
+  target.value = current.value.text;
 }
 
 // ----- TYPING STATE -----
-const hiddenInput = ref(null)
-const textWrapper = ref(null)
-const userInput = ref('')
-const startedAt = ref(null)
-const endedAt = ref(null)
-const finished = computed(() => userInput.value.length >= target.value.length && target.value.length > 0)
+const hiddenInput = ref(null);
+const textWrapper = ref(null);
+const userInput = ref("");
+const startedAt = ref(null);
+const endedAt = ref(null);
+const finished = computed(
+  () => userInput.value.length >= target.value.length && target.value.length > 0
+);
 
-const typedChars = computed(() => userInput.value.length)
+const typedChars = computed(() => userInput.value.length);
 const correctChars = computed(() => {
-  let ok = 0
+  let ok = 0;
   for (let i = 0; i < userInput.value.length; i++) {
-    if (userInput.value[i] === target.value[i]) ok++
+    if (userInput.value[i] === target.value[i]) ok++;
   }
-  return ok
-})
+  return ok;
+});
 
 const elapsedMs = computed(() => {
-  if (!startedAt.value) return 0
-  const end = endedAt.value ?? Date.now()
-  return Math.max(0, end - startedAt.value)
-})
-const elapsedSeconds = computed(() => Math.floor(elapsedMs.value / 1000))
-const minutes = computed(() => (elapsedMs.value || 1) / 60000)
+  if (!startedAt.value) return 0;
+  const end = endedAt.value ?? Date.now();
+  return Math.max(0, end - startedAt.value);
+});
+const elapsedSeconds = computed(() => Math.floor(elapsedMs.value / 1000));
+const minutes = computed(() => (elapsedMs.value || 1) / 60000);
 const wpm = computed(() => {
-  const words = correctChars.value / 5
-  return Math.max(0, Math.round(words / minutes.value))
-})
+  const words = correctChars.value / 5;
+  return Math.max(0, Math.round(words / minutes.value));
+});
 const accuracy = computed(() => {
-  if (typedChars.value === 0) return 100
-  return Math.round((correctChars.value / typedChars.value) * 100)
-})
+  if (typedChars.value === 0) return 100;
+  return Math.round((correctChars.value / typedChars.value) * 100);
+});
 
-// ----- CARET POSITION (approximate) -----
+// ----- CARET POSITION (exact) -----
 const caretStyle = computed(() => {
-  // We place the caret after the last typed character by using CSS flow and ::after-like span.
-  // Here we just let it flow; style controls height.
-  return {}
-})
+  const pos = userInput.value.length;
+
+  if (!textWrapper.value) {
+    return { position: "absolute", left: "0px", top: "0px" };
+  }
+
+  // Encontrar el span del carácter actual o el anterior
+  const spans = textWrapper.value.querySelectorAll("span");
+
+  if (pos === 0) {
+    // Si no hay caracteres tipeados, posicionar al inicio
+    return {
+      position: "absolute",
+      left: "0px",
+      top: "0px",
+    };
+  }
+
+  if (spans[pos - 1]) {
+    // Posicionar después del último carácter tipeado
+    const rect = spans[pos - 1].getBoundingClientRect();
+    const containerRect = textWrapper.value.getBoundingClientRect();
+
+    return {
+      position: "absolute",
+      left: `${rect.right - containerRect.left}px`,
+      top: `${rect.top - containerRect.top}px`,
+    };
+  }
+
+  return { position: "absolute", left: "0px", top: "0px" };
+});
 
 // ----- CLASS LOGIC -----
 function charClass(i) {
-  const typed = userInput.value[i]
+  const typed = userInput.value[i];
   if (i < userInput.value.length) {
-    if (typed === target.value[i]) return 'char correct'
-    return 'char wrong'
+    if (typed === target.value[i]) return "char correct";
+    return "char wrong";
   }
-  if (i === userInput.value.length) return 'char current'
-  return 'char untouched'
+  if (i === userInput.value.length) return "char current";
+  return "char untouched";
 }
 
 // ----- INPUT HANDLERS -----
 function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
-    startedAt.value = Date.now()
+    startedAt.value = Date.now();
   }
   // Cap to target length (maxlength covers it, but just in case)
   if (userInput.value.length > target.value.length) {
-    userInput.value = userInput.value.slice(0, target.value.length)
+    userInput.value = userInput.value.slice(0, target.value.length);
   }
   if (finished.value && !endedAt.value) {
-    endedAt.value = Date.now()
+    endedAt.value = Date.now();
   }
 }
 
 function onKeydown(e) {
   // prevent tabbing away
-  if (e.key === 'Tab') e.preventDefault()
+  if (e.key === "Tab") e.preventDefault();
 }
 
 // ----- CONTROL -----
 function focusInput() {
-  hiddenInput.value?.focus()
+  hiddenInput.value?.focus();
 }
 
 function reset() {
-  userInput.value = ''
-  startedAt.value = null
-  endedAt.value = null
-  focusInput()
+  userInput.value = "";
+  startedAt.value = null;
+  endedAt.value = null;
+  focusInput();
 }
 
 function nextText() {
-  pickRandom()
-  reset()
+  pickRandom();
+  reset();
 }
 
 // ----- MOUNT -----
 onMounted(async () => {
-  if (!current.value) pickRandom()
-  await nextTick()
-  focusInput()
-})
+  if (!current.value) pickRandom();
+  await nextTick();
+  focusInput();
+});
 
 // When target changes (Next Text), reset everything
-watch(() => target.value, () => {
-  reset()
-})
+watch(
+  () => target.value,
+  () => {
+    reset();
+  }
+);
+
+// Watch userInput to update caret position
+watch(
+  () => userInput.value,
+  async () => {
+    await nextTick(); // Esperar a que el DOM se actualice
+  }
+);
 </script>
 
 <style scoped>
@@ -201,16 +239,24 @@ watch(() => target.value, () => {
   user-select: none; /* so clicks focus input */
 }
 .text-wrapper {
+  position: relative; /* Para que el caret se posicione relativo a este contenedor */
   color: #6b7280; /* base (darkened) text */
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
 /* characters */
-.char { position: relative; }
-.untouched { opacity: 0.65; }
-.correct { color: #10b981; } /* emerald */
+.char {
+  position: relative;
+}
+.untouched {
+  opacity: 0.65;
+}
+.correct {
+  color: #10b981;
+} /* emerald */
 .wrong {
   color: #ef4444;
   text-decoration: underline;
@@ -221,18 +267,20 @@ watch(() => target.value, () => {
   color: #111827; /* brighten current slot slightly */
 }
 
-/* blinking caret placed after the last typed char via separate span */
+/* blinking caret positioned dynamically */
 .caret {
   display: inline-block;
   width: 2px;
   height: 1.2em;
   background: #111827;
-  vertical-align: -0.2em;
-  margin-left: 0px;
-  animation: blink 1s steps(2, start) infinite;
+  position: absolute;
+  z-index: 1;
+  animation: blink 0.5s steps(2, start) infinite;
 }
 @keyframes blink {
-  50% { opacity: 0; }
+  50% {
+    opacity: 0;
+  }
 }
 
 /* hidden input overlay */
@@ -244,6 +292,7 @@ watch(() => target.value, () => {
   background: transparent;
   border: none;
   resize: none;
+  cursor: text;
   caret-color: #111827; /* so the native caret still exists for accessibility */
   font: inherit;
   line-height: inherit;
@@ -265,5 +314,7 @@ watch(() => target.value, () => {
   background: white;
   cursor: pointer;
 }
-.btn:hover { background: #f3f4f6; }
+.btn:hover {
+  background: #f3f4f6;
+}
 </style>
