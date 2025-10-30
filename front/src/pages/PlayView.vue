@@ -210,9 +210,9 @@ watch(() => target.value, () => {
 /* characters */
 .char { position: relative; }
 .untouched { opacity: 0.65; }
-.correct { color: #10b981; } /* emerald */
+.correct { color: #ad0ca2; } /* emerald */
 .wrong {
-  color: #ef4444;
+  color: #e81c1c;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
