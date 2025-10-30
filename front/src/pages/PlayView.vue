@@ -150,7 +150,7 @@ function nextText() {
   reset()
 }
 
-// ----- MOUNT -----
+// MOUNT
 onMounted(async () => {
   if (!current.value) pickRandom()
   await nextTick()
@@ -229,10 +229,10 @@ watch(() => target.value, () => {
   background: #111827;
   vertical-align: -0.2em;
   margin-left: 0px;
-  animation: blink 1s steps(2, start) infinite;
+  animation: blink 0.5s steps(2, start) infinite;
 }
 @keyframes blink {
-  50% { opacity: 0; }
+  80% { opacity: 0; }
 }
 
 /* hidden input overlay */
@@ -244,7 +244,7 @@ watch(() => target.value, () => {
   background: transparent;
   border: none;
   resize: none;
-  caret-color: #111827; /* so the native caret still exists for accessibility */
+  /*caret-color: #111827; /* so the native caret still exists for accessibility */
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
