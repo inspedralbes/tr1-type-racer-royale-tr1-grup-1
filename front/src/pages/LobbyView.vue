@@ -87,17 +87,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useUserStore } from '@/stores/user';
-import { io } from 'socket.io-client'; // 👈 import del cliente socket.io
-const socket = io('http://localhost:3000'); // ⬅️ cambia el puerto si tu servidor usa otro
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import { useUserStore } from "@/stores/user";
+import { io } from "socket.io-client"; // 👈 import del cliente socket.io
+const socket = io("http://localhost:3000"); // ⬅️ cambia el puerto si tu servidor usa otro
 
 const router = useRouter();
 const user = useUserStore();
 const players = ref([]);
 
 const seconds = ref(10); // duración del temporizador
+const totalTime = 10; // tiempo total del temporizador
 let timer = null;
 
 // Cuando el componente se monta
@@ -105,13 +106,13 @@ onMounted(() => {
   startCountDown();
 
   // 👉 Nos unimos a la sala activa (si ya existe en backend)
-  socket.emit('joinRoom', {
-    room: 'main-room', // puedes cambiarlo si usas otro nombre
+  socket.emit("joinRoom", {
+    room: "main-room", // puedes cambiarlo si usas otro nombre
     nickname: user.nickname,
   });
 
-  socket.on('updateUserList', (list) => {
-    console.log('📜 Lista actualizada desde el servidor:', list);
+  socket.on("updateUserList", (list) => {
+    console.log("📜 Lista actualizada desde el servidor:", list);
     players.value = list.map((name, i) => ({
       id: i + 1,
       name,
@@ -119,7 +120,7 @@ onMounted(() => {
   });
 
   // Escuchamos cuando un nuevo usuario entra
-  socket.on('userJoined', (data) => {
+  socket.on("userJoined", (data) => {
     console.log(`➡️ ${data.id} se ha unido a ${data.room}`);
   });
 });
@@ -142,7 +143,7 @@ function startCountDown() {
       seconds.value--;
     } else {
       clearInterval(timer);
-      router.push('/play');
+      router.push("/play");
     }
   }, 1000);
 }
@@ -156,6 +157,6 @@ onUnmounted(() => clearInterval(timer));
 
 function logout() {
   user.clearNickname();
-  router.push({ name: 'home' });
+  router.push({ name: "home" });
 }
 </script>
