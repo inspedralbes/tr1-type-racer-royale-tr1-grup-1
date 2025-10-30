@@ -49,17 +49,10 @@ const router = useRouter();
 const user = useUserStore();
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
-<<<<<<< HEAD
-// DATA LOADING 
-const current = ref(null)
-const target = ref('')
-const targetChars = computed(() => Array.from(target.value))
-=======
 // ----- DATA LOADING -----
 const current = ref(null);
 const target = ref("");
 const targetChars = computed(() => Array.from(target.value));
->>>>>>> origin/valerias_changes
 
 function pickRandom() {
   const idx = Math.floor(Math.random() * typingTexts.length);
@@ -67,15 +60,6 @@ function pickRandom() {
   target.value = current.value.text;
 }
 
-<<<<<<< HEAD
-// TYPING STATE
-const hiddenInput = ref(null)
-const textWrapper = ref(null)
-const userInput = ref('')
-const startedAt = ref(null)
-const endedAt = ref(null)
-const finished = computed(() => userInput.value.length >= target.value.length && target.value.length > 0)
-=======
 // ----- TYPING STATE -----
 const hiddenInput = ref(null);
 const textWrapper = ref(null);
@@ -85,7 +69,6 @@ const endedAt = ref(null);
 const finished = computed(
   () => userInput.value.length >= target.value.length && target.value.length > 0
 );
->>>>>>> origin/valerias_changes
 
 const typedChars = computed(() => userInput.value.length);
 const correctChars = computed(() => {
@@ -112,11 +95,7 @@ const accuracy = computed(() => {
   return Math.round((correctChars.value / typedChars.value) * 100);
 });
 
-<<<<<<< HEAD
 // CARET POSITION (needs arreglation)
-=======
-// ----- CARET POSITION (exact) -----
->>>>>>> origin/valerias_changes
 const caretStyle = computed(() => {
   const pos = userInput.value.length;
 
@@ -269,11 +248,6 @@ watch(
 }
 
 /* characters */
-<<<<<<< HEAD
-.char { position: relative; }
-.untouched { opacity: 0.65; }
-.correct { color: #ad0ca2; } /* emerald */
-=======
 .char {
   position: relative;
 }
@@ -283,7 +257,6 @@ watch(
 .correct {
   color: #10b981;
 } /* emerald */
->>>>>>> origin/valerias_changes
 .wrong {
   color: #e81c1c;
   text-decoration: underline;
