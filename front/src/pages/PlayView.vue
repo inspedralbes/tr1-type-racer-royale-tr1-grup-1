@@ -52,7 +52,7 @@ const router = useRouter()
 const user = useUserStore()
 if (!user.hasNick) router.replace({ name: 'home', query: { needNick: '1' } })
 
-// ----- DATA LOADING -----
+// DATA LOADING 
 const current = ref(null)
 const target = ref('')
 const targetChars = computed(() => Array.from(target.value))
@@ -63,7 +63,7 @@ function pickRandom() {
   target.value = current.value.text
 }
 
-// ----- TYPING STATE -----
+// TYPING STATE
 const hiddenInput = ref(null)
 const textWrapper = ref(null)
 const userInput = ref('')
@@ -96,14 +96,14 @@ const accuracy = computed(() => {
   return Math.round((correctChars.value / typedChars.value) * 100)
 })
 
-// ----- CARET POSITION (approximate) -----
+// CARET POSITION (needs arreglation)
 const caretStyle = computed(() => {
   // We place the caret after the last typed character by using CSS flow and ::after-like span.
   // Here we just let it flow; style controls height.
   return {}
 })
 
-// ----- CLASS LOGIC -----
+//CLASS LOGIC 
 function charClass(i) {
   const typed = userInput.value[i]
   if (i < userInput.value.length) {
@@ -114,7 +114,7 @@ function charClass(i) {
   return 'char untouched'
 }
 
-// ----- INPUT HANDLERS -----
+//INPUT HANDLERS
 function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now()
@@ -133,7 +133,7 @@ function onKeydown(e) {
   if (e.key === 'Tab') e.preventDefault()
 }
 
-// ----- CONTROL -----
+// CONTROL
 function focusInput() {
   hiddenInput.value?.focus()
 }
