@@ -1,10 +1,13 @@
 import express from "express";
 import { con } from "./db.js";
 import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(cors());
 
 // GET raíz: devuelve un mensaje simple
 app.get("/", (req, res) => {
@@ -51,7 +54,7 @@ app.get("/texts/:id", (req, res) => {
         console.error(err);
         return res.status(500).json({ error: "Error al obtenir les dades" });
       }
-      res.json(results);
+      res.json(results[0]);
     }
   );
 });
