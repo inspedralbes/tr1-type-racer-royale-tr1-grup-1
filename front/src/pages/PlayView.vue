@@ -10,8 +10,12 @@
     </header>
 
     <section class="text-area" @click="focusInput">
-      <!-- Render target text with overlays -->
-      <div class="text-wrapper" ref="textWrapper">
+      <!-- Estados de carga y error -->
+      <div v-if="loading" class="status-message loading">Cargando texto...</div>
+      <div v-else-if="error" class="status-message error">{{ error }}</div>
+      
+      <!-- Contenido del texto -->
+      <div v-else class="text-wrapper" ref="textWrapper">
         <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
           ch
         }}</span>
@@ -41,7 +45,9 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from "vue";
-import typingTexts from "@/data/typingTexts.json";
+//import { getText } from "@/communicationManager.js";
+import { getText } from "@/services/communicationManager.js";
+
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
 
@@ -52,12 +58,30 @@ if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 // ----- DATA LOADING -----
 const current = ref(null);
 const target = ref("");
+const loading = ref(true);
+const error = ref(null);
 const targetChars = computed(() => Array.from(target.value));
 
-function pickRandom() {
-  const idx = Math.floor(Math.random() * typingTexts.length);
-  current.value = typingTexts[idx];
-  target.value = current.value.text;
+async function pickRandomText() {
+  try {
+    // Obtenemos un ID aleatorio (suponiendo que hay 10 textos)
+    const randomId = Math.floor(Math.random() * 10) + 1;
+
+    // Llamamos al communication manager (usa HTTP)
+    const data = await getText(randomId);
+
+    const text = data.text ?? data.TEXT_CONTENT ?? data.TEXT;
+
+    current.value = data;
+    target.value = text ?? "";
+
+  } catch (err) {
+    console.error("Error cargando texto:", err);
+    error.value = "Error al cargar el texto. ¿Está el servidor funcionando?";
+  }
+  finally{
+    loading.value = false;
+  }
 }
 
 // ----- TYPING STATE -----
@@ -130,7 +154,7 @@ const caretStyle = computed(() => {
   return { position: "absolute", left: "0px", top: "0px" };
 });
 
-//CLASS LOGIC 
+//CLASS LOGIC
 function charClass(i) {
   const typed = userInput.value[i];
   if (i < userInput.value.length) {
@@ -172,17 +196,31 @@ function reset() {
   focusInput();
 }
 
-function nextText() {
-  pickRandom();
+async function nextText() {
+  await pickRandomText();
   reset();
 }
 
 // MOUNT
 onMounted(async () => {
-  if (!current.value) pickRandom();
+  await pickRandomText();
   await nextTick();
-  focusInput();
+
+  if(!target){
+    const interval = setInterval(() => {
+      if(target.value){
+        clearInterval(interval);
+        focusInput();
+      }
+    },100);
+
+  }else{
+    loading.value = false;
+    focusInput();
+  }
+
 });
+
 
 // When target changes (Next Text), reset everything
 watch(
@@ -245,6 +283,20 @@ watch(
     "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.status-message {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #2563eb;
+}
+
+.error {
+  color: #dc2626;
 }
 
 /* characters */
