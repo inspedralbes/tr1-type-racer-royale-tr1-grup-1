@@ -49,7 +49,7 @@ const router = useRouter();
 const user = useUserStore();
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
-// ----- DATA LOADING -----
+// DATA LOADING
 const current = ref(null);
 const target = ref("");
 const targetChars = computed(() => Array.from(target.value));
@@ -60,7 +60,7 @@ function pickRandom() {
   target.value = current.value.text;
 }
 
-// ----- TYPING STATE -----
+// TYPING STATE
 const hiddenInput = ref(null);
 const textWrapper = ref(null);
 const userInput = ref("");

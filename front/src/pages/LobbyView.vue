@@ -90,8 +90,8 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client"; // 👈 import del cliente socket.io
-const socket = io("http://localhost:3000"); // ⬅️ cambia el puerto si tu servidor usa otro
+import { io } from "socket.io-client"; // import del cliente socket.io
+const socket = io("http://localhost:3000"); // cambia el puerto si tu servidor usa otro
 
 const router = useRouter();
 const user = useUserStore();
@@ -105,7 +105,7 @@ let timer = null;
 onMounted(() => {
   startCountDown();
 
-  // 👉 Nos unimos a la sala activa (si ya existe en backend)
+  // Nos unimos a la sala activa (si ya existe en backend)
   socket.emit("joinRoom", {
     room: "main-room", // puedes cambiarlo si usas otro nombre
     nickname: user.nickname,
@@ -149,11 +149,6 @@ function startCountDown() {
 }
 
 onUnmounted(() => clearInterval(timer));
-
-//backend connection with socket.io to get real players list
-// import { io } from "socket.io-client";
-// const socket = io("http://localhost:3000");
-// socket.on("update_players", (list) => { players.value = list });
 
 function logout() {
   user.clearNickname();
