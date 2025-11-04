@@ -13,7 +13,7 @@
       <!-- Estados de carga y error -->
       <div v-if="loading" class="status-message loading">Cargando texto...</div>
       <div v-else-if="error" class="status-message error">{{ error }}</div>
-      
+
       <!-- Contenido del texto -->
       <div v-else class="text-wrapper" ref="textWrapper">
         <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
@@ -40,7 +40,11 @@
     <section v-if="gameResults.length > 0" class="results-section">
       <h3>Resultados de la sala:</h3>
       <div class="results-grid">
-        <div v-for="result in gameResults" :key="result.timestamp" class="result-card">
+        <div
+          v-for="result in gameResults"
+          :key="result.timestamp"
+          class="result-card"
+        >
           <strong>{{ result.nickname }}</strong>
           <div>WPM: {{ result.wpm }}</div>
           <div>Precisión: {{ result.accuracy }}%</div>
@@ -57,7 +61,6 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from "vue";
-//import { getText } from "@/communicationManager.js";
 import { getText } from "@/services/communicationManager.js";
 import { io } from "socket.io-client";
 
@@ -90,12 +93,10 @@ async function pickRandomText() {
 
     current.value = data;
     target.value = text ?? "";
-
   } catch (err) {
     console.error("Error cargando texto:", err);
     error.value = "Error al cargar el texto. ¿Está el servidor funcionando?";
-  }
-  finally{
+  } finally {
     loading.value = false;
   }
 }
@@ -192,13 +193,13 @@ function onInput() {
   }
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
-    
+
     // Enviar resultados al servidor
     socket.emit("gameFinished", {
       room: "main-room", // o la sala actual si tienes múltiples salas
       nickname: user.nickname,
       wpm: wpm.value,
-      accuracy: accuracy.value
+      accuracy: accuracy.value,
     });
   }
 }
@@ -236,21 +237,18 @@ onMounted(async () => {
   await pickRandomText();
   await nextTick();
 
-  if(!target){
+  if (target) {
+    loading.value = false;
+    focusInput();
+  } else {
     const interval = setInterval(() => {
-      if(target.value){
+      if (target.value) {
         clearInterval(interval);
         focusInput();
       }
-    },100);
-
-  }else{
-    loading.value = false;
-    focusInput();
+    }, 100);
   }
-
 });
-
 
 // When target changes (Next Text), reset everything
 watch(
@@ -323,7 +321,7 @@ watch(
 
 .loading {
   color: #2563eb;
-}  
+}
 
 .error {
   color: #dc2626;
