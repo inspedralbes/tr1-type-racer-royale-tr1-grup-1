@@ -21,6 +21,7 @@ app.get("/", (req, res) => {
 
 let activeRoom = null;
 const rooms = {};
+const roomStatus = {};  // Almacenará los resultados de cada sala
 
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
@@ -48,6 +49,13 @@ io.on("connection", (socket) => {
   socket.on("createRoom", (data) => {
     const room = data.room || activeRoom; // Si viene vacía, usamos la sala activa
     socket.join(room);
+
+    // Inicializamos el estado de la sala si no existe
+    if (!roomStatus[room]) {
+      roomStatus[room] = {
+        results: []
+      };
+    }
 
     // Emitimos al cliente que ya está en la sala
     socket.emit("roomCreated", { room });
@@ -81,6 +89,32 @@ io.on("connection", (socket) => {
 
     // Enviamos la lista actualizada a todos los clientes en esa sala
     io.to(room).emit("updateUserList", rooms[room]);
+
+    // Inicializamos el estado de la sala si no existe
+    if (!roomStatus[room]) {
+      roomStatus[room] = {
+        results: []
+      };
+    }
+  });
+
+  // Recibir resultados del juego
+  socket.on("gameFinished", (data) => {
+    const { room, nickname, wpm, accuracy } = data;
+    
+    if (roomStatus[room]) {
+      // Añadir el resultado a la sala
+      roomStatus[room].results.push({
+        nickname,
+        wpm,
+        accuracy,
+        timestamp: Date.now()
+      });
+
+      // Enviar los resultados actualizados a todos en la sala
+      io.to(room).emit("updateGameResults", roomStatus[room].results);
+      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
+    }
   });
 
   socket.on("disconnect", () => {
@@ -138,5 +172,5 @@ app.get("/words/:language", (req, res) => {
 
 // Iniciar servidor
 server.listen(PORT, () => {
-  console.log(`✅ Servidor Socket.io corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor Socket.io corriendo en http://localhost:${PORT}`);
 });

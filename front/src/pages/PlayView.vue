@@ -36,6 +36,18 @@
       ></textarea>
     </section>
 
+    <!-- Mostrar resultados si hay -->
+    <section v-if="gameResults.length > 0" class="results-section">
+      <h3>Resultados de la sala:</h3>
+      <div class="results-grid">
+        <div v-for="result in gameResults" :key="result.timestamp" class="result-card">
+          <strong>{{ result.nickname }}</strong>
+          <div>WPM: {{ result.wpm }}</div>
+          <div>Precisión: {{ result.accuracy }}%</div>
+        </div>
+      </div>
+    </section>
+
     <footer class="actions">
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
@@ -47,9 +59,12 @@
 import { ref, computed, watch, onMounted, nextTick } from "vue";
 //import { getText } from "@/communicationManager.js";
 import { getText } from "@/services/communicationManager.js";
+import { io } from "socket.io-client";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
+
+const socket = io("http://localhost:3000");
 
 const router = useRouter();
 const user = useUserStore();
@@ -60,6 +75,7 @@ const current = ref(null);
 const target = ref("");
 const loading = ref(true);
 const error = ref(null);
+const gameResults = ref([]);
 const targetChars = computed(() => Array.from(target.value));
 
 async function pickRandomText() {
@@ -176,6 +192,14 @@ function onInput() {
   }
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
+    
+    // Enviar resultados al servidor
+    socket.emit("gameFinished", {
+      room: "main-room", // o la sala actual si tienes múltiples salas
+      nickname: user.nickname,
+      wpm: wpm.value,
+      accuracy: accuracy.value
+    });
   }
 }
 
@@ -203,6 +227,12 @@ async function nextText() {
 
 // MOUNT
 onMounted(async () => {
+  // Escuchar actualizaciones de resultados
+  socket.on("updateGameResults", (results) => {
+    gameResults.value = results;
+    console.log(" Resultados actualizados:", results);
+  });
+
   await pickRandomText();
   await nextTick();
 
@@ -293,7 +323,7 @@ watch(
 
 .loading {
   color: #2563eb;
-}
+}  
 
 .error {
   color: #dc2626;
@@ -368,5 +398,32 @@ watch(
 }
 .btn:hover {
   background: #f3f4f6;
+}
+
+.results-section {
+  margin: 2rem 0;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.result-card {
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: white;
+}
+
+.result-card strong {
+  color: #2563eb;
+  display: block;
+  margin-bottom: 0.5rem;
 }
 </style>
