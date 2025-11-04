@@ -6,130 +6,253 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 dotenv.config();
+
+// ------------------------------------
+// CONFIGURACION BASICA DEL SERVIDOR
+// ------------------------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.use(cors());
+
+app.use(cors()); // Permitir peticiones desde cualquier origen
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-// Ruta Express de prova
+// Ruta de prueba (Express)
 app.get("/", (req, res) => {
   res.json({ message: "Hola mundo desde GET /" });
 });
 
-let activeRoom = null;
-const rooms = {};
-const roomStatus = {};  // Almacenará los resultados de cada sala
+// -------------------------------
+// ESTRUCTURA DE DATOS DEL JUEGO
+// -------------------------------
+
+// Guardará todas las salas y su estado
+const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
+const timers = {}; // Para manejar timers por sala
+
+// Función: crear sala
+function createRoom(roomId) {
+  rooms[roomId] = {
+    id: roomId,
+    players: [],
+    status: "waiting", // waiting | playing | finished
+    results: [],
+  };
+  console.log(`Sala creada: ${roomId}`);
+}
+
+// Función: añadir jugador a una sala
+function addPlayerToRoom(roomId, nickname, socketId) {
+  if (!rooms[roomId]) createRoom(roomId);
+
+  const exists = rooms[roomId].players.find((p) => p.nickname === nickname);
+  if (!exists) {
+    rooms[roomId].players.push({
+      id: socketId,
+      nickname,
+      wpm: 0,
+      accuracy: 0,
+      isAlive: true,
+    });
+  }
+
+  console.log(`${nickname} se ha unido a la sala ${roomId}`);
+}
+
+// Función: eliminar jugador al desconectarse
+function removePlayer(socketId) {
+  for (const [roomId, room] of Object.entries(rooms)) {
+    room.players = room.players.filter((p) => p.id !== socketId);
+
+    // Eliminar room si está vacía
+    if (room.players.length === 0) {
+      delete rooms[roomId];
+      console.log(`Sala ${roomId} eliminada (sin jugadores)`);
+    }
+  }
+  console.log(`Jugador desconectado eliminado: ${socketId}`);
+}
+
+// Función: guardar resultados
+// Función: guardar resultados
+function addGameResult(roomId, nickname, wpm, accuracy) {
+  if (!rooms[roomId]) {
+    console.log(`Error: Sala ${roomId} no existe`);
+    return false;
+  }
+
+  rooms[roomId].results.push({
+    nickname,
+    wpm: Number(wpm),
+    accuracy: Number(accuracy),
+    timestamp: Date.now(),
+  });
+
+  console.log(
+    `Resultado añadido en ${roomId}: ${nickname} (${wpm} WPM, ${accuracy}%)`
+  );
+  return true;
+}
+
+// Función: iniciar timer sincronizado para una sala
+function startRoomTimer(roomId) {
+  if (timers[roomId]) {
+    clearInterval(timers[roomId]);
+  }
+
+  let seconds = 10;
+
+  // Emitir estado inicial del timer
+  io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
+
+  timers[roomId] = setInterval(() => {
+    seconds--;
+
+    if (seconds > 0) {
+      io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
+    } else {
+      // Timer terminado
+      io.to(roomId).emit("timerUpdate", { seconds: 0, isActive: false });
+      clearInterval(timers[roomId]);
+      delete timers[roomId];
+
+      // Cambiar estado de la sala a "playing"
+      if (rooms[roomId]) {
+        rooms[roomId].status = "playing";
+      }
+
+      console.log(`Timer terminado para sala ${roomId}. Iniciando juego.`);
+    }
+  }, 1000);
+
+  console.log(`Timer iniciado para sala ${roomId}`);
+}
+
+// Función: detener timer de una sala
+function stopRoomTimer(roomId) {
+  if (timers[roomId]) {
+    clearInterval(timers[roomId]);
+    delete timers[roomId];
+    io.to(roomId).emit("timerUpdate", { seconds: 10, isActive: false });
+    console.log(`Timer detenido para sala ${roomId}`);
+  }
+}
+
+// -----------------------------------
+// SOCKET.IO - EVENTOS EN TIEMPO REAL
+// -----------------------------------
 
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
-  // 1) Cliente solicita crear sala
+  // Cliente pide crear sala
   socket.on("requestRoomCreation", (data) => {
-    let roomName;
+    const roomName = data.roomName;
 
-    if (!activeRoom) {
-      // Si no hay sala activa, creamos una nueva
-      activeRoom = data.roomName;
-      roomName = activeRoom;
-      console.log(`Sala creada: ${roomName} por ${socket.id}`);
-    } else {
-      // Si ya hay sala activa, el cliente se une a la existente
-      roomName = activeRoom;
-      console.log(`Sala existente: ${roomName}, el cliente se unirá`);
+    if (!rooms[roomName]) {
+      createRoom(roomName);
     }
 
-    console.log(`Solicitud crear sala: ${data.roomName} por ${socket.id}`);
-    socket.emit("confirmRoomCreation", { roomName: data.roomName });
+    socket.emit("confirmRoomCreation", { roomName });
+    console.log(`Solicitud crear sala: ${roomName} por ${socket.id}`);
   });
 
-  // 2) Cliente confirma creación de sala
+  // Cliente crea o se une a una sala
   socket.on("createRoom", (data) => {
-    const room = data.room || activeRoom; // Si viene vacía, usamos la sala activa
+    const room = data.room || data.roomName;
     socket.join(room);
+    if (!rooms[room]) createRoom(room);
 
-    // Inicializamos el estado de la sala si no existe
-    if (!roomStatus[room]) {
-      roomStatus[room] = {
-        results: []
-      };
-    }
-
-    // Emitimos al cliente que ya está en la sala
     socket.emit("roomCreated", { room });
     console.log(`Cliente ${socket.id} unido a la sala ${room}`);
   });
 
-  // Cliente se une a una sala existente
+  // Cliente se une a sala existente
   socket.on("joinRoom", (data) => {
-    const room = data.room;
-    const nickname = data.nickname;
+    try {
+      const { room, nickname } = data;
 
-    socket.join(room);
-    socket.nickname = nickname; // 🔹 Muy importante para disconnect
+      if (!room || !nickname) {
+        socket.emit("error", { message: "Room y nickname son requeridos" });
+        return;
+      }
 
-    // Si la sala no existe, la creamos
-    if (!rooms[room]) {
-      rooms[room] = [];
-    }
+      socket.join(room);
+      socket.nickname = nickname;
+      socket.currentRoom = room; // Para tracking
 
-    // Añadimos el nickname si no está ya
-    if (!rooms[room].includes(nickname)) {
-      rooms[room].push(nickname);
-    }
+      addPlayerToRoom(room, nickname, socket.id);
 
-    console.log(
-      `👥 Cliente ${nickname} (${socket.id}) se ha unido a la sala ${room}`
-    );
+      io.to(room).emit("updateUserList", rooms[room].players);
 
-    // Notificamos a todos los clientes de la sala
-    io.to(room).emit("userJoined", { id: socket.id, room, nickname });
-
-    // Enviamos la lista actualizada a todos los clientes en esa sala
-    io.to(room).emit("updateUserList", rooms[room]);
-
-    // Inicializamos el estado de la sala si no existe
-    if (!roomStatus[room]) {
-      roomStatus[room] = {
-        results: []
-      };
+      // Iniciar timer si hay más de 1 jugador y no está ya iniciado
+      if (rooms[room].players.length > 1 && !timers[room]) {
+        startRoomTimer(room);
+      }
+    } catch (error) {
+      console.error("Error en joinRoom:", error);
+      socket.emit("error", { message: "Error al unirse a la sala" });
     }
   });
 
-  // Recibir resultados del juego
+  // Iniciar timer manualmente (por si el frontend lo solicita)
+  socket.on("startTimer", (data) => {
+    const { room } = data;
+    if (rooms[room] && rooms[room].players.length > 1 && !timers[room]) {
+      startRoomTimer(room);
+    }
+  });
+
+  // Resultados de la partida
   socket.on("gameFinished", (data) => {
     const { room, nickname, wpm, accuracy } = data;
-    
-    if (roomStatus[room]) {
-      // Añadir el resultado a la sala
-      roomStatus[room].results.push({
-        nickname,
-        wpm,
-        accuracy,
-        timestamp: Date.now()
-      });
+    const success = addGameResult(room, nickname, wpm, accuracy);
 
-      // Enviar los resultados actualizados a todos en la sala
-      io.to(room).emit("updateGameResults", roomStatus[room].results);
-      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
+    if (success) {
+      io.to(room).emit("updateGameResults", rooms[room].results);
     }
   });
 
+  // Desconexión
   socket.on("disconnect", () => {
-    for (const [room, userList] of Object.entries(rooms)) {
-      const index = userList.indexOf(socket.nickname);
-      if (index !== -1) {
-        userList.splice(index, 1);
-        io.to(room).emit("updateUserList", userList);
+    removePlayer(socket.id);
+
+    // Actualizar la lista de jugadores en todas las salas
+    for (const [roomId, roomData] of Object.entries(rooms)) {
+      io.to(roomId).emit("updateUserList", roomData.players);
+
+      // Detener timer si quedan menos de 2 jugadores
+      if (roomData.players.length < 2 && timers[roomId]) {
+        stopRoomTimer(roomId);
       }
     }
-    console.log(` Usuario desconectado: ${socket.id}`);
+
+    console.log(`Usuario desconectado: ${socket.id}`);
   });
 });
 
-// Textos
+// -------------------------
+// RUTAS EXPRESS (API REST)
+// -------------------------
+
+// Obtener info de una sala específica
+app.get("/api/rooms/:roomId", (req, res) => {
+  const room = rooms[req.params.roomId];
+  if (!room) {
+    return res.status(404).json({ error: "Sala no encontrada" });
+  }
+  res.json(room);
+});
+
+// Listar todas las salas activas
+app.get("/api/rooms", (req, res) => {
+  res.json(Object.values(rooms));
+});
+
+// Obtener todos los textos
 app.get("/texts", (req, res) => {
   con.query("SELECT * FROM TEXTS", (err, results) => {
     if (err)
@@ -138,6 +261,7 @@ app.get("/texts", (req, res) => {
   });
 });
 
+// Obtener texto por ID
 app.get("/texts/:id", (req, res) => {
   con.query(
     "SELECT * FROM TEXTS WHERE ID = ?",
@@ -150,7 +274,7 @@ app.get("/texts/:id", (req, res) => {
   );
 });
 
-// Palabras
+// Obtener palabra aleatoria por idioma
 app.get("/words/:language", (req, res) => {
   const { language } = req.params;
   con.query(
@@ -170,7 +294,15 @@ app.get("/words/:language", (req, res) => {
   );
 });
 
-// Iniciar servidor
+// -----------------
+// INICIAR SERVIDOR
+// -----------------
 server.listen(PORT, () => {
-  console.log(`Servidor Socket.io corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor Socket.IO corriendo en http://localhost:${PORT}`);
+  console.log(`Rutas API disponibles:`);
+  console.log(`  GET /api/rooms - Listar todas las salas activas`);
+  console.log(`  GET /api/rooms/:roomId - Info de una sala específica`);
+  console.log(`  GET /texts - Todos los textos de la BD`);
+  console.log(`  GET /texts/:id - Texto específico por ID`);
+  console.log(`  GET /words/:language - Palabra aleatoria por idioma`);
 });
