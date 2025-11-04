@@ -100,10 +100,9 @@ const router = useRouter();
 const user = useUserStore();
 const players = ref([]);
 
-const seconds = ref(20); // duración del temporizador
-const totalTime = 20; // tiempo total del temporizador
+const seconds = ref(0); // Se actualiza desde el servidor
+const maxSeconds = ref(20); // Valor máximo para cálculos visuales
 const isTimerActive = ref(false); // Control del timer
-let timer = null;
 
 // Cuando el componente se monta
 onMounted(() => {
@@ -144,6 +143,11 @@ onMounted(() => {
     seconds.value = data.seconds;
     isTimerActive.value = data.isActive;
 
+    // Actualizar el valor máximo si es mayor que el actual
+    if (data.seconds > maxSeconds.value) {
+      maxSeconds.value = data.seconds;
+    }
+
     if (data.seconds === 0) {
       router.push("/play");
     }
@@ -156,8 +160,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (timer) clearInterval(timer);
-
   // Limpiar listeners específicos del lobby para evitar conflictos
   socket.off("updateUserList");
   socket.off("timerUpdate");
@@ -170,7 +172,7 @@ onUnmounted(() => {
 const radius = 45;
 const circumference = 2 * Math.PI * radius;
 const dashOffset = computed(() => {
-  const progress = seconds.value / totalTime;
+  const progress = seconds.value / maxSeconds.value;
   return circumference * (1 - progress);
 });
 
@@ -179,7 +181,6 @@ function startSynchronizedTimer() {
   if (isTimerActive.value) return; // Evitar múltiples timers
 
   isTimerActive.value = true;
-  seconds.value = totalTime;
 
   // Notificar al servidor que inicie el timer
   socket.emit("startTimer", { room: "main-room" });
@@ -187,11 +188,7 @@ function startSynchronizedTimer() {
 
 function stopTimer() {
   isTimerActive.value = false;
-  seconds.value = totalTime;
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
+  seconds.value = maxSeconds.value;
 }
 
 function startCountDown() {

@@ -1,5 +1,5 @@
 import express from "express";
-import http from "http";
+import http from "node:http";
 import { Server } from "socket.io";
 import { con } from "./db.js";
 import dotenv from "dotenv";
@@ -32,6 +32,7 @@ app.get("/", (req, res) => {
 // Guardará todas las salas y su estado
 const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
 const timers = {}; // Para manejar timers por sala
+const TIMER_DURATION = 20; // Duración del timer en segundos
 
 // Función: crear sala
 function createRoom(roomId) {
@@ -103,7 +104,7 @@ function startRoomTimer(roomId) {
     clearInterval(timers[roomId]);
   }
 
-  let seconds = 10;
+  let seconds = TIMER_DURATION; // Usar la constante
 
   // Emitir estado inicial del timer
   io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
@@ -136,7 +137,10 @@ function stopRoomTimer(roomId) {
   if (timers[roomId]) {
     clearInterval(timers[roomId]);
     delete timers[roomId];
-    io.to(roomId).emit("timerUpdate", { seconds: 10, isActive: false });
+    io.to(roomId).emit("timerUpdate", {
+      seconds: TIMER_DURATION,
+      isActive: false,
+    }); // Usar la constante
     console.log(`Timer detenido para sala ${roomId}`);
   }
 }
