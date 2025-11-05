@@ -13,3 +13,5 @@ export function integratePosition(pos, speed, dtSec, trackLen = 100) {
   const next = (pos || 0) + (speed || 0) * (dtSec || 0);
   return Math.min(Math.max(0, next), trackLen);
 }
+
+//to check
