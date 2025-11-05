@@ -52,17 +52,6 @@
       </div>
     </section>
 
-    <section v-if="raceState.length" class="race-progress">
-      <h3>Race progress</h3>
-      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
-        <span>{{ p.nickname }}</span>
-        <div class="bar-container">
-          <div class="bar" :style="{ width: p.position + '%' }"></div>
-        </div>
-        <small>{{ p.position.toFixed(0) }}%</small>
-      </div>
-    </section>
-
     <footer class="actions">
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
@@ -71,14 +60,12 @@
 </template>
 
 <script setup>
-const ROOM = "main-room"; // TODO: replace with actual room id later niggers
 import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { getText } from "@/services/communicationManager.js";
 import { io } from "socket.io-client";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-import { calcPlayerSpeed } from "@/../shared/speed.js";
 
 const socket = io("http://localhost:3000");
 
@@ -93,13 +80,6 @@ const loading = ref(true);
 const error = ref(null);
 const gameResults = ref([]);
 const targetChars = computed(() => Array.from(target.value));
-
-// race state from server
-const raceState = ref([])
-
-socket.on('race:update', (snapshot) => {
-  raceState.value = snapshot || []
-})
 
 async function pickRandomText() {
   try {
@@ -202,24 +182,6 @@ function charClass(i) {
   return "char untouched";
 }
 
-//race progression
-let lastEmit = 0;
-const EMIT_MS = 250;
-
-function emitProgressThrottled() {
-  const now = performance.now();
-  if (now - lastEmit < EMIT_MS) return;
-  lastEmit = now;
-  const speed = calcPlayerSpeed(wpm.value);
-  socket.emit("typing:progress", {
-    room: ROOM,
-    nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed
-  });
-}
-
 //INPUT HANDLERS
 function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
@@ -229,25 +191,12 @@ function onInput() {
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
-
-  // Calculate speed locally (using shared formula)
-  const speed = calcPlayerSpeed(wpm.value);
-
-  // Emit live typing progress to backend
-  socket.emit("typing:progress", {
-    room: ROOM, // use dynamic room later
-    nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed
-  });
-
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
 
     // Enviar resultados al servidor
     socket.emit("gameFinished", {
-      room: ROOM, // o la sala actual si tienes múltiples salas
+      room: "main-room", // o la sala actual si tienes múltiples salas
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
@@ -280,9 +229,6 @@ async function nextText() {
 // MOUNT
 onMounted(async () => {
   // Escuchar actualizaciones de resultados
-  socket.on("connect", () => {
-    socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
-  });
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
     console.log(" Resultados actualizados:", results);
@@ -291,16 +237,16 @@ onMounted(async () => {
   await pickRandomText();
   await nextTick();
 
-  if (!target.value) {
+  if (target) {
+    loading.value = false;
+    focusInput();
+  } else {
     const interval = setInterval(() => {
       if (target.value) {
         clearInterval(interval);
         focusInput();
       }
     }, 100);
-  } else {
-    loading.value = false;
-    focusInput();
   }
 });
 
@@ -323,29 +269,6 @@ watch(
 
 <style scoped>
 /* Layout */
-
-.race-progress {
-  margin-top: 1.5rem;
-}
-.progress-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-.bar-container {
-  flex: 1;
-  background: #e5e7eb;
-  border-radius: 4px;
-  height: 10px;
-  overflow: hidden;
-}
-.bar {
-  background: #2563eb;
-  height: 100%;
-  transition: width 0.1s linear;
-}
-
 .typing-page {
   max-width: 900px;
   margin: 0 auto;
