@@ -13,7 +13,7 @@
       <!-- Estados de carga y error -->
       <div v-if="loading" class="status-message loading">Cargando texto...</div>
       <div v-else-if="error" class="status-message error">{{ error }}</div>
-      
+
       <!-- Contenido del texto -->
       <div v-else class="text-wrapper" ref="textWrapper">
         <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
@@ -24,16 +24,20 @@
       </div>
 
       <!-- hidden input to capture keyboard, mobile-friendly -->
-      <textarea
-        ref="hiddenInput"
-        v-model="userInput"
-        class="hidden-input"
-        @input="onInput"
-        @keydown="onKeydown"
-        @paste.prevent
-        :maxlength="target.length"
-        aria-label="Typing input"
-      ></textarea>
+      <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
+        @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
+    </section>
+
+    <!-- Mostrar jugadores de la sala -->
+    <section v-if="participants.length > 0" class="participants-section">
+      <h3>Jugadores en la sala:</h3>
+      <div class="results-grid">
+        <div v-for="nick in participants" :key="nick" class="result-card">
+          <strong>{{ nick }}</strong>
+          <div>WPM: {{ findResult(nick)?.wpm ?? '-' }}</div>
+          <div>Precisión: {{ findResult(nick)?.accuracy ?? '-' }}%</div>
+        </div>
+      </div>
     </section>
 
     <!-- Mostrar resultados si hay -->
@@ -52,6 +56,7 @@
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
+    <Keyboard />
   </main>
 </template>
 
@@ -59,12 +64,12 @@
 import { ref, computed, watch, onMounted, nextTick } from "vue";
 //import { getText } from "@/communicationManager.js";
 import { getText } from "@/services/communicationManager.js";
-import { io } from "socket.io-client";
+import { socket } from "@/services/socket";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
+import Keyboard from "@/components/Keyboard.vue";
 
-const socket = io("http://localhost:3000");
 
 const router = useRouter();
 const user = useUserStore();
@@ -76,6 +81,7 @@ const target = ref("");
 const loading = ref(true);
 const error = ref(null);
 const gameResults = ref([]);
+const participants = ref([]); // <-- nueva ref para participantes
 const targetChars = computed(() => Array.from(target.value));
 
 async function pickRandomText() {
@@ -95,7 +101,7 @@ async function pickRandomText() {
     console.error("Error cargando texto:", err);
     error.value = "Error al cargar el texto. ¿Está el servidor funcionando?";
   }
-  finally{
+  finally {
     loading.value = false;
   }
 }
@@ -192,7 +198,7 @@ function onInput() {
   }
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
-    
+
     // Enviar resultados al servidor
     socket.emit("gameFinished", {
       room: "main-room", // o la sala actual si tienes múltiples salas
@@ -233,18 +239,27 @@ onMounted(async () => {
     console.log(" Resultados actualizados:", results);
   });
 
+  // Escuchar lista de usuarios en la sala
+  socket.on("updateUserList", (list) => {
+    participants.value = list || [];
+    console.log(" Lista de usuarios actualizada:", participants.value);
+  });
+
+  // Unirnos a la sala principal (asegúrate que coincide con la sala del servidor)
+  socket.emit("joinRoom", { room: "main-room", nickname: user.nickname });
+
   await pickRandomText();
   await nextTick();
 
-  if(!target){
+  if (!target) {
     const interval = setInterval(() => {
-      if(target.value){
+      if (target.value) {
         clearInterval(interval);
         focusInput();
       }
-    },100);
+    }, 100);
 
-  }else{
+  } else {
     loading.value = false;
     focusInput();
   }
@@ -267,6 +282,11 @@ watch(
     await nextTick(); // Esperar a que el DOM se actualice
   }
 );
+
+// utility para buscar resultado por nickname
+function findResult(nick) {
+  return gameResults.value.find((r) => r.nickname === nick);
+}
 </script>
 
 <style scoped>
@@ -276,6 +296,7 @@ watch(
   margin: 0 auto;
   padding: 1.25rem;
 }
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -283,10 +304,12 @@ watch(
   gap: 1rem;
   margin-bottom: 1rem;
 }
+
 .topbar h1 {
   margin: 0;
   font-size: 1.5rem;
 }
+
 .stats {
   display: flex;
   gap: 1rem;
@@ -302,13 +325,18 @@ watch(
   min-height: 180px;
   line-height: 1.6;
   font-size: 1.05rem;
-  background: #0f172a0d; /* subtle slate */
+  background: #0f172a0d;
+  /* subtle slate */
   cursor: text;
-  user-select: none; /* so clicks focus input */
+  user-select: none;
+  /* so clicks focus input */
 }
+
 .text-wrapper {
-  position: relative; /* Para que el caret se posicione relativo a este contenedor */
-  color: #6b7280; /* base (darkened) text */
+  position: relative;
+  /* Para que el caret se posicione relativo a este contenedor */
+  color: #6b7280;
+  /* base (darkened) text */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
@@ -323,7 +351,7 @@ watch(
 
 .loading {
   color: #2563eb;
-}  
+}
 
 .error {
   color: #dc2626;
@@ -333,20 +361,26 @@ watch(
 .char {
   position: relative;
 }
+
 .untouched {
   opacity: 0.65;
 }
+
 .correct {
   color: #10b981;
-} /* emerald */
+}
+
+/* emerald */
 .wrong {
   color: #e81c1c;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
+
 .current {
-  color: #111827; /* brighten current slot slightly */
+  color: #111827;
+  /* brighten current slot slightly */
 }
 
 /* blinking caret positioned dynamically */
@@ -359,6 +393,7 @@ watch(
   z-index: 1;
   animation: blink 0.5s steps(2, start) infinite;
 }
+
 @keyframes blink {
   50% {
     opacity: 0;
@@ -375,7 +410,8 @@ watch(
   border: none;
   resize: none;
   cursor: text;
-  caret-color: #111827; /* so the native caret still exists for accessibility */
+  caret-color: #111827;
+  /* so the native caret still exists for accessibility */
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
@@ -389,6 +425,7 @@ watch(
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
 .btn {
   padding: 0.5rem 0.9rem;
   border-radius: 8px;
@@ -396,6 +433,7 @@ watch(
   background: white;
   cursor: pointer;
 }
+
 .btn:hover {
   background: #f3f4f6;
 }
@@ -405,6 +443,12 @@ watch(
   padding: 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
+}
+
+/* Reuso la misma grid para participantes */
+.participants-section {
+  margin: 1.5rem 0;
+  padding: 0.5rem 0;
 }
 
 .results-grid {

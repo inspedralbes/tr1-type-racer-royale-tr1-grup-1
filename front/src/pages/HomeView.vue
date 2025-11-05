@@ -6,54 +6,61 @@
         Giga Racer Royale Pro Max Deluxe
       </h1>
 
-      <p
-        v-if="route.query.needNick"
-        class="rounded-md"
-        style="
+      <p v-if="route.query.needNick" class="rounded-md" style="
           background: #fef2f2;
           border: 1px solid #fecaca;
           color: #991b1b;
           padding: 0.5rem 0.75rem;
           font-size: 0.9rem;
-        "
-      >
+        ">
         Please enter a nickname before joining.
       </p>
 
       <label class="block">
         <span style="font-size: 0.9rem; color: #374151">Nickname</span>
-        <input
-          v-model.trim="nick"
-          type="text"
-          placeholder="Your nickname"
-          @keyup.enter="join"
-          autofocus
-          style="
+        <input v-model.trim="nick" type="text" placeholder="Your nickname" @keyup.enter="join" autofocus style="
             margin-top: 0.25rem;
             width: 100%;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             padding: 0.5rem 0.75rem;
-          "
-        />
+          " />
       </label>
+      <div>
+        <h2 class="text-xl font-semibold">Salas disponibles</h2>
 
-      <button
-        :disabled="!nick"
-        @click="join"
-        style="
+        <div v-if="rooms.length === 0" class="text-sm text-gray-500">No hay salas disponibles.</div>
+
+        <ul v-else class="space-y-3 mt-3">
+          <li v-for="room in rooms" :key="room.name" class="p-3 border rounded-md flex items-center justify-between">
+            <div>
+              <div class="font-medium">{{ room.name }}</div>
+              <div class="text-sm text-gray-500">
+                Jugadores: {{ room.players ? room.players.length : (room.playerCount ?? 0) }}
+                · Estado: {{ room.status || 'waiting' }}
+              </div>
+            </div>
+
+            <div>
+              <button class="px-3 py-1 rounded-md bg-blue-600 text-white disabled:opacity-50" :disabled="!nick"
+                @click="user.setNickname(nick); socket.emit('joinRoom', { roomName: room.name, nickname: user.nickname })">
+                Unirse
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <button @click="router.push('/createRoom')" style="
           width: 100%;
           border-radius: 0.5rem;
           padding: 0.5rem 0.75rem;
-          color: white;
-          background: #2563eb;
-          opacity: 1;
-        "
-        :style="!nick ? 'opacity:.5;cursor:not-allowed;' : ''"
-      >
-        Join
-      </button>
-    </div>
+          color: #2563eb;
+          background: white;
+          border: 1px solid #2563eb;
+        ">
+      CreateRoom
+    </button>
   </main>
 </template>
 
@@ -61,12 +68,12 @@
 import { ref, watchEffect } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client";
-const socket = io("http://localhost:3000");
+import { socket } from "@/services/socket";
 
 const router = useRouter();
 const route = useRoute();
 const user = useUserStore();
+const rooms = ref([]);
 
 const nick = ref(user.nickname);
 
@@ -77,11 +84,17 @@ watchEffect(() => {
   }
 });
 
+socket.on("roomList", (data) => {
+  console.log("Salas disponibles:", data.rooms);
+  rooms.value = data.rooms;
+});
+
+
 function join() {
   if (!nick.value?.trim()) return;
   user.setNickname(nick.value);
 
-    // Emitimos la petición de crear sala
+  // Emitimos la petición de crear sala
   socket.emit("requestRoomCreation", { roomName: "defaultRoom" });
 
   // Escuchamos la confirmación del servidor
@@ -96,8 +109,9 @@ function join() {
   socket.on("roomCreated", (data) => {
     console.log("Sala creada o unida:", data.room);
 
-  // go back where they intended, else /lobby
-  const redirectTo = route.query.redirectTo || '/lobby';
-  router.push(redirectTo)
-  });}
+    // go back where they intended, else /lobby
+    const redirectTo = route.query.redirectTo || '/lobby';
+    router.push(redirectTo)
+  });
+}
 </script>

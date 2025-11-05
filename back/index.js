@@ -20,64 +20,76 @@ app.get("/", (req, res) => {
 });
 
 let activeRoom = null;
+// ahora cada rooms[roomName] será un objeto { info: {roomName, language, difficulty, userName}, users: [] }
 const rooms = {};
-const roomStatus = {};  // Almacenará los resultados de cada sala
+const roomStatus = {}; // Almacenará los resultados de cada sala
 
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
   // 1) Cliente solicita crear sala
-  socket.on("requestRoomCreation", (data) => {
-    let roomName;
-
-    if (!activeRoom) {
-      // Si no hay sala activa, creamos una nueva
-      activeRoom = data.roomName;
-      roomName = activeRoom;
-      console.log(`Sala creada: ${roomName} por ${socket.id}`);
-    } else {
-      // Si ya hay sala activa, el cliente se une a la existente
-      roomName = activeRoom;
-      console.log(`Sala existente: ${roomName}, el cliente se unirá`);
-    }
-
-    console.log(`Solicitud crear sala: ${data.roomName} por ${socket.id}`);
-    socket.emit("confirmRoomCreation", { roomName: data.roomName });
-  });
-
   // 2) Cliente confirma creación de sala
   socket.on("createRoom", (data) => {
-    const room = data.room || activeRoom; // Si viene vacía, usamos la sala activa
-    socket.join(room);
+    // Si no viene room, usamos activeRoom; si tampoco hay, creamos una con id de socket
+    const room = data;
 
-    // Inicializamos el estado de la sala si no existe
-    if (!roomStatus[room]) {
-      roomStatus[room] = {
-        results: []
-      };
+    if (
+      !data.roomName ||
+      !data.language ||
+      !data.difficulty ||
+      !data.userName
+    ) {
+      socket.emit("roomNotCreated", {
+        status: "failed",
+        message: "ERROR",
+      });
+      return;
     }
 
-    // Emitimos al cliente que ya está en la sala
-    socket.emit("roomCreated", { room });
-    console.log(`Cliente ${socket.id} unido a la sala ${room}`);
+    // Comprobar si ya existe una sala con ese nombre
+    if (rooms[data.roomName]) {
+      socket.emit("roomNotCreated", {
+        status: "failed",
+        message: "Existent ROOM",
+      });
+      return;
+    }
+
+    // Aseguramos que la sala esté inicializada como objeto en rooms
+    rooms[data.roomName] = {
+      roomName: data.roomName,
+      language: data.language,
+      difficulty: data.difficulty,
+      players: [],
+      status: "waiting",
+    };
+
+    socket.join(rooms[data.roomName].roomName);
+
+    // Inicializamos el estado del juego de la sala si no existe
+    if (!roomStatus[room]) {
+      roomStatus[room] = {
+        results: [],
+      };
+    }
+    console.log(rooms[room]);
+
+    // Emitimos al cliente que ya está en la sala (y devolvemos info)
+    socket.emit("roomCreated", { rooms });
   });
 
   // Cliente se une a una sala existente
   socket.on("joinRoom", (data) => {
-    const room = data.room;
+    const roomName = data.roomName;
     const nickname = data.nickname;
 
-    socket.join(room);
+    socket.join(roomName);
     socket.nickname = nickname; // 🔹 Muy importante para disconnect
 
-    // Si la sala no existe, la creamos
-    if (!rooms[room]) {
-      rooms[room] = [];
-    }
-
+    console.log(rooms[roomName]);
     // Añadimos el nickname si no está ya
-    if (!rooms[room].includes(nickname)) {
-      rooms[room].push(nickname);
+    if (!rooms[roomName].players.includes(nickname)) {
+      rooms[roomName].players.push(nickname);
     }
 
     console.log(
@@ -85,15 +97,18 @@ io.on("connection", (socket) => {
     );
 
     // Notificamos a todos los clientes de la sala
-    io.to(room).emit("userJoined", { id: socket.id, room, nickname });
+    io.to(roomName).emit("userJoined", { id: socket.id, roomName, nickname });
 
     // Enviamos la lista actualizada a todos los clientes en esa sala
-    io.to(room).emit("updateUserList", rooms[room]);
+    io.to(roomName).emit("updateUserList", rooms[roomName].players);
+
+    // Enviamos la info de la sala también (opcional)
+    io.to(roomName).emit("roomInfo", rooms[roomName]);
 
     // Inicializamos el estado de la sala si no existe
     if (!roomStatus[room]) {
       roomStatus[room] = {
-        results: []
+        results: [],
       };
     }
   });
@@ -101,14 +116,14 @@ io.on("connection", (socket) => {
   // Recibir resultados del juego
   socket.on("gameFinished", (data) => {
     const { room, nickname, wpm, accuracy } = data;
-    
+
     if (roomStatus[room]) {
       // Añadir el resultado a la sala
       roomStatus[room].results.push({
         nickname,
         wpm,
         accuracy,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // Enviar los resultados actualizados a todos en la sala
@@ -118,11 +133,21 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    for (const [room, userList] of Object.entries(rooms)) {
+    for (const [room, roomObj] of Object.entries(rooms)) {
+      // roomObj debe ser { info: {...}, users: [...] }
+      if (!roomObj || !Array.isArray(roomObj.users)) continue;
+
+      const userList = roomObj.users;
       const index = userList.indexOf(socket.nickname);
       if (index !== -1) {
         userList.splice(index, 1);
         io.to(room).emit("updateUserList", userList);
+      }
+
+      // Si la sala queda vacía, la limpiamos
+      if (userList.length === 0) {
+        delete rooms[room];
+        delete roomStatus[room];
       }
     }
     console.log(` Usuario desconectado: ${socket.id}`);
