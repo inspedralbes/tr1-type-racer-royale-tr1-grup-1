@@ -5,6 +5,9 @@ import { con } from "./db.js";
 import dotenv from "dotenv";
 import cors from "cors";
 
+// NEW: shared speed helpers
+import { calcPlayerSpeed, integratePosition } from "./shared/speed.js";
+
 dotenv.config();
 
 // ------------------------------------
@@ -25,125 +28,43 @@ app.get("/", (req, res) => {
   res.json({ message: "Hola mundo desde GET /" });
 });
 
-// -------------------------------
-// ESTRUCTURA DE DATOS DEL JUEGO
-// -------------------------------
+let activeRoom = null;
+const rooms = {};
+const roomStatus = {};  // resultados por sala
 
-// Guardará todas las salas y su estado
-const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
-const timers = {}; // Para manejar timers por sala
+// NEW: server-authoritative race state
+// room -> Map(socketId -> { id, nickname, wpm, accuracy, speed, position })
+const racePlayers = new Map(); 
+const TRACK_LEN = 100;   // treat as percentage (0..100)
+const TICK_MS = 100;     // 10 Hz
 
-// Función: crear sala
-function createRoom(roomId) {
-  rooms[roomId] = {
-    id: roomId,
-    players: [],
-    status: "waiting", // waiting | playing | finished
-    results: [],
-  };
-  console.log(`Sala creada: ${roomId}`);
+// helper: return snapshot for a room
+function roomSnapshot(room) {
+  const map = racePlayers.get(room);
+  if (!map) return [];
+  return Array.from(map.values()).map(p => ({
+    nickname: p.nickname,
+    wpm: Math.round(p.wpm || 0),
+    accuracy: Math.round(p.accuracy || 0),
+    speed: Number((p.speed || 0).toFixed(2)),
+    position: Number((p.position || 0).toFixed(1)),
+  }));
 }
 
-// Función: añadir jugador a una sala
-function addPlayerToRoom(roomId, nickname, socketId) {
-  if (!rooms[roomId]) createRoom(roomId);
-
-  const exists = rooms[roomId].players.find((p) => p.nickname === nickname);
-  if (!exists) {
-    rooms[roomId].players.push({
-      id: socketId,
-      nickname,
-      wpm: 0,
-      accuracy: 0,
-      isAlive: true,
-    });
-  }
-
-  console.log(`${nickname} se ha unido a la sala ${roomId}`);
-}
-
-// Función: eliminar jugador al desconectarse
-function removePlayer(socketId) {
-  for (const [roomId, room] of Object.entries(rooms)) {
-    room.players = room.players.filter((p) => p.id !== socketId);
-
-    // Eliminar room si está vacía
-    if (room.players.length === 0) {
-      delete rooms[roomId];
-      console.log(`Sala ${roomId} eliminada (sin jugadores)`);
+// NEW: tick loop — integrates positions and broadcasts
+setInterval(() => {
+  const now = Date.now();
+  // iterate all rooms that have race state
+  for (const [room, map] of racePlayers.entries()) {
+    // integrate movement for all players in the room
+    for (const p of map.values()) {
+      p.speed = calcPlayerSpeed(p.wpm);
+      // dt from last tick is effectively TICK_MS/1000 here; that’s good enough
+      p.position = integratePosition(p.position, p.speed, TICK_MS / 1000, TRACK_LEN);
     }
+    io.to(room).emit("race:update", roomSnapshot(room));
   }
-  console.log(`Jugador desconectado eliminado: ${socketId}`);
-}
-
-// Función: guardar resultados
-// Función: guardar resultados
-function addGameResult(roomId, nickname, wpm, accuracy) {
-  if (!rooms[roomId]) {
-    console.log(`Error: Sala ${roomId} no existe`);
-    return false;
-  }
-
-  rooms[roomId].results.push({
-    nickname,
-    wpm: Number(wpm),
-    accuracy: Number(accuracy),
-    timestamp: Date.now(),
-  });
-
-  console.log(
-    `Resultado añadido en ${roomId}: ${nickname} (${wpm} WPM, ${accuracy}%)`
-  );
-  return true;
-}
-
-// Función: iniciar timer sincronizado para una sala
-function startRoomTimer(roomId) {
-  if (timers[roomId]) {
-    clearInterval(timers[roomId]);
-  }
-
-  let seconds = 10;
-
-  // Emitir estado inicial del timer
-  io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
-
-  timers[roomId] = setInterval(() => {
-    seconds--;
-
-    if (seconds > 0) {
-      io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
-    } else {
-      // Timer terminado
-      io.to(roomId).emit("timerUpdate", { seconds: 0, isActive: false });
-      clearInterval(timers[roomId]);
-      delete timers[roomId];
-
-      // Cambiar estado de la sala a "playing"
-      if (rooms[roomId]) {
-        rooms[roomId].status = "playing";
-      }
-
-      console.log(`Timer terminado para sala ${roomId}. Iniciando juego.`);
-    }
-  }, 1000);
-
-  console.log(`Timer iniciado para sala ${roomId}`);
-}
-
-// Función: detener timer de una sala
-function stopRoomTimer(roomId) {
-  if (timers[roomId]) {
-    clearInterval(timers[roomId]);
-    delete timers[roomId];
-    io.to(roomId).emit("timerUpdate", { seconds: 10, isActive: false });
-    console.log(`Timer detenido para sala ${roomId}`);
-  }
-}
-
-// -----------------------------------
-// SOCKET.IO - EVENTOS EN TIEMPO REAL
-// -----------------------------------
+}, TICK_MS);
 
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
@@ -152,8 +73,13 @@ io.on("connection", (socket) => {
   socket.on("requestRoomCreation", (data) => {
     const roomName = data.roomName;
 
-    if (!rooms[roomName]) {
-      createRoom(roomName);
+    if (!activeRoom) {
+      activeRoom = data.roomName;
+      roomName = activeRoom;
+      console.log(`Sala creada: ${roomName} por ${socket.id}`);
+    } else {
+      roomName = activeRoom;
+      console.log(`Sala existente: ${roomName}, el cliente se unirá`);
     }
 
     socket.emit("confirmRoomCreation", { roomName });
@@ -162,9 +88,14 @@ io.on("connection", (socket) => {
 
   // Cliente crea o se une a una sala
   socket.on("createRoom", (data) => {
-    const room = data.room || data.roomName;
+    const room = data.room || activeRoom;
     socket.join(room);
     if (!rooms[room]) createRoom(room);
+
+    if (!roomStatus[room]) roomStatus[room] = { results: [] };
+
+    // NEW: init race state map for the room
+    if (!racePlayers.has(room)) racePlayers.set(room, new Map());
 
     socket.emit("roomCreated", { room });
     console.log(`Cliente ${socket.id} unido a la sala ${room}`);
@@ -175,27 +106,46 @@ io.on("connection", (socket) => {
     try {
       const { room, nickname } = data;
 
-      if (!room || !nickname) {
-        socket.emit("error", { message: "Room y nickname son requeridos" });
-        return;
-      }
+    socket.join(room);
+    socket.nickname = nickname; // para disconnect
 
-      socket.join(room);
-      socket.nickname = nickname;
-      socket.currentRoom = room; // Para tracking
+    if (!rooms[room]) rooms[room] = [];
+    if (!rooms[room].includes(nickname)) rooms[room].push(nickname);
 
-      addPlayerToRoom(room, nickname, socket.id);
+    console.log(`👥 Cliente ${nickname} (${socket.id}) se ha unido a la sala ${room}`);
 
-      io.to(room).emit("updateUserList", rooms[room].players);
+    io.to(room).emit("userJoined", { id: socket.id, room, nickname });
+    io.to(room).emit("updateUserList", rooms[room]);
 
-      // Iniciar timer si hay más de 1 jugador y no está ya iniciado
-      if (rooms[room].players.length > 1 && !timers[room]) {
-        startRoomTimer(room);
-      }
-    } catch (error) {
-      console.error("Error en joinRoom:", error);
-      socket.emit("error", { message: "Error al unirse a la sala" });
-    }
+    if (!roomStatus[room]) roomStatus[room] = { results: [] };
+
+    // NEW: also add to the race state for this room
+    if (!racePlayers.has(room)) racePlayers.set(room, new Map());
+    const map = racePlayers.get(room);
+    map.set(socket.id, {
+      id: socket.id,
+      nickname,
+      wpm: 0,
+      accuracy: 100,
+      speed: 0,
+      position: 0,
+    });
+
+    // send an immediate snapshot so new player sees current positions
+    io.to(room).emit("race:update", roomSnapshot(room));
+  });
+
+  // NEW: live typing progress (from PlayView)
+  // { room, nickname, wpm, accuracy, percent, ts }
+  socket.on("typing:progress", ({ room, wpm, accuracy }) => {
+    const map = racePlayers.get(room);
+    if (!map) return;
+    const p = map.get(socket.id);
+    if (!p) return;
+
+    p.wpm = Number(wpm) || 0;
+    p.accuracy = Number(accuracy) || 0;
+    // position is integrated in the tick loop
   });
 
   // Iniciar timer manualmente (por si el frontend lo solicita)
@@ -209,10 +159,29 @@ io.on("connection", (socket) => {
   // Resultados de la partida
   socket.on("gameFinished", (data) => {
     const { room, nickname, wpm, accuracy } = data;
-    const success = addGameResult(room, nickname, wpm, accuracy);
 
-    if (success) {
-      io.to(room).emit("updateGameResults", rooms[room].results);
+    // snap to finish line in race state
+    const map = racePlayers.get(room);
+    if (map) {
+      const p = map.get(socket.id);
+      if (p) {
+        p.wpm = Number(wpm) || 0;
+        p.accuracy = Number(accuracy) || 0;
+        p.position = TRACK_LEN;
+      }
+    }
+
+    if (roomStatus[room]) {
+      roomStatus[room].results.push({
+        nickname,
+        wpm,
+        accuracy,
+        timestamp: Date.now()
+      });
+      io.to(room).emit("updateGameResults", roomStatus[room].results);
+      // also push a fresh race snapshot
+      io.to(room).emit("race:update", roomSnapshot(room));
+      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
     }
   });
 
@@ -227,6 +196,12 @@ io.on("connection", (socket) => {
       // Detener timer si quedan menos de 2 jugadores
       if (roomData.players.length < 2 && timers[roomId]) {
         stopRoomTimer(roomId);
+      }
+      // NEW: remove from race state
+      const map = racePlayers.get(room);
+      if (map && map.has(socket.id)) {
+        map.delete(socket.id);
+        io.to(room).emit("race:update", roomSnapshot(room));
       }
     }
 
