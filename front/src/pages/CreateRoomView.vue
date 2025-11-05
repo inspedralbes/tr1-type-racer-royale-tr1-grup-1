@@ -85,7 +85,7 @@ function onSubmit() {
     socket.once('roomCreated', (data) => {
         console.log('✅ Room creada con éxito:', data);
         socket.emit("joinRoom", {
-            room: data.roomName,
+            roomName: data.roomName,
             nickname: data.nickname,
         });
         socket.on("userJoined", (data) => {

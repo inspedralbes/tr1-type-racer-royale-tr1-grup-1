@@ -83,6 +83,8 @@ io.on("connection", (socket) => {
     const roomName = data.roomName;
     const nickname = data.nickname;
 
+    console.log(roomName, nickname);
+
     socket.join(roomName);
     socket.nickname = nickname; // 🔹 Muy importante para disconnect
 
@@ -93,7 +95,7 @@ io.on("connection", (socket) => {
     }
 
     console.log(
-      `👥 Cliente ${nickname} (${socket.id}) se ha unido a la sala ${room}`
+      `👥 Cliente ${nickname} (${socket.id}) se ha unido a la sala ${roomName}`
     );
 
     // Notificamos a todos los clientes de la sala
