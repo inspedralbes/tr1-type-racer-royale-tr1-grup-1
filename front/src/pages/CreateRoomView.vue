@@ -38,8 +38,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { socket } from '@/services/socket'
+import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
 const router = useRouter();
+const user = useUserStore();
 
 const languages = ['es', 'ca', 'en']
 const difficulties = ['facil', 'intermig', 'dificil']
@@ -77,6 +79,8 @@ function onSubmit() {
         userName: userName.value.trim()
     }
 
+    user.setNickname(userName.value.trim());
+
     console.log('🚀 Creando room con datos:', payload);
 
     // Emitir evento 'create-room' y aceptar un ack (si el servidor lo soporta)
@@ -85,13 +89,17 @@ function onSubmit() {
     socket.once('roomCreated', (data) => {
         console.log('✅ Room creada con éxito:', data);
         socket.emit("joinRoom", {
-            roomName: data.roomName,
-            nickname: data.nickname,
+            id: socket.id,
+            roomName: payload.roomName,
+            nickname: payload.userName,
+            master: true
         });
         socket.on("userJoined", (data) => {
-            console.log(`➡️ ${data.id} se ha unido a ${data.room}`);
-            const redirectTo = router.currentRoute.value.query.redirectTo || '/lobby';
-            router.push(redirectTo);
+            if (data.id === socket.id) {
+                console.log(`➡️ ${data.id} se ha unido a ${data.roomName}`);
+                console.log('Redirigiendo a /lobby');
+                router.push('/lobby');
+            }
         });
     });
 

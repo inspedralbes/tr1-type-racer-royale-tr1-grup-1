@@ -245,8 +245,8 @@ onMounted(async () => {
     console.log(" Lista de usuarios actualizada:", participants.value);
   });
 
-  // Unirnos a la sala principal (asegúrate que coincide con la sala del servidor)
-  socket.emit("joinRoom", { room: "main-room", nickname: user.nickname });
+  // // Unirnos a la sala principal (asegúrate que coincide con la sala del servidor)
+  // socket.emit("joinRoom", { room: "main-room", nickname: user.nickname });
 
   await pickRandomText();
   await nextTick();

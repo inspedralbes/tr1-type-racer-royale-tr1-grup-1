@@ -28,7 +28,6 @@ onUnmounted(() => {
 })
 
 function handleKeyDown(event) {
-    teclaPremuda = String(event.key).toUpperCase();
     const key = String(event.key).toUpperCase();
     // evita reenvío continuo si la tecla se mantiene pulsada
     if (teclaPremuda.value !== key) {

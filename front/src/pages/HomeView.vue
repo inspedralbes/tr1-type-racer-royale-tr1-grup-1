@@ -32,18 +32,20 @@
         <div v-if="rooms.length === 0" class="text-sm text-gray-500">No hay salas disponibles.</div>
 
         <ul v-else class="space-y-3 mt-3">
-          <li v-for="room in rooms" :key="room.name" class="p-3 border rounded-md flex items-center justify-between">
+          <li v-for="room in rooms" :key="room.roomName"
+            class="p-3 border rounded-md flex items-center justify-between">
             <div>
-              <div class="font-medium">{{ room.name }}</div>
+              <div class="font-medium">{{ room.roomName }}</div>
               <div class="text-sm text-gray-500">
                 Jugadores: {{ room.players ? room.players.length : (room.playerCount ?? 0) }}
-                · Estado: {{ room.status || 'waiting' }}
+                · Estado: {{ room.status }}
               </div>
             </div>
 
             <div>
-              <button class="px-3 py-1 rounded-md bg-blue-600 text-white disabled:opacity-50" :disabled="!nick"
-                @click="user.setNickname(nick); socket.emit('joinRoom', { roomName: room.name, nickname: user.nickname })">
+              <button v-if="room.status == 'waiting'"
+                class="px-3 py-1 rounded-md bg-blue-600 text-white disabled:opacity-50" :disabled="!nick"
+                @click="user.setNickname(nick); socket.emit('joinRoom', { roomName: room.roomName, nickname: user.nickname, master: false })">
                 Unirse
               </button>
             </div>
@@ -84,9 +86,19 @@ watchEffect(() => {
   }
 });
 
+socket.emit("getRoomList");
+
 socket.on("roomList", (data) => {
   console.log("Salas disponibles:", data.rooms);
   rooms.value = data.rooms;
+});
+
+socket.on("userJoined", (data) => {
+  if (data.id === socket.id) {
+    console.log(`➡️ ${data.id} se ha unido a ${data.roomName}`);
+    const redirectTo = router.currentRoute.value.query.redirectTo || '/lobby';
+    router.push(redirectTo);
+  }
 });
 
 

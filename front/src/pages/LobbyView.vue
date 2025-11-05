@@ -91,15 +91,22 @@ onMounted(() => {
   // Nos unimos a la sala activa (si ya existe en backend)
   socket.on("updateUserList", (list) => {
     console.log("📜 Lista actualizada desde el servidor:", list);
-    players.value = list.map((name, i) => ({
-      id: i + 1,
-      name,
+    players.value = list.map((userObj, i) => ({
+      id: userObj.id ?? `p${i + 1}`,
+      name: userObj.nickname ?? userObj.name ?? `Player ${i + 1}`,
+      master: !!userObj.master,
     }));
   });
 
   // Escuchamos cuando un nuevo usuario entra
   socket.on("userJoined", (data) => {
-    console.log(`➡️ ${data.id} se ha unido a ${data.room}`);
+    console.log(`➡️ ${data.id} se ha unido a ${data.roomName}`);
+    user.setRoomName(data.roomName);
+  });
+
+  socket.on("gameStarted", () => {
+    console.log("🚦 El juego ha comenzado!");
+    router.push('/play');
   });
 });
 
@@ -121,7 +128,7 @@ function startCountDown() {
       seconds.value--;
     } else {
       clearInterval(timer);
-      router.push("/play");
+      socket.emit("startGame", { roomName: user.roomName });
     }
   }, 1000);
 }

@@ -29,6 +29,13 @@ io.on("connection", (socket) => {
 
   // 1) Cliente solicita crear sala
   // 2) Cliente confirma creación de sala
+
+  socket.emit("roomList", { rooms });
+
+  socket.on("getRoomList", () => {
+    socket.emit("roomList", { rooms });
+  });
+
   socket.on("createRoom", (data) => {
     // Si no viene room, usamos activeRoom; si tampoco hay, creamos una con id de socket
     const room = data;
@@ -62,6 +69,7 @@ io.on("connection", (socket) => {
       difficulty: data.difficulty,
       players: [],
       status: "waiting",
+      results: [],
     };
 
     socket.join(rooms[data.roomName].roomName);
@@ -72,26 +80,56 @@ io.on("connection", (socket) => {
         results: [],
       };
     }
-    console.log(rooms[room]);
 
     // Emitimos al cliente que ya está en la sala (y devolvemos info)
     socket.emit("roomCreated", { rooms });
+    socket.emit("roomList", { rooms });
   });
 
   // Cliente se une a una sala existente
   socket.on("joinRoom", (data) => {
+    console.log("data", data);
     const roomName = data.roomName;
     const nickname = data.nickname;
+    const master = data.master;
 
     console.log(roomName, nickname);
+
+    if (rooms[roomName] == undefined || !rooms[roomName].status == "waiting") {
+      socket.emit("errorJoin");
+    }
 
     socket.join(roomName);
     socket.nickname = nickname; // 🔹 Muy importante para disconnect
 
-    console.log(rooms[roomName]);
-    // Añadimos el nickname si no está ya
-    if (!rooms[roomName].players.includes(nickname)) {
-      rooms[roomName].players.push(nickname);
+    console.log("DD", rooms);
+    console.log("EE", rooms[data.roomName]);
+
+    socket.join(roomName);
+    socket.nickname = nickname;
+
+    // Crear objeto jugador (no dentro de player:{}, directamente {})
+    const newPlayer = {
+      id: socket.id,
+      master,
+      textsIds: [],
+      nickname,
+      wpm: 0,
+      accuracy: 0,
+      isAlive: true,
+    };
+
+    // Simulación de includes() para objetos
+    let exists = false;
+    for (let i = 0; i < rooms[roomName].players.length; i++) {
+      if (rooms[roomName].players[i].nickname === nickname) {
+        exists = true;
+        break;
+      }
+    }
+
+    if (!exists) {
+      rooms[roomName].players.push(newPlayer);
     }
 
     console.log(
@@ -107,11 +145,22 @@ io.on("connection", (socket) => {
     // Enviamos la info de la sala también (opcional)
     io.to(roomName).emit("roomInfo", rooms[roomName]);
 
-    // Inicializamos el estado de la sala si no existe
-    if (!roomStatus[room]) {
-      roomStatus[room] = {
-        results: [],
-      };
+    socket.emit("roomList", { rooms });
+  });
+
+  // Comenzamos una partida
+  socket.on("startGame", (data) => {
+    const { roomName } = data;
+    if (rooms[roomName]) {
+      await getTexts(roomName);
+      console.log(
+        "Textos asignados a los jugadores de la sala",
+        rooms[roomName].players
+      );
+      rooms[roomName].status = "inGame";
+      io.to(roomName).emit("gameStarted", { roomInfo: rooms[roomName] });
+      io.emit("roomList", { rooms });
+      console.log(`Juego iniciado en la sala ${roomName}`);
     }
   });
 
@@ -155,6 +204,26 @@ io.on("connection", (socket) => {
     console.log(` Usuario desconectado: ${socket.id}`);
   });
 });
+
+function getTexts(roomName) {
+  con.query(
+    "SELECT ID FROM TEXTS WHERE LANGUAGE_CODE = ? AND DIFFICULTY = ?",
+    [rooms[roomName].language, rooms[roomName].difficulty],
+    (err, results) => {
+      if (err) console.log({ error: "Error al obtener los datos" });
+      console.log("Textos disponibles:", results);
+      for (let index = 0; index < rooms[roomName].players.length; index++) {
+        // Guardar exactamente 5 ids aleatorios (o menos si no hay suficientes)
+        rooms[roomName].players[index].textsIds = [];
+        const count = Math.min(5, results.length);
+        const numbers = results.slice();
+        for (let i = 0; i < count; i++) {
+          rooms[roomName].players[index].textsIds.push(numbers[i].ID);
+        }
+      }
+    }
+  );
+}
 
 // Textos
 app.get("/texts", (req, res) => {
