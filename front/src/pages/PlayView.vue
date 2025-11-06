@@ -13,12 +13,14 @@
       <!-- Estados de carga y error -->
       <div v-if="loading" class="status-message loading">Cargando texto...</div>
       <div v-else-if="error" class="status-message error">{{ error }}</div>
-      
+
       <!-- Contenido del texto -->
       <div v-else class="text-wrapper" ref="textWrapper">
-        <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
-          ch
-        }}</span>
+        <span
+          v-for="(ch, i) in targetChars"
+          :key="i"
+          :class="charClass(i)"
+        >{{ ch }}</span>
         <!-- blinking caret positioned dynamically -->
         <span v-if="!finished" class="caret" :style="caretStyle"></span>
       </div>
@@ -40,7 +42,11 @@
     <section v-if="gameResults.length > 0" class="results-section">
       <h3>Resultados de la sala:</h3>
       <div class="results-grid">
-        <div v-for="result in gameResults" :key="result.timestamp" class="result-card">
+        <div
+          v-for="result in gameResults"
+          :key="result.timestamp"
+          class="result-card"
+        >
           <strong>{{ result.nickname }}</strong>
           <div>WPM: {{ result.wpm }}</div>
           <div>Precisión: {{ result.accuracy }}%</div>
@@ -48,6 +54,7 @@
       </div>
     </section>
 
+    <!-- Race progress (server-authoritative) -->
     <section v-if="raceState.length" class="race-progress">
       <h3>Race progress</h3>
       <div v-for="p in raceState" :key="p.nickname" class="progress-row">
@@ -67,13 +74,13 @@
 </template>
 
 <script setup>
-const ROOM = "main-room"; // TODO: replace with actual room id later niggers
-import { ref, computed, watch, onMounted, nextTick } from "vue";
+const ROOM = "main-room"; // TODO: replace with dynamic room id when lobby wires it
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { getText } from "@/services/communicationManager.js";
 import { io } from "socket.io-client";
-
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
+// shared speed function (mounted via docker volume into /usr/src/app/shared)
 import { calcPlayerSpeed } from "@/../shared/speed.js";
 
 const socket = io("http://localhost:3000");
@@ -90,31 +97,23 @@ const error = ref(null);
 const gameResults = ref([]);
 const targetChars = computed(() => Array.from(target.value));
 
-// race state from server
-const raceState = ref([])
-
-socket.on('race:update', (snapshot) => {
-  raceState.value = snapshot || []
-})
+// RACE STATE (from server)
+const raceState = ref([]);
+socket.on("race:update", (snapshot) => {
+  raceState.value = snapshot || [];
+});
 
 async function pickRandomText() {
   try {
-    // Obtenemos un ID aleatorio (suponiendo que hay 10 textos)
     const randomId = Math.floor(Math.random() * 10) + 1;
-
-    // Llamamos al communication manager (usa HTTP)
     const data = await getText(randomId);
-
     const text = data.text ?? data.TEXT_CONTENT ?? data.TEXT;
-
     current.value = data;
     target.value = text ?? "";
-
   } catch (err) {
     console.error("Error cargando texto:", err);
     error.value = "Error al cargar el texto. ¿Está el servidor funcionando?";
-  }
-  finally{
+  } finally {
     loading.value = false;
   }
 }
@@ -126,7 +125,8 @@ const userInput = ref("");
 const startedAt = ref(null);
 const endedAt = ref(null);
 const finished = computed(
-  () => userInput.value.length >= target.value.length && target.value.length > 0
+  () =>
+    userInput.value.length >= target.value.length && target.value.length > 0
 );
 
 const typedChars = computed(() => userInput.value.length);
@@ -154,42 +154,29 @@ const accuracy = computed(() => {
   return Math.round((correctChars.value / typedChars.value) * 100);
 });
 
-// CARET POSITION (needs arreglation)
+// CARET POSITION
 const caretStyle = computed(() => {
   const pos = userInput.value.length;
-
   if (!textWrapper.value) {
     return { position: "absolute", left: "0px", top: "0px" };
   }
-
-  // Encontrar el span del carácter actual o el anterior
   const spans = textWrapper.value.querySelectorAll("span");
-
   if (pos === 0) {
-    // Si no hay caracteres tipeados, posicionar al inicio
-    return {
-      position: "absolute",
-      left: "0px",
-      top: "0px",
-    };
+    return { position: "absolute", left: "0px", top: "0px" };
   }
-
   if (spans[pos - 1]) {
-    // Posicionar después del último carácter tipeado
     const rect = spans[pos - 1].getBoundingClientRect();
     const containerRect = textWrapper.value.getBoundingClientRect();
-
     return {
       position: "absolute",
       left: `${rect.right - containerRect.left}px`,
       top: `${rect.top - containerRect.top}px`,
     };
   }
-
   return { position: "absolute", left: "0px", top: "0px" };
 });
 
-//CLASS LOGIC
+// CLASS LOGIC
 function charClass(i) {
   const typed = userInput.value[i];
   if (i < userInput.value.length) {
@@ -200,10 +187,9 @@ function charClass(i) {
   return "char untouched";
 }
 
-//race progression
+// --- RACE: emit progress (throttled) ---
 let lastEmit = 0;
 const EMIT_MS = 250;
-
 function emitProgressThrottled() {
   const now = performance.now();
   if (now - lastEmit < EMIT_MS) return;
@@ -214,47 +200,33 @@ function emitProgressThrottled() {
     nickname: user.nickname,
     wpm: wpm.value,
     accuracy: accuracy.value,
-    speed
+    speed,
   });
 }
 
-//INPUT HANDLERS
+// INPUT HANDLERS
 function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
-  // Cap to target length (maxlength covers it, but just in case)
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
 
-  // Calculate speed locally (using shared formula)
-  const speed = calcPlayerSpeed(wpm.value);
-
-  // Emit live typing progress to backend
-  socket.emit("typing:progress", {
-    room: ROOM, // use dynamic room later
-    nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed
-  });
+  emitProgressThrottled();
 
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
-    
-    // Enviar resultados al servidor
     socket.emit("gameFinished", {
-      room: ROOM, // o la sala actual si tienes múltiples salas
+      room: ROOM,
       nickname: user.nickname,
       wpm: wpm.value,
-      accuracy: accuracy.value
+      accuracy: accuracy.value,
     });
   }
 }
 
 function onKeydown(e) {
-  // prevent tabbing away
   if (e.key === "Tab") e.preventDefault();
 }
 
@@ -277,13 +249,14 @@ async function nextText() {
 
 // MOUNT
 onMounted(async () => {
-  // Escuchar actualizaciones de resultados
+  // Join the room when socket connects
   socket.on("connect", () => {
     socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
   });
+
+  // Sala: resultados
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
-    console.log(" Resultados actualizados:", results);
   });
 
   await pickRandomText();
@@ -300,9 +273,14 @@ onMounted(async () => {
     loading.value = false;
     focusInput();
   }
-
 });
 
+onBeforeUnmount(() => {
+  socket.off("updateGameResults");
+  socket.off("race:update");
+  socket.off("connect");
+  // optional: socket.disconnect();
+});
 
 // When target changes (Next Text), reset everything
 watch(
@@ -316,14 +294,13 @@ watch(
 watch(
   () => userInput.value,
   async () => {
-    await nextTick(); // Esperar a que el DOM se actualice
+    await nextTick();
   }
 );
 </script>
 
 <style scoped>
-/* Layout */
-
+/* Race bars */
 .race-progress {
   margin-top: 1.5rem;
 }
@@ -341,11 +318,12 @@ watch(
   overflow: hidden;
 }
 .bar {
-  background: #2563eb;
   height: 100%;
   transition: width 0.1s linear;
+  background: #2563eb;
 }
 
+/* Page layout */
 .typing-page {
   max-width: 900px;
   margin: 0 auto;
@@ -377,52 +355,39 @@ watch(
   min-height: 180px;
   line-height: 1.6;
   font-size: 1.05rem;
-  background: #0f172a0d; /* subtle slate */
+  background: #0f172a0d;
   cursor: text;
-  user-select: none; /* so clicks focus input */
+  user-select: none;
 }
 .text-wrapper {
-  position: relative; /* Para que el caret se posicione relativo a este contenedor */
-  color: #6b7280; /* base (darkened) text */
+  position: relative;
+  color: #6b7280;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
+/* Status */
 .status-message {
   text-align: center;
   padding: 2rem;
   font-size: 1.1rem;
 }
-
-.loading {
-  color: #2563eb;
-}  
-
-.error {
-  color: #dc2626;
-}
+.loading { color: #2563eb; }
+.error   { color: #dc2626; }
 
 /* characters */
-.char {
-  position: relative;
-}
-.untouched {
-  opacity: 0.65;
-}
-.correct {
-  color: #10b981;
-} /* emerald */
+.char { position: relative; }
+.untouched { opacity: 0.65; }
+.correct { color: #10b981; }
 .wrong {
   color: #e81c1c;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
-.current {
-  color: #111827; /* brighten current slot slightly */
-}
+.current { color: #111827; }
 
 /* blinking caret positioned dynamically */
 .caret {
@@ -434,11 +399,7 @@ watch(
   z-index: 1;
   animation: blink 0.5s steps(2, start) infinite;
 }
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
+@keyframes blink { 50% { opacity: 0; } }
 
 /* hidden input overlay */
 .hidden-input {
@@ -450,7 +411,7 @@ watch(
   border: none;
   resize: none;
   cursor: text;
-  caret-color: #111827; /* so the native caret still exists for accessibility */
+  caret-color: #111827;
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
@@ -471,9 +432,7 @@ watch(
   background: white;
   cursor: pointer;
 }
-.btn:hover {
-  background: #f3f4f6;
-}
+.btn:hover { background: #f3f4f6; }
 
 .results-section {
   margin: 2rem 0;
@@ -481,21 +440,18 @@ watch(
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
 }
-
 .results-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
 }
-
 .result-card {
   padding: 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   background: white;
 }
-
 .result-card strong {
   color: #2563eb;
   display: block;
