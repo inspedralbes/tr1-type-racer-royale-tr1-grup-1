@@ -143,7 +143,8 @@ docker-compose -f docker-compose.dev.yml logs -f
 
 Un cop els contenidors estiguin aixecats (docker ps), pots accedir a l'aplicació:
 
-Entorn	URL d'Accés (Exemple)
+Entorn	URL d'Accés
+
 Desenvolupament	http://65.109.169.50:5173
 
 Producció	http://65.109.169.50
