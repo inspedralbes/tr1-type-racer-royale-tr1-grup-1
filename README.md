@@ -69,4 +69,6 @@ A. Aixecar l'Aplicació (Prod)
 
 Construeix i aixeca els contenidors en segon pla (-d):
 
+```bash
 docker-compose -f docker-compose.prod.yml up --build -d
+```
