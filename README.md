@@ -1,16 +1,25 @@
-# transversals
-Esquema mínim de carpetes pels projectes transversals
+# Guia de Desplegament i Contribució
 
-És obligatori seguir aquesta estructura tot i que la podeu ampliar.
+Aquest projecte utilitza Docker Compose per gestionar dos entorns separats: **Desenvolupament (Dev)** i **Producció (Prod)**, cadascun amb el seu arxiu de configuració i variables d'entorn específiques.
 
-## Atenció
-Un cop comenceu heu de canviar aquesta explicació amb la corresponent al vostre projecte (utilitzant markdown)
+## Requisits Previs
 
-# Aquest fitxer ha de contenir com a mínim:
- * Nom dels integrants
- * Nom del projecte
- * Petita descripció
- * Adreça del gestor de tasques (taiga, jira, trello...)
- * Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
- * URL de producció (quan la tingueu)
- * Estat: (explicació d'en quin punt està)
+Assegura't de tenir instal·lats els següents programes:
+
+* **Node.js i npm**
+* **Git**
+* **Docker i Docker Compose**
+
+---
+
+## Passos Inicials
+
+### 1. Clonar el Repositori
+
+Clona el projecte i entra al directori:
+
+```bash
+git clone [URL_DEL_TEU_REPOSITORI]
+cd [NOM_DEL_DIRECTORI_CLONAT]
+
+### 2. Instal·lació de Dependències
