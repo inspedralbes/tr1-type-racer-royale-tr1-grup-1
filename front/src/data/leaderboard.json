@@ -1,12 +1,92 @@
 [
-  { "id": 1, "nickname": "Nova",    "wpm": 112, "accuracy": 98, "races": 214, "lastPlayed": "2025-10-25T18:42:00Z" },
-  { "id": 2, "nickname": "Zephyr",  "wpm": 127, "accuracy": 96, "races": 355, "lastPlayed": "2025-10-27T21:10:00Z" },
-  { "id": 3, "nickname": "Pixel",   "wpm": 95,  "accuracy": 99, "races": 120, "lastPlayed": "2025-10-29T15:05:00Z" },
-  { "id": 4, "nickname": "Quark",   "wpm": 134, "accuracy": 94, "races": 489, "lastPlayed": "2025-10-30T09:22:00Z" },
-  { "id": 5, "nickname": "Comet",   "wpm": 88,  "accuracy": 97, "races": 64,  "lastPlayed": "2025-10-23T11:30:00Z" },
-  { "id": 6, "nickname": "BitFox",  "wpm": 119, "accuracy": 93, "races": 191, "lastPlayed": "2025-10-28T07:51:00Z" },
-  { "id": 7, "nickname": "Vanta",   "wpm": 122, "accuracy": 92, "races": 301, "lastPlayed": "2025-10-26T20:45:00Z" },
-  { "id": 8, "nickname": "Raven",   "wpm": 101, "accuracy": 95, "races": 171, "lastPlayed": "2025-10-30T12:03:00Z" },
-  { "id": 9, "nickname": "Echo",    "wpm": 109, "accuracy": 97, "races": 230, "lastPlayed": "2025-10-24T14:10:00Z" },
-  { "id": 10,"nickname": "Astra",   "wpm": 140, "accuracy": 91, "races": 512, "lastPlayed": "2025-10-29T22:18:00Z" }
+  {
+    "id": 1,
+    "nickname": "Nova",
+    "wpm": 112,
+    "accuracy": 98,
+    "races": 214,
+    "time": 300,
+    "lastPlayed": "2025-10-25T18:42:00Z"
+  },
+  {
+    "id": 2,
+    "nickname": "Zephyr",
+    "wpm": 127,
+    "accuracy": 96,
+    "races": 355,
+    "time": 280,
+    "lastPlayed": "2025-10-27T21:10:00Z"
+  },
+  {
+    "id": 3,
+    "nickname": "Pixel",
+    "wpm": 95,
+    "accuracy": 99,
+    "races": 120,
+    "time": 260,
+    "lastPlayed": "2025-10-29T15:05:00Z"
+  },
+  {
+    "id": 4,
+    "nickname": "Quark",
+    "wpm": 134,
+    "accuracy": 94,
+    "races": 489,
+    "time": 240,
+    "lastPlayed": "2025-10-30T09:22:00Z"
+  },
+  {
+    "id": 5,
+    "nickname": "Comet",
+    "wpm": 88,
+    "accuracy": 97,
+    "races": 64,
+    "time": 220,
+    "lastPlayed": "2025-10-23T11:30:00Z"
+  },
+  {
+    "id": 6,
+    "nickname": "BitFox",
+    "wpm": 119,
+    "accuracy": 93,
+    "races": 191,
+    "time": 200,
+    "lastPlayed": "2025-10-28T07:51:00Z"
+  },
+  {
+    "id": 7,
+    "nickname": "Vanta",
+    "wpm": 122,
+    "accuracy": 92,
+    "races": 301,
+    "time": 180,
+    "lastPlayed": "2025-10-26T20:45:00Z"
+  },
+  {
+    "id": 8,
+    "nickname": "Raven",
+    "wpm": 101,
+    "accuracy": 95,
+    "races": 171,
+    "time": 160,
+    "lastPlayed": "2025-10-30T12:03:00Z"
+  },
+  {
+    "id": 9,
+    "nickname": "Echo",
+    "wpm": 109,
+    "accuracy": 97,
+    "races": 230,
+    "time": 140,
+    "lastPlayed": "2025-10-24T14:10:00Z"
+  },
+  {
+    "id": 10,
+    "nickname": "Astra",
+    "wpm": 140,
+    "accuracy": 91,
+    "races": 512,
+    "time": 120,
+    "lastPlayed": "2025-10-29T22:18:00Z"
+  }
 ]
