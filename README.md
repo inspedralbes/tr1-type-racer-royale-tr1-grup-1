@@ -29,6 +29,7 @@ Clona el projecte i entra al directori:
 ```bash
 git clone [URL_DEL_TEU_REPOSITORI]
 cd [NOM_DEL_DIRECTORI_CLONAT]
+``
 
 ### 2. Instal·lació de Dependències
 
