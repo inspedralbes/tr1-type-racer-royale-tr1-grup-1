@@ -55,11 +55,17 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       nickname,
       wpm: 0,
       accuracy: 0,
+      color: getRandomColor(),
       isAlive: true,
     });
   }
 
   console.log(`${nickname} se ha unido a la sala ${roomId}`);
+}
+
+// Función: generar color aleatorio
+function getRandomColor() {
+  return "#" + Math.floor(Math.random() * 16777215).toString(16);
 }
 
 // Función: eliminar jugador al desconectarse
@@ -214,6 +220,51 @@ io.on("connection", (socket) => {
     if (success) {
       io.to(room).emit("updateGameResults", rooms[room].results);
     }
+  });
+
+  // Detectar rendimiento de jugador (bueno o malo)
+  socket.on("userPerformance", (data) => {
+    const { room, nickname, status, message } = data;
+
+    // Verificar que la sala existe
+    if (!rooms[room]) {
+      console.log(`Intento de emitir performance a sala inexistente: ${room}`);
+      return;
+    }
+
+    console.log(rooms);
+    console.log(`${nickname} (${room}) -> ${status}: ${message}`);
+
+    // Emitir a TODOS en la sala (incluye al emisor)
+    io.to(room).emit("userPerformance", {
+      nickname,
+      status,
+      message,
+    });
+  });
+
+  socket.on("userKey", (data) => {
+    const { room, nickname, key } = data;
+    // Verificar que la sala existe
+    if (!rooms[room]) {
+      console.log(`Intento de emitir userKey a sala inexistente: ${room}`);
+      return;
+    }
+    console.log(rooms);
+    const player = rooms[room].players.find((p) => p.nickname === nickname);
+    const color = player ? player.color : null;
+    if (!player) {
+      console.log(`No se encontró jugador ${nickname} en la sala ${room}`);
+    } else {
+      console.log(`Color de ${nickname} en ${room}: ${color}`);
+    }
+
+    // Emitir junto con la tecla el color (null si no se encontró)
+    io.to(room).emit("userKey", {
+      nickname,
+      key,
+      color,
+    });
   });
 
   // Desconexión

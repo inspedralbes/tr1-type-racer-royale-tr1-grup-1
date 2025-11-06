@@ -6,51 +6,35 @@
         Giga Racer Royale Pro Max Deluxe
       </h1>
 
-      <p
-        v-if="route.query.needNick"
-        class="rounded-md"
-        style="
+      <p v-if="route.query.needNick" class="rounded-md" style="
           background: #fef2f2;
           border: 1px solid #fecaca;
           color: #991b1b;
           padding: 0.5rem 0.75rem;
           font-size: 0.9rem;
-        "
-      >
+        ">
         Please enter a nickname before joining.
       </p>
 
       <label class="block">
         <span style="font-size: 0.9rem; color: #374151">Nickname</span>
-        <input
-          v-model.trim="nick"
-          type="text"
-          placeholder="Your nickname"
-          @keyup.enter="join"
-          autofocus
-          style="
+        <input v-model.trim="nick" type="text" placeholder="Your nickname" @keyup.enter="join" autofocus style="
             margin-top: 0.25rem;
             width: 100%;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             padding: 0.5rem 0.75rem;
-          "
-        />
+          " />
       </label>
 
-      <button
-        :disabled="!nick"
-        @click="join"
-        style="
+      <button :disabled="!nick" @click="join" style="
           width: 100%;
           border-radius: 0.5rem;
           padding: 0.5rem 0.75rem;
           color: white;
           background: #2563eb;
           opacity: 1;
-        "
-        :style="!nick ? 'opacity:.5;cursor:not-allowed;' : ''"
-      >
+        " :style="!nick ? 'opacity:.5;cursor:not-allowed;' : ''">
         Join
       </button>
     </div>
@@ -61,8 +45,7 @@
 import { ref, watchEffect } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client";
-const socket = io("http://localhost:3000");
+import { socket } from "@/services/socket.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -81,8 +64,8 @@ function join() {
   if (!nick.value?.trim()) return;
   user.setNickname(nick.value);
 
-    // Emitimos la petición de crear sala
-  socket.emit("requestRoomCreation", { roomName: "defaultRoom" });
+  // Emitimos la petición de crear sala
+  socket.emit("requestRoomCreation", { roomName: "main-room" });
 
   // Escuchamos la confirmación del servidor
   socket.on("confirmRoomCreation", (data) => {
@@ -96,8 +79,9 @@ function join() {
   socket.on("roomCreated", (data) => {
     console.log("Sala creada o unida:", data.room);
 
-  // go back where they intended, else /lobby
-  const redirectTo = route.query.redirectTo || '/lobby';
-  router.push(redirectTo)
-  });}
+    // go back where they intended, else /lobby
+    const redirectTo = route.query.redirectTo || '/lobby';
+    router.push(redirectTo)
+  });
+}
 </script>

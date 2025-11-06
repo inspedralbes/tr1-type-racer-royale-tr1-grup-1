@@ -24,27 +24,15 @@
       </div>
 
       <!-- hidden input to capture keyboard, mobile-friendly -->
-      <textarea
-        ref="hiddenInput"
-        v-model="userInput"
-        class="hidden-input"
-        @input="onInput"
-        @keydown="onKeydown"
-        @paste.prevent
-        :maxlength="target.length"
-        aria-label="Typing input"
-      ></textarea>
+      <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
+        @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
     </section>
 
     <!-- Mostrar resultados si hay -->
     <section v-if="gameResults.length > 0" class="results-section">
       <h3>Resultados de la sala:</h3>
       <div class="results-grid">
-        <div
-          v-for="result in gameResults"
-          :key="result.timestamp"
-          class="result-card"
-        >
+        <div v-for="result in gameResults" :key="result.timestamp" class="result-card">
           <strong>{{ result.nickname }}</strong>
           <div>WPM: {{ result.wpm }}</div>
           <div>Precisión: {{ result.accuracy }}%</div>
@@ -56,21 +44,23 @@
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
+    <Keyboard :nickname="user.nickname" />
   </main>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from "vue";
 import { getText } from "@/services/communicationManager.js";
-import { io } from "socket.io-client";
+import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-
-const socket = io("http://localhost:3000");
+import { socket } from "@/services/socket.js";
+import Keyboard from "@/components/Keyboard.vue";
 
 const router = useRouter();
 const user = useUserStore();
+const toast = useToast();
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
 // DATA LOADING
@@ -80,6 +70,8 @@ const loading = ref(true);
 const error = ref(null);
 const gameResults = ref([]);
 const targetChars = computed(() => Array.from(target.value));
+const errorCount = ref(0);
+const lastWpmEmit = ref(0);
 
 async function pickRandomText() {
   try {
@@ -187,16 +179,55 @@ function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
-  // Cap to target length (maxlength covers it, but just in case)
+
+  // Cap length
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
+
+  // --- NUEVO: control de errores
+  const currentErrors = typedChars.value - correctChars.value;
+  errorCount.value = currentErrors;
+  console.log("Errores actuales:", errorCount.value);
+
+  // Si el usuario acumula más de 5 errores → avisar al room
+  if (errorCount.value === 5) {
+    console.log("Enviando notificación de bajo rendimiento");
+    socket.emit("userPerformance", {
+      room: "main-room",
+      nickname: user.nickname,
+      status: "bad",
+      message: `${user.nickname} está teniendo dificultades (5 errores).`,
+    });
+  }
+
+  // // Si mejora su precisión y baja de 3 errores → enviar mejora
+  // if (errorCount.value === 2) {
+  //   socket.emit("userPerformance", {
+  //     room: "main-room",
+  //     nickname: user.nickname,
+  //     status: "recovered",
+  //     message: `${user.nickname} se ha recuperado y está escribiendo mejor.`,
+  //   });
+  // }
+
+  // // ---  NUEVO: detección de velocidad alta
+  // if (wpm.value >= 80 && wpm.value !== lastWpmEmit.value) {
+  //   lastWpmEmit.value = wpm.value;
+  //   socket.emit("userPerformance", {
+  //     room: "main-room",
+  //     nickname: user.nickname,
+  //     status: "fast",
+  //     message: `${user.nickname} está escribiendo muy rápido (${wpm.value} WPM)!`,
+  //   });
+  // }
+
+  // Finalización
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
 
-    // Enviar resultados al servidor
     socket.emit("gameFinished", {
-      room: "main-room", // o la sala actual si tienes múltiples salas
+      room: "main-room",
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
@@ -232,6 +263,17 @@ onMounted(async () => {
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
     console.log(" Resultados actualizados:", results);
+  });
+
+  toast.info("Conectado al servidor de notificaciones.");
+
+  socket.on("userPerformance", (data) => {
+    console.log("Notificación de rendimiento:", data);
+    // mostrar toast corto (2500ms)
+    if (data.nickname !== user.nickname) {
+      toast.info(data.message, { timeout: 2500 });
+    }
+    // alternativa rápida: alert(data.message);
   });
 
   await pickRandomText();
@@ -274,6 +316,7 @@ watch(
   margin: 0 auto;
   padding: 1.25rem;
 }
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -281,10 +324,12 @@ watch(
   gap: 1rem;
   margin-bottom: 1rem;
 }
+
 .topbar h1 {
   margin: 0;
   font-size: 1.5rem;
 }
+
 .stats {
   display: flex;
   gap: 1rem;
@@ -300,13 +345,18 @@ watch(
   min-height: 180px;
   line-height: 1.6;
   font-size: 1.05rem;
-  background: #0f172a0d; /* subtle slate */
+  background: #0f172a0d;
+  /* subtle slate */
   cursor: text;
-  user-select: none; /* so clicks focus input */
+  user-select: none;
+  /* so clicks focus input */
 }
+
 .text-wrapper {
-  position: relative; /* Para que el caret se posicione relativo a este contenedor */
-  color: #6b7280; /* base (darkened) text */
+  position: relative;
+  /* Para que el caret se posicione relativo a este contenedor */
+  color: #6b7280;
+  /* base (darkened) text */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
@@ -331,20 +381,26 @@ watch(
 .char {
   position: relative;
 }
+
 .untouched {
   opacity: 0.65;
 }
+
 .correct {
   color: #10b981;
-} /* emerald */
+}
+
+/* emerald */
 .wrong {
   color: #e81c1c;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
+
 .current {
-  color: #111827; /* brighten current slot slightly */
+  color: #111827;
+  /* brighten current slot slightly */
 }
 
 /* blinking caret positioned dynamically */
@@ -357,6 +413,7 @@ watch(
   z-index: 1;
   animation: blink 0.5s steps(2, start) infinite;
 }
+
 @keyframes blink {
   50% {
     opacity: 0;
@@ -373,7 +430,8 @@ watch(
   border: none;
   resize: none;
   cursor: text;
-  caret-color: #111827; /* so the native caret still exists for accessibility */
+  caret-color: #111827;
+  /* so the native caret still exists for accessibility */
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
@@ -387,6 +445,7 @@ watch(
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
 .btn {
   padding: 0.5rem 0.9rem;
   border-radius: 8px;
@@ -394,6 +453,7 @@ watch(
   background: white;
   cursor: pointer;
 }
+
 .btn:hover {
   background: #f3f4f6;
 }

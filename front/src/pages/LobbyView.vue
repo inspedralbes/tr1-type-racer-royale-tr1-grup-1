@@ -8,63 +8,49 @@
     <!-- Attention dear compañeros, you all can add socket.io lobby join here later -->
   </section>
   <section>
-    <div
-      style="
+    <div style="
         max-width: 400px;
         margin: 1rem auto;
         border: 1px solid #d1d5db;
         border-radius: 0.5rem;
         padding: 0.75rem;
-      "
-    >
+      ">
       <h3 style="font-weight: 600; font-size: 1rem">Connected players:</h3>
 
       <!-- Mostrar lista de jugadores y timer cuando hay más de 1 jugador -->
       <div v-if="players.length > 1">
-        <ul
-          style="
+        <ul style="
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             padding: 0.5rem;
             margin-top: 0.5rem;
             list-style: none;
-          "
-        >
-          <li
-            v-for="(player, index) in players"
-            :key="index"
-            style="padding: 0.25rem 0"
-          >
+          ">
+          <li v-for="(player, index) in players" :key="index" style="padding: 0.25rem 0">
             <span>{{ player.nickname || player.name || player }}</span>
-            <span
-              v-if="
-                (player.nickname || player.name || player) === user.nickname
-              "
-              style="color: #2563eb; font-size: 0.85rem; margin-left: 4px"
-            >
+            <span v-if="
+              (player.nickname || player.name || player) === user.nickname
+            " style="color: #2563eb; font-size: 0.85rem; margin-left: 4px">
               (You)
             </span>
           </li>
         </ul>
 
         <!-- Timer que se muestra solo cuando hay jugadores conectados -->
-        <div
-          v-if="isTimerActive"
-          :style="{
-            width: '75px',
-            height: '75px',
-            borderRadius: '50%',
-            border: `6px solid ${seconds <= 5 ? '#dc2626' : '#2563eb'}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem',
-            fontWeight: 'bold',
-            color: 'black',
-            margin: '1.5rem auto',
-            transition: 'all 0.3s ease',
-          }"
-        >
+        <div v-if="isTimerActive" :style="{
+          width: '75px',
+          height: '75px',
+          borderRadius: '50%',
+          border: `6px solid ${seconds <= 5 ? '#dc2626' : '#2563eb'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          color: 'black',
+          margin: '1.5rem auto',
+          transition: 'all 0.3s ease',
+        }">
           {{ seconds }}
         </div>
       </div>
@@ -75,14 +61,11 @@
     </div>
 
     <div style="margin-top: 1rem">
-      <button
-        @click="logout"
-        style="
+      <button @click="logout" style="
           border: 1px solid #d1d5db;
           padding: 0.5rem 0.75rem;
           border-radius: 0.5rem;
-        "
-      >
+        ">
         Back
       </button>
     </div>
@@ -93,8 +76,7 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client"; // import del cliente socket.io
-const socket = io("http://localhost:3000"); // cambia el puerto si tu servidor usa otro
+import { socket } from "@/services/socket.js";
 
 const router = useRouter();
 const user = useUserStore();
