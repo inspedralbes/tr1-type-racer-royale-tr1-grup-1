@@ -5,22 +5,25 @@ import { con } from "./db.js";
 import dotenv from "dotenv";
 import cors from "cors";
 
+// Shared speed helpers for race velocity
+import { calcPlayerSpeed, integratePosition } from "./shared/speed.js";
+
 dotenv.config();
 
 // ------------------------------------
-// CONFIGURACION BASICA DEL SERVIDOR
+// CONFIGURACIÓN BÁSICA DEL SERVIDOR
 // ------------------------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors()); // Permitir peticiones desde cualquier origen
+app.use(cors());
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-// Ruta de prueba (Express)
+// Ruta de prueba
 app.get("/", (req, res) => {
   res.json({ message: "Hola mundo desde GET /" });
 });
@@ -29,22 +32,29 @@ app.get("/", (req, res) => {
 // ESTRUCTURA DE DATOS DEL JUEGO
 // -------------------------------
 
-// Guardará todas las salas y su estado
-const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
-const timers = {}; // Para manejar timers por sala
+const rooms = {};   // { roomId: { id, players: [], status, results: [] } }
+const timers = {};  // Temporizadores activos
 
-// Función: crear sala
+// 🔹 RACE STATE (server-authoritative)
+const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
+const TRACK_LEN = 100; // “distance” in %
+const TICK_MS = 100;   // 10 updates per second
+
+// --------------------------------
+// FUNCIONES DE MANEJO DE SALAS
+// --------------------------------
+
 function createRoom(roomId) {
   rooms[roomId] = {
     id: roomId,
     players: [],
-    status: "waiting", // waiting | playing | finished
-    results: [],
+    status: "waiting",
+    results: []
   };
+  racePlayers.set(roomId, new Map());
   console.log(`Sala creada: ${roomId}`);
 }
 
-// Función: añadir jugador a una sala
 function addPlayerToRoom(roomId, nickname, socketId) {
   if (!rooms[roomId]) createRoom(roomId);
 
@@ -55,57 +65,62 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       nickname,
       wpm: 0,
       accuracy: 0,
-      isAlive: true,
+      isAlive: true
+    });
+  }
+
+  // add also to race state
+  const map = racePlayers.get(roomId);
+  if (!map.has(socketId)) {
+    map.set(socketId, {
+      id: socketId,
+      nickname,
+      wpm: 0,
+      accuracy: 100,
+      speed: 0,
+      position: 0
     });
   }
 
   console.log(`${nickname} se ha unido a la sala ${roomId}`);
 }
 
-// Función: eliminar jugador al desconectarse
 function removePlayer(socketId) {
   for (const [roomId, room] of Object.entries(rooms)) {
     room.players = room.players.filter((p) => p.id !== socketId);
+    const map = racePlayers.get(roomId);
+    if (map && map.has(socketId)) map.delete(socketId);
 
-    // Eliminar room si está vacía
     if (room.players.length === 0) {
       delete rooms[roomId];
-      console.log(`Sala ${roomId} eliminada (sin jugadores)`);
+      racePlayers.delete(roomId);
+      console.log(`Sala ${roomId} eliminada (vacía)`);
     }
   }
   console.log(`Jugador desconectado eliminado: ${socketId}`);
 }
 
-// Función: guardar resultados
-// Función: guardar resultados
 function addGameResult(roomId, nickname, wpm, accuracy) {
-  if (!rooms[roomId]) {
-    console.log(`Error: Sala ${roomId} no existe`);
-    return false;
-  }
-
+  if (!rooms[roomId]) return;
   rooms[roomId].results.push({
     nickname,
     wpm: Number(wpm),
     accuracy: Number(accuracy),
-    timestamp: Date.now(),
+    timestamp: Date.now()
   });
-
   console.log(
-    `Resultado añadido en ${roomId}: ${nickname} (${wpm} WPM, ${accuracy}%)`
+    `Resultado añadido en ${roomId}: ${nickname} (${wpm}WPM, ${accuracy}%)`
   );
-  return true;
 }
 
-// Función: iniciar timer sincronizado para una sala
+// -----------------------------------
+// TIMER Y SINCRONIZACIÓN DE JUEGO
+// -----------------------------------
+
 function startRoomTimer(roomId) {
-  if (timers[roomId]) {
-    clearInterval(timers[roomId]);
-  }
+  if (timers[roomId]) clearInterval(timers[roomId]);
 
   let seconds = 10;
-
-  // Emitir estado inicial del timer
   io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
 
   timers[roomId] = setInterval(() => {
@@ -114,24 +129,16 @@ function startRoomTimer(roomId) {
     if (seconds > 0) {
       io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
     } else {
-      // Timer terminado
       io.to(roomId).emit("timerUpdate", { seconds: 0, isActive: false });
       clearInterval(timers[roomId]);
       delete timers[roomId];
 
-      // Cambiar estado de la sala a "playing"
-      if (rooms[roomId]) {
-        rooms[roomId].status = "playing";
-      }
-
+      if (rooms[roomId]) rooms[roomId].status = "playing";
       console.log(`Timer terminado para sala ${roomId}. Iniciando juego.`);
     }
   }, 1000);
-
-  console.log(`Timer iniciado para sala ${roomId}`);
 }
 
-// Función: detener timer de una sala
 function stopRoomTimer(roomId) {
   if (timers[roomId]) {
     clearInterval(timers[roomId]);
@@ -141,6 +148,38 @@ function stopRoomTimer(roomId) {
   }
 }
 
+// -------------------------------------
+// RACE LOGIC (VELOCIDAD Y POSICIÓN)
+// -------------------------------------
+
+function roomSnapshot(roomId) {
+  const map = racePlayers.get(roomId);
+  if (!map) return [];
+  return Array.from(map.values()).map((p) => ({
+    nickname: p.nickname,
+    wpm: Math.round(p.wpm || 0),
+    accuracy: Math.round(p.accuracy || 0),
+    speed: Number((p.speed || 0).toFixed(2)),
+    position: Number((p.position || 0).toFixed(1))
+  }));
+}
+
+// Update loop
+setInterval(() => {
+  for (const [roomId, map] of racePlayers.entries()) {
+    for (const p of map.values()) {
+      p.speed = calcPlayerSpeed(p.wpm);
+      p.position = integratePosition(
+        p.position,
+        p.speed,
+        TICK_MS / 1000,
+        TRACK_LEN
+      );
+    }
+    io.to(roomId).emit("race:update", roomSnapshot(roomId));
+  }
+}, TICK_MS);
+
 // -----------------------------------
 // SOCKET.IO - EVENTOS EN TIEMPO REAL
 // -----------------------------------
@@ -148,88 +187,80 @@ function stopRoomTimer(roomId) {
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
-  // Cliente pide crear sala
   socket.on("requestRoomCreation", (data) => {
     const roomName = data.roomName;
-
-    if (!rooms[roomName]) {
-      createRoom(roomName);
-    }
-
+    if (!rooms[roomName]) createRoom(roomName);
     socket.emit("confirmRoomCreation", { roomName });
-    console.log(`Solicitud crear sala: ${roomName} por ${socket.id}`);
   });
 
-  // Cliente crea o se une a una sala
   socket.on("createRoom", (data) => {
     const room = data.room || data.roomName;
     socket.join(room);
     if (!rooms[room]) createRoom(room);
-
     socket.emit("roomCreated", { room });
-    console.log(`Cliente ${socket.id} unido a la sala ${room}`);
   });
 
-  // Cliente se une a sala existente
   socket.on("joinRoom", (data) => {
     try {
       const { room, nickname } = data;
-
-      if (!room || !nickname) {
-        socket.emit("error", { message: "Room y nickname son requeridos" });
-        return;
-      }
+      if (!room || !nickname) return;
 
       socket.join(room);
       socket.nickname = nickname;
-      socket.currentRoom = room; // Para tracking
+      socket.currentRoom = room;
 
       addPlayerToRoom(room, nickname, socket.id);
-
       io.to(room).emit("updateUserList", rooms[room].players);
 
-      // Iniciar timer si hay más de 1 jugador y no está ya iniciado
       if (rooms[room].players.length > 1 && !timers[room]) {
         startRoomTimer(room);
       }
-    } catch (error) {
-      console.error("Error en joinRoom:", error);
-      socket.emit("error", { message: "Error al unirse a la sala" });
+
+      // enviar snapshot inicial de carrera
+      io.to(room).emit("race:update", roomSnapshot(room));
+    } catch (err) {
+      console.error("Error en joinRoom:", err);
     }
   });
 
-  // Iniciar timer manualmente (por si el frontend lo solicita)
-  socket.on("startTimer", (data) => {
-    const { room } = data;
-    if (rooms[room] && rooms[room].players.length > 1 && !timers[room]) {
-      startRoomTimer(room);
-    }
+  // Recibir progreso de tipeo (PlayView)
+  socket.on("typing:progress", ({ room, wpm, accuracy }) => {
+    const map = racePlayers.get(room);
+    if (!map) return;
+    const p = map.get(socket.id);
+    if (!p) return;
+    p.wpm = Number(wpm) || 0;
+    p.accuracy = Number(accuracy) || 0;
   });
 
-  // Resultados de la partida
+  // Finalización del juego
   socket.on("gameFinished", (data) => {
     const { room, nickname, wpm, accuracy } = data;
-    const success = addGameResult(room, nickname, wpm, accuracy);
-
-    if (success) {
-      io.to(room).emit("updateGameResults", rooms[room].results);
-    }
-  });
-
-  // Desconexión
-  socket.on("disconnect", () => {
-    removePlayer(socket.id);
-
-    // Actualizar la lista de jugadores en todas las salas
-    for (const [roomId, roomData] of Object.entries(rooms)) {
-      io.to(roomId).emit("updateUserList", roomData.players);
-
-      // Detener timer si quedan menos de 2 jugadores
-      if (roomData.players.length < 2 && timers[roomId]) {
-        stopRoomTimer(roomId);
+    const map = racePlayers.get(room);
+    if (map) {
+      const p = map.get(socket.id);
+      if (p) {
+        p.wpm = Number(wpm) || 0;
+        p.accuracy = Number(accuracy) || 0;
+        p.position = TRACK_LEN;
       }
     }
+    addGameResult(room, nickname, wpm, accuracy);
+    io.to(room).emit("updateGameResults", rooms[room].results);
+    io.to(room).emit("race:update", roomSnapshot(room));
+  });
 
+  socket.on("disconnect", () => {
+    const roomId = socket.currentRoom;
+    removePlayer(socket.id);
+
+    if (roomId && rooms[roomId]) {
+      io.to(roomId).emit("updateUserList", rooms[roomId].players);
+      if (rooms[roomId].players.length < 2 && timers[roomId]) {
+        stopRoomTimer(roomId);
+      }
+      io.to(roomId).emit("race:update", roomSnapshot(roomId));
+    }
     console.log(`Usuario desconectado: ${socket.id}`);
   });
 });
@@ -238,21 +269,16 @@ io.on("connection", (socket) => {
 // RUTAS EXPRESS (API REST)
 // -------------------------
 
-// Obtener info de una sala específica
 app.get("/api/rooms/:roomId", (req, res) => {
   const room = rooms[req.params.roomId];
-  if (!room) {
-    return res.status(404).json({ error: "Sala no encontrada" });
-  }
+  if (!room) return res.status(404).json({ error: "Sala no encontrada" });
   res.json(room);
 });
 
-// Listar todas las salas activas
 app.get("/api/rooms", (req, res) => {
   res.json(Object.values(rooms));
 });
 
-// Obtener todos los textos
 app.get("/texts", (req, res) => {
   con.query("SELECT * FROM TEXTS", (err, results) => {
     if (err)
@@ -261,7 +287,6 @@ app.get("/texts", (req, res) => {
   });
 });
 
-// Obtener texto por ID
 app.get("/texts/:id", (req, res) => {
   con.query(
     "SELECT * FROM TEXTS WHERE ID = ?",
@@ -274,7 +299,6 @@ app.get("/texts/:id", (req, res) => {
   );
 });
 
-// Obtener palabra aleatoria por idioma
 app.get("/words/:language", (req, res) => {
   const { language } = req.params;
   con.query(
@@ -297,12 +321,12 @@ app.get("/words/:language", (req, res) => {
 // -----------------
 // INICIAR SERVIDOR
 // -----------------
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor Socket.IO corriendo en http://localhost:${PORT}`);
-  console.log(`Rutas API disponibles:`);
-  console.log(`  GET /api/rooms - Listar todas las salas activas`);
-  console.log(`  GET /api/rooms/:roomId - Info de una sala específica`);
-  console.log(`  GET /texts - Todos los textos de la BD`);
-  console.log(`  GET /texts/:id - Texto específico por ID`);
-  console.log(`  GET /words/:language - Palabra aleatoria por idioma`);
+  console.log("Rutas API disponibles:");
+  console.log("  GET /api/rooms - Listar salas activas");
+  console.log("  GET /api/rooms/:roomId - Info de sala");
+  console.log("  GET /texts - Todos los textos");
+  console.log("  GET /texts/:id - Texto por ID");
+  console.log("  GET /words/:language - Palabra aleatoria");
 });
