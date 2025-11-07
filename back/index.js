@@ -15,6 +15,7 @@ dotenv.config();
 // ------------------------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 
 app.use(cors());
 
@@ -321,8 +322,8 @@ app.get("/words/:language", (req, res) => {
 // -----------------
 // INICIAR SERVIDOR
 // -----------------
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Servidor Socket.IO corriendo en http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Servidor Socket.IO corriendo en http://localhost:${HOST}:${PORT}`);
   console.log("Rutas API disponibles:");
   console.log("  GET /api/rooms - Listar salas activas");
   console.log("  GET /api/rooms/:roomId - Info de sala");
