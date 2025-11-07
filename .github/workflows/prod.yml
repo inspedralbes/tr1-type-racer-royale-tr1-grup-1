@@ -47,7 +47,7 @@ jobs:
           port: 22
           script: |
             cd /tr1-type-racer-royale-tr1-grup-1/back
-            echo -e "PORT=3000\nHOST=tr1g1-mysql\nUSER=${{ secrets.USER_SERVER }}\nPASSWORD=${{ secrets.DB_PASSWORD }}" > .env
+            echo -e "PORT=3000\nHOST=tr1g1-mysql\nUSER=${{ secrets.USER_SERVER }}\nPASSWORD=${{ secrets.DB_PASSWORD }}" > .env.PROD
 
       - name: Create frontend .env file
         uses: appleboy/ssh-action@v1.0.3
@@ -58,7 +58,7 @@ jobs:
           port: 22
           script: |
             cd /tr1-type-racer-royale-tr1-grup-1/front
-            echo -e "VITE_BACKEND_URL=http://${{ secrets.IP_SERVER }}:3000" > .env
+            echo -e "VITE_BACKEND_URL=http://${{ secrets.IP_SERVER }}:3000" > .env.PROD
 
       - name: Docker Compose build & up
         uses: appleboy/ssh-action@v1.0.3
