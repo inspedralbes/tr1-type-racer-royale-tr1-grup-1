@@ -68,6 +68,7 @@
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
+    <Keyboard :nickname="user.nickname" />
   </main>
 </template>
 
@@ -82,16 +83,19 @@ import {
   nextTick,
 } from "vue";
 import { getText } from "@/services/communicationManager.js";
-import { io } from "socket.io-client";
+import { useToast } from "vue-toastification";
+
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
 // shared speed function (mounted via docker volume into /usr/src/app/shared)
 import { calcPlayerSpeed } from "@/../shared/speed.js";
 
-const socket = io("http://65.109.169.50:3000");
+import { socket } from "@/services/socket.js";
+import Keyboard from "@/components/Keyboard.vue";
 
 const router = useRouter();
 const user = useUserStore();
+const toast = useToast();
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
 // DATA LOADING
@@ -107,6 +111,10 @@ const raceState = ref([]);
 socket.on("race:update", (snapshot) => {
   raceState.value = snapshot || [];
 });
+
+const totalErrors = ref(0);
+const lastTypedLength = ref(0);
+const lastWpmEmit = ref(0);
 
 async function pickRandomText() {
   try {
@@ -213,9 +221,63 @@ function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
+
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
+
+  // --- NUEVO: conteo acumulativo de errores ---
+  const len = userInput.value.length;
+  const diff = len - lastTypedLength.value;
+
+  if (diff > 0) {
+    // Usuario escribió nuevos caracteres
+    for (let i = lastTypedLength.value; i < len; i++) {
+      if (userInput.value[i] !== target.value[i]) {
+        totalErrors.value++;
+        console.log("Nuevo error acumulado:", totalErrors.value);
+      }
+    }
+  }
+
+  lastTypedLength.value = len;
+
+  // Emitir cada vez que los errores acumulados sean múltiplo de 5 (y mayor que 0)
+  if (totalErrors.value > 0 && totalErrors.value % 5 === 0) {
+    console.log(
+      "Enviando notificación de bajo rendimiento (múltiplo de 5):",
+      totalErrors.value
+    );
+    socket.emit("userPerformance", {
+      room: ROOM,
+      nickname: user.nickname,
+      status: "bad",
+      message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
+    });
+  }
+
+  // // Si mejora su precisión y baja de 3 errores → enviar mejora
+  // if (errorCount.value === 2) {
+  //   socket.emit("userPerformance", {
+  //     room: "main-room",
+  //     nickname: user.nickname,
+  //     status: "recovered",
+  //     message: `${user.nickname} se ha recuperado y está escribiendo mejor.`,
+  //   });
+  // }
+
+  // // ---  NUEVO: detección de velocidad alta
+  // if (wpm.value >= 80 && wpm.value !== lastWpmEmit.value) {
+  //   lastWpmEmit.value = wpm.value;
+  //   socket.emit("userPerformance", {
+  //     room: "main-room",
+  //     nickname: user.nickname,
+  //     status: "fast",
+  //     message: `${user.nickname} está escribiendo muy rápido (${wpm.value} WPM)!`,
+  //   });
+  // }
+
+  // Finalización
 
   emitProgressThrottled();
 
@@ -226,6 +288,7 @@ function onInput() {
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
+      errors: totalErrors.value, // 🔹 Enviar errores acumulados al servidor
     });
   }
 }
@@ -243,6 +306,8 @@ function reset() {
   userInput.value = "";
   startedAt.value = null;
   endedAt.value = null;
+  totalErrors.value = 0; // 🔹 resetear errores
+  lastTypedLength.value = 0;
   focusInput();
 }
 
@@ -261,6 +326,16 @@ onMounted(async () => {
   // Sala: resultados
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
+    console.log("Resultados actualizados:", results);
+  });
+
+  toast.info("Conectado al servidor de notificaciones.");
+
+  socket.on("userPerformance", (data) => {
+    console.log("Notificación de rendimiento:", data);
+    if (data.nickname !== user.nickname) {
+      toast.info(data.message, { timeout: 2500 });
+    }
   });
 
   await pickRandomText();
@@ -281,9 +356,9 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   socket.off("updateGameResults");
+  socket.off("userPerformance");
   socket.off("race:update");
   socket.off("connect");
-  // optional: socket.disconnect();
 });
 
 // When target changes (Next Text), reset everything
@@ -308,12 +383,14 @@ watch(
 .race-progress {
   margin-top: 1.5rem;
 }
+
 .progress-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.4rem;
 }
+
 .bar-container {
   flex: 1;
   background: #e5e7eb;
@@ -321,6 +398,7 @@ watch(
   height: 10px;
   overflow: hidden;
 }
+
 .bar {
   height: 100%;
   transition: width 0.1s linear;
@@ -333,6 +411,7 @@ watch(
   margin: 0 auto;
   padding: 1.25rem;
 }
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -340,10 +419,12 @@ watch(
   gap: 1rem;
   margin-bottom: 1rem;
 }
+
 .topbar h1 {
   margin: 0;
   font-size: 1.5rem;
 }
+
 .stats {
   display: flex;
   gap: 1rem;
@@ -363,6 +444,7 @@ watch(
   cursor: text;
   user-select: none;
 }
+
 .text-wrapper {
   position: relative;
   color: #6b7280;
@@ -378,9 +460,11 @@ watch(
   padding: 2rem;
   font-size: 1.1rem;
 }
+
 .loading {
   color: #2563eb;
 }
+
 .error {
   color: #dc2626;
 }
@@ -389,20 +473,26 @@ watch(
 .char {
   position: relative;
 }
+
 .untouched {
   opacity: 0.65;
 }
+
 .correct {
   color: #10b981;
 }
+
+/* emerald */
 .wrong {
   color: #e81c1c;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
+
 .current {
   color: #111827;
+  /* brighten current slot slightly */
 }
 
 /* blinking caret positioned dynamically */
@@ -432,6 +522,7 @@ watch(
   resize: none;
   cursor: text;
   caret-color: #111827;
+  /* so the native caret still exists for accessibility */
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
@@ -445,6 +536,7 @@ watch(
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
 .btn {
   padding: 0.5rem 0.9rem;
   border-radius: 8px;
@@ -462,18 +554,21 @@ watch(
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
 }
+
 .results-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
 }
+
 .result-card {
   padding: 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   background: white;
 }
+
 .result-card strong {
   color: #2563eb;
   display: block;

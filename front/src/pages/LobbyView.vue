@@ -91,9 +91,7 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client";
-
-const socket = io("http://65.109.169.50:3000");
+import { socket } from "@/services/socket.js";
 
 const router = useRouter();
 const user = useUserStore();

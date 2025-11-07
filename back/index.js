@@ -33,13 +33,13 @@ app.get("/", (req, res) => {
 // ESTRUCTURA DE DATOS DEL JUEGO
 // -------------------------------
 
-const rooms = {};   // { roomId: { id, players: [], status, results: [] } }
-const timers = {};  // Temporizadores activos
+const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
+const timers = {}; // Temporizadores activos
 
 // 🔹 RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
 const TRACK_LEN = 100; // “distance” in %
-const TICK_MS = 100;   // 10 updates per second
+const TICK_MS = 100; // 10 updates per second
 
 // --------------------------------
 // FUNCIONES DE MANEJO DE SALAS
@@ -50,7 +50,7 @@ function createRoom(roomId) {
     id: roomId,
     players: [],
     status: "waiting",
-    results: []
+    results: [],
   };
   racePlayers.set(roomId, new Map());
   console.log(`Sala creada: ${roomId}`);
@@ -66,7 +66,8 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       nickname,
       wpm: 0,
       accuracy: 0,
-      isAlive: true
+      color: getRandomColor(),
+      isAlive: true,
     });
   }
 
@@ -79,13 +80,19 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       wpm: 0,
       accuracy: 100,
       speed: 0,
-      position: 0
+      position: 0,
     });
   }
 
   console.log(`${nickname} se ha unido a la sala ${roomId}`);
 }
 
+// Función: generar color aleatorio
+function getRandomColor() {
+  return "#" + Math.floor(Math.random() * 16777215).toString(16);
+}
+
+// Función: eliminar jugador al desconectarse
 function removePlayer(socketId) {
   for (const [roomId, room] of Object.entries(rooms)) {
     room.players = room.players.filter((p) => p.id !== socketId);
@@ -107,7 +114,7 @@ function addGameResult(roomId, nickname, wpm, accuracy) {
     nickname,
     wpm: Number(wpm),
     accuracy: Number(accuracy),
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
   console.log(
     `Resultado añadido en ${roomId}: ${nickname} (${wpm}WPM, ${accuracy}%)`
@@ -161,7 +168,7 @@ function roomSnapshot(roomId) {
     wpm: Math.round(p.wpm || 0),
     accuracy: Math.round(p.accuracy || 0),
     speed: Number((p.speed || 0).toFixed(2)),
-    position: Number((p.position || 0).toFixed(1))
+    position: Number((p.position || 0).toFixed(1)),
   }));
 }
 
@@ -251,6 +258,50 @@ io.on("connection", (socket) => {
     io.to(room).emit("race:update", roomSnapshot(room));
   });
 
+  // Detectar rendimiento de jugador (bueno o malo)
+  socket.on("userPerformance", (data) => {
+    const { room, nickname, status, message } = data;
+
+    // Verificar que la sala existe
+    if (!rooms[room]) {
+      console.log(`Intento de emitir performance a sala inexistente: ${room}`);
+      return;
+    }
+
+    console.log(`${nickname} (${room}) -> ${status}: ${message}`);
+
+    // Emitir a TODOS en la sala (incluye al emisor)
+    io.to(room).emit("userPerformance", {
+      nickname,
+      status,
+      message,
+    });
+  });
+
+  socket.on("userKey", (data) => {
+    const { room, nickname, key } = data;
+    // Verificar que la sala existe
+    if (!rooms[room]) {
+      console.log(`Intento de emitir userKey a sala inexistente: ${room}`);
+      return;
+    }
+    const player = rooms[room].players.find((p) => p.nickname === nickname);
+    const color = player ? player.color : null;
+    if (!player) {
+      console.log(`No se encontró jugador ${nickname} en la sala ${room}`);
+    } else {
+      console.log(`Color de ${nickname} en ${room}: ${color}`);
+    }
+
+    // Emitir junto con la tecla el color (null si no se encontró)
+    io.to(room).emit("userKey", {
+      nickname,
+      key,
+      color,
+    });
+  });
+
+  // Desconexión
   socket.on("disconnect", () => {
     const roomId = socket.currentRoom;
     removePlayer(socket.id);

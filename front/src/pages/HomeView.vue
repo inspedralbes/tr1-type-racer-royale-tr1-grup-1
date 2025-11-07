@@ -61,8 +61,7 @@
 import { ref, watchEffect } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client";
-const socket = io("http://65.109.169.50:3000");
+import { socket } from "@/services/socket.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -82,7 +81,7 @@ function join() {
   user.setNickname(nick.value);
 
   // Emitimos la petición de crear sala
-  socket.emit("requestRoomCreation", { roomName: "defaultRoom" });
+  socket.emit("requestRoomCreation", { roomName: "main-room" });
 
   // Escuchamos la confirmación del servidor
   socket.on("confirmRoomCreation", (data) => {
