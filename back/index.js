@@ -267,7 +267,6 @@ io.on("connection", (socket) => {
       return;
     }
 
-    console.log(rooms);
     console.log(`${nickname} (${room}) -> ${status}: ${message}`);
 
     // Emitir a TODOS en la sala (incluye al emisor)
@@ -285,7 +284,6 @@ io.on("connection", (socket) => {
       console.log(`Intento de emitir userKey a sala inexistente: ${room}`);
       return;
     }
-    console.log(rooms);
     const player = rooms[room].players.find((p) => p.nickname === nickname);
     const color = player ? player.color : null;
     if (!player) {

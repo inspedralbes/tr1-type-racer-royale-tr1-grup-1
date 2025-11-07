@@ -300,17 +300,6 @@ onMounted(async () => {
     // alternativa rápida: alert(data.message);
   });
 
-  toast.info("Conectado al servidor de notificaciones.");
-
-  socket.on("userPerformance", (data) => {
-    console.log("Notificación de rendimiento:", data);
-    // mostrar toast corto (2500ms)
-    if (data.nickname !== user.nickname) {
-      toast.info(data.message, { timeout: 2500 });
-    }
-    // alternativa rápida: alert(data.message);
-  });
-
   await pickRandomText();
   await nextTick();
 
@@ -329,6 +318,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   socket.off("updateGameResults");
+  socket.off("userPerformance");
   socket.off("race:update");
   socket.off("connect");
   // optional: socket.disconnect();
@@ -478,7 +468,12 @@ watch(
   z-index: 1;
   animation: blink 0.5s steps(2, start) infinite;
 }
-@keyframes blink { 50% { opacity: 0; } }
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
 
 /* hidden input overlay */
 .hidden-input {
@@ -517,6 +512,7 @@ watch(
 .btn:hover {
   background: #f3f4f6;
 }
+
 .results-section {
   margin: 2rem 0;
   padding: 1rem;
