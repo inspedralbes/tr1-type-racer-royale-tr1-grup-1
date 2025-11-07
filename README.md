@@ -9,9 +9,13 @@ Un cop comenceu heu de canviar aquesta explicació amb la corresponent al vostre
 # Aquest fitxer ha de contenir com a mínim:
  * Nom dels integrants
     -Llorenç Carnice
-    -Roman Novytskyi
+   
+    -Roman Novytsky
+   
     -Valeria Nicoll Zavaleta Vásquez
+   
     -Climent Fernández Andújar
+   
     -IKer mata Garcia
 
  * Nom del projecte
