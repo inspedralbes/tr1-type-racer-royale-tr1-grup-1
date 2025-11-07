@@ -62,7 +62,7 @@ import { ref, watchEffect } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { io } from "socket.io-client";
-const socket = io("http://localhost:3000");
+const socket = io("http://65.109.169.50:3000");
 
 const router = useRouter();
 const route = useRoute();
@@ -81,7 +81,7 @@ function join() {
   if (!nick.value?.trim()) return;
   user.setNickname(nick.value);
 
-    // Emitimos la petición de crear sala
+  // Emitimos la petición de crear sala
   socket.emit("requestRoomCreation", { roomName: "defaultRoom" });
 
   // Escuchamos la confirmación del servidor
@@ -96,8 +96,9 @@ function join() {
   socket.on("roomCreated", (data) => {
     console.log("Sala creada o unida:", data.room);
 
-  // go back where they intended, else /lobby
-  const redirectTo = route.query.redirectTo || '/lobby';
-  router.push(redirectTo)
-  });}
+    // go back where they intended, else /lobby
+    const redirectTo = route.query.redirectTo || "/lobby";
+    router.push(redirectTo);
+  });
+}
 </script>

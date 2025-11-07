@@ -35,7 +35,9 @@
           >
             <span>{{ player.nickname || player.name || player }}</span>
             <span
-              v-if="(player.nickname || player.name || player) === user.nickname"
+              v-if="
+                (player.nickname || player.name || player) === user.nickname
+              "
               style="color: #2563eb; font-size: 0.85rem; margin-left: 4px"
             >
               (You)
@@ -91,7 +93,7 @@ import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3000");
+const socket = io("http://65.109.169.50:3000");
 
 const router = useRouter();
 const user = useUserStore();

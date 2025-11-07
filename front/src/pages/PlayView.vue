@@ -16,11 +16,9 @@
 
       <!-- Contenido del texto -->
       <div v-else class="text-wrapper" ref="textWrapper">
-        <span
-          v-for="(ch, i) in targetChars"
-          :key="i"
-          :class="charClass(i)"
-        >{{ ch }}</span>
+        <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
+          ch
+        }}</span>
         <!-- blinking caret positioned dynamically -->
         <span v-if="!finished" class="caret" :style="caretStyle"></span>
       </div>
@@ -75,7 +73,14 @@
 
 <script setup>
 const ROOM = "main-room"; // TODO: replace with dynamic room id when lobby wires it
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 import { getText } from "@/services/communicationManager.js";
 import { io } from "socket.io-client";
 import { useUserStore } from "@/stores/user";
@@ -83,7 +88,7 @@ import { useRouter } from "vue-router";
 // shared speed function (mounted via docker volume into /usr/src/app/shared)
 import { calcPlayerSpeed } from "@/../shared/speed.js";
 
-const socket = io("http://localhost:3000");
+const socket = io("http://65.109.169.50:3000");
 
 const router = useRouter();
 const user = useUserStore();
@@ -125,8 +130,7 @@ const userInput = ref("");
 const startedAt = ref(null);
 const endedAt = ref(null);
 const finished = computed(
-  () =>
-    userInput.value.length >= target.value.length && target.value.length > 0
+  () => userInput.value.length >= target.value.length && target.value.length > 0
 );
 
 const typedChars = computed(() => userInput.value.length);
@@ -374,20 +378,32 @@ watch(
   padding: 2rem;
   font-size: 1.1rem;
 }
-.loading { color: #2563eb; }
-.error   { color: #dc2626; }
+.loading {
+  color: #2563eb;
+}
+.error {
+  color: #dc2626;
+}
 
 /* characters */
-.char { position: relative; }
-.untouched { opacity: 0.65; }
-.correct { color: #10b981; }
+.char {
+  position: relative;
+}
+.untouched {
+  opacity: 0.65;
+}
+.correct {
+  color: #10b981;
+}
 .wrong {
   color: #e81c1c;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
-.current { color: #111827; }
+.current {
+  color: #111827;
+}
 
 /* blinking caret positioned dynamically */
 .caret {
@@ -399,7 +415,11 @@ watch(
   z-index: 1;
   animation: blink 0.5s steps(2, start) infinite;
 }
-@keyframes blink { 50% { opacity: 0; } }
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
 
 /* hidden input overlay */
 .hidden-input {
@@ -432,7 +452,9 @@ watch(
   background: white;
   cursor: pointer;
 }
-.btn:hover { background: #f3f4f6; }
+.btn:hover {
+  background: #f3f4f6;
+}
 
 .results-section {
   margin: 2rem 0;
