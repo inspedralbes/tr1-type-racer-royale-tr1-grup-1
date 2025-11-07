@@ -90,7 +90,9 @@ const raceState = ref([]);
 socket.on("race:update", (snapshot) => {
   raceState.value = snapshot || [];
 });
-const errorCount = ref(0);
+
+const totalErrors = ref(0);
+const lastTypedLength = ref(0);
 const lastWpmEmit = ref(0);
 
 async function pickRandomText() {
@@ -199,23 +201,35 @@ function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
+
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
 
-  // --- NUEVO: control de errores
-  const currentErrors = typedChars.value - correctChars.value;
-  errorCount.value = currentErrors;
-  console.log("Errores actuales:", errorCount.value);
+  // --- NUEVO: conteo acumulativo de errores ---
+  const len = userInput.value.length;
+  const diff = len - lastTypedLength.value;
 
-  // Si el usuario acumula más de 5 errores → avisar al room
-  if (errorCount.value === 5) {
-    console.log("Enviando notificación de bajo rendimiento");
+  if (diff > 0) {
+    // Usuario escribió nuevos caracteres
+    for (let i = lastTypedLength.value; i < len; i++) {
+      if (userInput.value[i] !== target.value[i]) {
+        totalErrors.value++;
+        console.log("Nuevo error acumulado:", totalErrors.value);
+      }
+    }
+  }
+
+  lastTypedLength.value = len;
+
+  // Emitir cada vez que los errores acumulados sean múltiplo de 5 (y mayor que 0)
+  if (totalErrors.value > 0 && totalErrors.value % 5 === 0) {
+    console.log("Enviando notificación de bajo rendimiento (múltiplo de 5):", totalErrors.value);
     socket.emit("userPerformance", {
-      room: "main-room",
+      room: ROOM,
       nickname: user.nickname,
       status: "bad",
-      message: `${user.nickname} está teniendo dificultades (5 errores).`,
+      message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
     });
   }
 
@@ -251,6 +265,7 @@ function onInput() {
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
+      errors: totalErrors.value, // 🔹 Enviar errores acumulados al servidor
     });
   }
 }
@@ -268,6 +283,8 @@ function reset() {
   userInput.value = "";
   startedAt.value = null;
   endedAt.value = null;
+  totalErrors.value = 0; // 🔹 resetear errores
+  lastTypedLength.value = 0;
   focusInput();
 }
 
@@ -286,18 +303,16 @@ onMounted(async () => {
   // Sala: resultados
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
-    console.log(" Resultados actualizados:", results);
+    console.log("Resultados actualizados:", results);
   });
 
   toast.info("Conectado al servidor de notificaciones.");
 
   socket.on("userPerformance", (data) => {
     console.log("Notificación de rendimiento:", data);
-    // mostrar toast corto (2500ms)
     if (data.nickname !== user.nickname) {
       toast.info(data.message, { timeout: 2500 });
     }
-    // alternativa rápida: alert(data.message);
   });
 
   await pickRandomText();
@@ -321,7 +336,6 @@ onBeforeUnmount(() => {
   socket.off("userPerformance");
   socket.off("race:update");
   socket.off("connect");
-  // optional: socket.disconnect();
 });
 
 // When target changes (Next Text), reset everything
