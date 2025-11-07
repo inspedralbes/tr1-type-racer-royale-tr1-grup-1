@@ -3,12 +3,13 @@ version: "3.9"
 services:
   tr1g1-front:
     build:
-       context: ./front
+      context: ./front
     restart: always
     ports:
       - 80:80
     depends_on:
       - tr1g1-back
+    command: sh -c "npm install && npm run build && http-server dist -p 80"
 
   tr1g1-back:
     image: node:23-bookworm-slim
