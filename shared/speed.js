@@ -1,17 +1,27 @@
-export function calcPlayerSpeed(
-  wpm,
-  { minWpm = 20, maxWpm = 160, minSpeed = 1, maxSpeed = 10, curve = 1.4 } = {}
-) {
-  if (!Number.isFinite(wpm)) return 0;
-  const clamped = Math.min(Math.max(wpm, minWpm), maxWpm);
-  const normalized = (clamped - minWpm) / (maxWpm - minWpm);
-  const curved = Math.pow(normalized, curve);
-  return Number((minSpeed + curved * (maxSpeed - minSpeed)).toFixed(2));
+export const TRACK_LEN = 100;      // percent
+export const BASE_SPEED = 10;      // % per second baseline
+export const CHAR_INC   = 0.7;     // +%/s per correct char
+export const MAX_SPEED  = 40;      // cap %/s
+export const IDLE_DECAY = 6;       // %/s decay when idle
+
+export function clamp(v, lo, hi) {
+  return Math.min(hi, Math.max(lo, v));
 }
 
-export function integratePosition(pos, speed, dtSec, trackLen = 100) {
-  const next = (pos || 0) + (speed || 0) * (dtSec || 0);
-  return Math.min(Math.max(0, next), trackLen);
+// bump speed on a correct keystroke
+export function applyCorrectChar(speed) {
+  return clamp(speed + CHAR_INC, 0, MAX_SPEED);
 }
 
-//to check
+// decay toward base when idle, dt in seconds
+export function decaySpeed(speed, dt) {
+  if (speed <= BASE_SPEED) return BASE_SPEED;
+  const newSpeed = speed - IDLE_DECAY * dt;
+  return newSpeed <= BASE_SPEED ? BASE_SPEED : newSpeed;
+}
+
+// integrate position with current speed, dt in seconds
+export function integratePosition(position, speed, dt, trackLen = TRACK_LEN) {
+  const next = position + speed * dt;
+  return clamp(next, 0, trackLen);
+}
