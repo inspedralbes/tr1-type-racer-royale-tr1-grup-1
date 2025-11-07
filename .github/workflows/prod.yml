@@ -1,0 +1,72 @@
+name: 🚀 Deploy Docker Environments
+
+on:
+  push:
+    branches:
+      - main
+      - prod
+
+jobs:
+  deploy:
+    name: Deploy to Remote Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update project with git pull
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            git fetch origin
+            git reset --hard origin/${{ github.ref_name }}
+
+      - name: Create root .env file
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            echo "PASSWORD=${{ secrets.DB_PASSWORD }}" > .env
+
+      - name: Create backend .env file
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1/back
+            echo -e "PORT=3000\nHOST=tr1g1-mysql\nUSER=${{ secrets.USER_SERVER }}\nPASSWORD=${{ secrets.DB_PASSWORD }}" > .env
+
+      - name: Create frontend .env file
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1/front
+            echo -e "VITE_BACKEND_URL=http://${{ secrets.IP_SERVER }}:3000" > .env
+
+      - name: Docker Compose build & up
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            docker compose -f docker-compose.prod.yml up --build -d
