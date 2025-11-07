@@ -19,6 +19,8 @@
             <option value="wpm">WPM</option>
             <option value="accuracy">Accuracy</option>
             <option value="errors">Errors</option>
+            <option value="races">Races</option>
+            <option value="lastPlayed">Last Played</option>
             <option value="nickname">Name (A–Z)</option>
           </select>
         </label>
@@ -43,21 +45,26 @@
             <th @click="setSort('wpm')" class="th-btn">WPM</th>
             <th @click="setSort('accuracy')" class="th-btn">Accuracy</th>
             <th @click="setSort('errors')" class="th-btn">Errors</th>
+            <th @click="setSort('races')" class="th-btn">Races</th>
+            <th @click="setSort('lastPlayed')" class="th-btn">Last Played</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in pagedRows" :key="row.id">
+          <tr v-for="(row, i) in pagedRows" :key="row.id || i">
             <td>{{ startIndex + i + 1 }}</td>
             <td class="nick">{{ row.nickname }}</td>
-            <td :title="row.time ? row.time + 's' : iso(row.lastPlayed)">
-              {{ row.time ? row.time + "s" : relativeTime(row.lastPlayed) }}
+            <td>
+              <span v-if="row.time">{{ row.time }}s</span>
+              <span v-else>{{ relativeTime(row.lastPlayed) }}</span>
             </td>
             <td>{{ row.wpm }}</td>
             <td>{{ row.accuracy }}%</td>
             <td>{{ displayErrors(row) }}</td>
+            <td>{{ row.races ?? '-' }}</td>
+            <td :title="iso(row.lastPlayed)">{{ relativeTime(row.lastPlayed) }}</td>
           </tr>
           <tr v-if="pagedRows.length === 0">
-            <td colspan="6" class="empty">No players match your filter.</td>
+            <td colspan="8" class="empty">No players match your filter.</td>
           </tr>
         </tbody>
       </table>
@@ -66,39 +73,28 @@
     <footer class="pager" v-if="pages > 1">
       <button class="btn" :disabled="page === 1" @click="page--">Prev</button>
       <span>Page {{ page }} / {{ pages }}</span>
-      <button class="btn" :disabled="page === pages" @click="page++">
-        Next
-      </button>
+      <button class="btn" :disabled="page === pages" @click="page++">Next</button>
     </footer>
   </main>
 </template>
 
-<!--Backenders!! You need to change this shi primerely!!!-->
-<!-- And add this part most likely 
- import { onMounted } from 'vue'
-
-onMounted(async () => {
-  const res = await fetch('/api/leaderboard') // or whatever your Express route is
-  rows.value = await res.json()
-})
--->
 <script setup>
 import { ref, computed } from "vue";
-import rawData from "@/data/leaderboard.json";
+import rawData from "@/data/leaderboard.json"; // static for now, backend later
 
 const rows = ref(rawData);
 
 // filters / sorting
 const q = ref("");
-const sortKey = ref("time"); // sort initially by Time (seconds lasted)
-const sortDir = ref("desc"); // desc first
+const sortKey = ref("wpm");
+const sortDir = ref("desc");
 const page = ref(1);
 const pageSize = 10;
 
 const filtered = computed(() => {
   const term = q.value.toLowerCase();
   if (!term) return rows.value;
-  return rows.value.filter((r) => r.nickname.toLowerCase().includes(term));
+  return rows.value.filter((r) => r.nickname?.toLowerCase().includes(term));
 });
 
 const sorted = computed(() => {
@@ -109,28 +105,19 @@ const sorted = computed(() => {
     let va, vb;
 
     if (k === "time") {
-      // Prefer explicit numeric time (in seconds). Fallback to lastPlayed timestamp.
-      va =
-        a.time != null
-          ? Number(a.time) * 1000
-          : new Date(a.lastPlayed).getTime();
-      vb =
-        b.time != null
-          ? Number(b.time) * 1000
-          : new Date(b.lastPlayed).getTime();
+      va = a.time != null ? Number(a.time) * 1000 : new Date(a.lastPlayed).getTime();
+      vb = b.time != null ? Number(b.time) * 1000 : new Date(b.lastPlayed).getTime();
     } else if (k === "errors") {
-      const errsA =
-        a.errors != null
-          ? Number(a.errors)
-          : a.accuracy != null
-          ? 100 - Number(a.accuracy)
-          : 0;
-      const errsB =
-        b.errors != null
-          ? Number(b.errors)
-          : b.accuracy != null
-          ? 100 - Number(b.accuracy)
-          : 0;
+      const errsA = a.errors != null
+        ? Number(a.errors)
+        : a.accuracy != null
+        ? 100 - Number(a.accuracy)
+        : 0;
+      const errsB = b.errors != null
+        ? Number(b.errors)
+        : b.accuracy != null
+        ? 100 - Number(b.accuracy)
+        : 0;
       va = errsA;
       vb = errsB;
     } else if (k === "lastPlayed") {
@@ -145,19 +132,13 @@ const sorted = computed(() => {
       return va.localeCompare(vb) * dir;
     }
 
-    // numeric compare
     return (va - vb) * dir;
   });
 });
 
-// rank = index in sorted list + 1 (ties will still increment; you can add true ties logic later)
-const pages = computed(() =>
-  Math.max(1, Math.ceil(sorted.value.length / pageSize))
-);
+const pages = computed(() => Math.max(1, Math.ceil(sorted.value.length / pageSize)));
 const startIndex = computed(() => (page.value - 1) * pageSize);
-const pagedRows = computed(() =>
-  sorted.value.slice(startIndex.value, startIndex.value + pageSize)
-);
+const pagedRows = computed(() => sorted.value.slice(startIndex.value, startIndex.value + pageSize));
 
 function setSort(key) {
   if (sortKey.value === key) {
@@ -169,7 +150,6 @@ function setSort(key) {
   page.value = 1;
 }
 
-// display helper for errors: prefer explicit errors field, otherwise derive from accuracy
 function displayErrors(row) {
   if (row.errors != null) return row.errors;
   if (row.accuracy != null) return Math.round(100 - Number(row.accuracy));
