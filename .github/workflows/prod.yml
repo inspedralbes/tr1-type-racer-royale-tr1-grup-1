@@ -68,7 +68,7 @@ jobs:
           port: 22
           script: |
             cd /tr1-type-racer-royale-tr1-grup-1/front
-            echo -e "VITE_BACKEND_URL=http://${{ secrets.IP_SERVER }}:3000" > .env.PROD
+            echo -e "VITE_URL_BACK=http://${{ secrets.IP_SERVER }}:3000" > .env.PROD
 
   deploy_containers:
     name: Build and deploy containers
