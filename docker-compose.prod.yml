@@ -9,11 +9,10 @@ services:
       - 80:80
     depends_on:
       - tr1g1-back
-    command: sh -c "npm install && npm run build && http-server dist -p 80"
 
   tr1g1-back:
     image: node:23-bookworm-slim
-    command: sh -c "cp .env.PROD .env && npm install && node index.js"
+    command: sh -c "cp -f .env.PROD .env && npm install && node index.js"
     volumes:
       - ./back:/usr/src/app
     working_dir: /usr/src/app

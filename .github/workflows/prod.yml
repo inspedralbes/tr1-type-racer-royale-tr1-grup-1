@@ -20,8 +20,7 @@ jobs:
           port: 22
           script: |
             cd /tr1-type-racer-royale-tr1-grup-1
-            git fetch origin
-            git reset --hard origin/${{ github.ref_name }}
+            git pull
 
   create_root_env:
     name: Create root .env file
