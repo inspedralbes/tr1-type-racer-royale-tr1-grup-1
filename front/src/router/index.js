@@ -11,13 +11,19 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/play', name: 'play', component: PlayView, meta: { requiresNick: true } },
     { path: '/lobby', name: 'lobby', component: LobbyView, meta: { requiresNick: true } },
-    { path: '/fin', name: 'fin', component: FinView, meta: { requiresNick: true } },
+    { path: '/fin', name: 'fin', component: FinView, meta: { requiresNick: false } },
     { path: '/:pathMatch(.*)*', redirect: '/' }
   ]
 })
 
 router.beforeEach((to) => {
   const user = useUserStore();
+
+  // Bypass de desarrollo: permite acceder si se añade ?dev=1 en la URL
+  if (to.query && to.query.dev === "1") {
+    return true;
+  }
+
   if (to.meta.requiresNick && !user.hasNick) {
     return {
       name: "home",

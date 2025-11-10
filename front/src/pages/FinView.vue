@@ -79,10 +79,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import rawData from "@/data/leaderboard.json"; // static for now, backend later
+import { ref, computed, onMounted } from "vue";
+import rawData from "@/data/leaderboard.json"; // optional fallback if present
 
-const rows = ref(rawData);
+const rows = ref(Array.isArray(rawData) ? rawData : []);
+
+// add loading/error state
+const loading = ref(false);
+const error = ref(null);
 
 // filters / sorting
 const q = ref("");
@@ -90,6 +94,22 @@ const sortKey = ref("wpm");
 const sortDir = ref("desc");
 const page = ref(1);
 const pageSize = 10;
+
+onMounted(async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const res = await fetch("/api/leaderboard");
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const data = await res.json();
+    rows.value = Array.isArray(data) ? data : data.results ?? [];
+  } catch (e) {
+    console.error(e);
+    error.value = e?.message ?? String(e);
+  } finally {
+    loading.value = false;
+  }
+});
 
 const filtered = computed(() => {
   const term = q.value.toLowerCase();

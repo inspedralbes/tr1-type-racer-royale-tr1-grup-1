@@ -370,6 +370,55 @@ app.get("/words/:language", (req, res) => {
   );
 });
 
+app.get("/api/leaderboard", (req, res) => {
+  try {
+    const results = [];
+
+    Object.values(rooms).forEach((room) => {
+      if (Array.isArray(room.results)) {
+        room.results.forEach((r) => {
+          results.push({
+            id: r.id ?? `${room.id}-${r.socketId ?? ""}`,
+            nickname: r.nickname ?? r.player ?? "anon",
+            wpm: r.wpm != null ? Number(r.wpm) : r.speed ?? null,
+            accuracy: r.accuracy != null ? Number(r.accuracy) : null,
+            time: r.time != null ? Number(r.time) : null,
+            errors: r.errors != null ? Number(r.errors) : null,
+            races: r.races != null ? Number(r.races) : null,
+            lastPlayed: r.timestamp ?? r.lastPlayed ?? Date.now(),
+          });
+        });
+      }
+    });
+
+    // Keep only latest per nickname
+    const byNick = new Map();
+    results.forEach((r) => {
+      const existing = byNick.get(r.nickname);
+      if (!existing || new Date(r.lastPlayed).getTime() > new Date(existing.lastPlayed).getTime()) {
+        byNick.set(r.nickname, r);
+      }
+    });
+
+    const out = Array.from(byNick.values());
+
+    // optional sorting
+    const sortKey = req.query.sort || "wpm";
+    const sortDir = req.query.dir === "asc" ? 1 : -1;
+    out.sort((a, b) => {
+      const va = a[sortKey] ?? 0;
+      const vb = b[sortKey] ?? 0;
+      if (typeof va === "string") return String(va).localeCompare(String(vb)) * sortDir;
+      return (va - vb) * sortDir;
+    });
+
+    res.json(out);
+  } catch (err) {
+    console.error("GET /api/leaderboard error:", err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // -----------------
 // INICIAR SERVIDOR
 // -----------------
