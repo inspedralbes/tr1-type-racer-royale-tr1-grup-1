@@ -183,13 +183,15 @@ function onSubmit() {
     userName: userName.value.trim(),
   };
 
-  console.log("🚀 Creando room con datos:", payload);
+  userStore.setNickname(userName.value.trim());
+
+  console.log("Creando room con datos:", payload);
 
   // Emitir evento 'createRoom'
   socket.emit("createRoom", payload);
 
   socket.once("roomCreated", (data) => {
-    console.log("✅ Room creada con éxito:", data);
+    console.log("Room creada con éxito:", data);
     success.value = `Sala "${payload.roomName}" creada exitosamente`;
 
     // Navegar al lobby
@@ -199,13 +201,16 @@ function onSubmit() {
   });
 
   socket.once("roomNotCreated", (data) => {
-    console.log("❌ Error al crear room:", data);
+    console.log("Error al crear room:", data);
     error.value =
       data.message === "Existent ROOM"
         ? "Ya existe una sala con ese nombre"
         : "Error al crear la sala";
     sending.value = false;
   });
+
+  // Si el servidor no usa ack, se puede escuchar un evento de respuesta global:
+  // socket.once('room-created', (data) => { ... })
 }
 </script>
 

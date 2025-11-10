@@ -77,7 +77,13 @@
               <button
                 class="px-3 py-1 rounded-md bg-blue-600 text-white disabled:opacity-50"
                 :disabled="!nick"
-                @click="joinRoom(room.name)"
+                @click="
+                  user.setNickname(nick);
+                  socket.emit('joinRoom', {
+                    roomName: room.name,
+                    nickname: user.nickname,
+                  });
+                "
               >
                 Unirse
               </button>
@@ -143,6 +149,24 @@ socket.on("roomList", (data) => {
   rooms.value = data.rooms;
 });
 
+// Escuchar cuando el usuario se une exitosamente a una sala
+socket.on("joinedRoom", (data) => {
+  console.log(`Te has unido a la sala ${data.roomName}`);
+  router.push("/lobby");
+});
+
+// Mantener el listener userJoined para notificaciones generales
+socket.on("userJoined", (data) => {
+  console.log(`${data.nickname} se unió a la sala ${data.roomName}`);
+});
+
+// Escuchar error al unirse
+socket.on("errorJoin", () => {
+  alert(
+    "Error: No se pudo unir a la sala. La sala no existe o no está disponible."
+  );
+});
+
 function joinRoom(roomName) {
   if (!nick.value?.trim()) return;
 
@@ -153,7 +177,7 @@ function joinRoom(roomName) {
 
   // Escuchar confirmación y redireccionar
   socket.once("userJoined", (data) => {
-    console.log(`➡️ Te has unido a la sala ${data.roomName}`);
+    console.log(`Te has unido a la sala ${data.roomName}`);
     router.push("/lobby");
   });
 }

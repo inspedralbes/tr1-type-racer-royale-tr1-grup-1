@@ -20,7 +20,7 @@ app.get("/", (req, res) => {
 });
 
 let activeRoom = null;
-// ahora cada rooms[roomName] será un objeto { info: {roomName, language, difficulty, userName}, users: [] }
+// ahora cada rooms[roomName] será un objeto { info: {roomName, language, difficulty, userName}, players: [] }
 const rooms = {};
 const roomStatus = {}; // Almacenará los resultados de cada sala
 const roomTimers = {}; // Almacenará los timers de cada sala
@@ -91,7 +91,7 @@ function stopRoomTimer(roomName) {
 function handleRoomPlayerCount(roomName) {
   if (!rooms[roomName]) return;
 
-  const playerCount = rooms[roomName].users.length;
+  const playerCount = rooms[roomName].players.length;
 
   console.log(
     ` Revisando timer para sala ${roomName}: ${playerCount} jugadores`
@@ -115,8 +115,8 @@ function handleRoomPlayerCount(roomName) {
 function broadcastRoomList() {
   const roomList = Object.values(rooms).map((room) => ({
     name: room.roomName,
-    players: room.users,
-    playerCount: room.users.length,
+    players: room.players,
+    playerCount: room.players.length,
     status: room.status,
     language: room.language,
     difficulty: room.difficulty,
@@ -134,11 +134,11 @@ io.on("connection", (socket) => {
   socket.on("requestRoomList", () => {
     const roomList = Object.values(rooms).map((room) => ({
       name: room.roomName,
-      players: room.users,
-      playerCount: room.users.length,
+      players: room.players,
+      playerCount: room.players.length,
       status: room.status,
       language: room.language,
-      difficulty: room.difficulty,
+      difficulty: room.difficultyValue,
       createdBy: room.createdBy, // Incluir información del creador
     }));
 
@@ -176,7 +176,7 @@ io.on("connection", (socket) => {
       roomName: data.roomName,
       language: data.language,
       difficulty: data.difficulty,
-      users: [data.userName], // Cambiar de players a users y añadir creador
+      players: [data.userName], // Cambiar de users a players y añadir creador
       status: "waiting",
       createdBy: data.userName, // Trackear el creador de la sala
     };
@@ -193,13 +193,13 @@ io.on("connection", (socket) => {
     console.log(rooms[data.roomName]);
 
     // Emitimos al cliente que ya está en la sala (y devolvemos info)
-    socket.emit("roomCreated", { rooms });
+    socket.emit("roomCreated", { room: data.roomName });
 
     // Enviar información de la sala al creador
     socket.emit("roomInfo", rooms[data.roomName]);
 
     // Actualizar lista de usuarios en la sala
-    io.to(data.roomName).emit("updateUserList", rooms[data.roomName].users);
+    io.to(data.roomName).emit("updateUserList", rooms[data.roomName].players);
 
     // Enviar lista actualizada de salas a todos los clientes
     broadcastRoomList();
@@ -215,29 +215,18 @@ io.on("connection", (socket) => {
 
     console.log(roomName, nickname);
 
+    // Verificar que la sala existe y está esperando
+    if (!rooms[roomName] || rooms[roomName].status !== "waiting") {
+      socket.emit("errorJoin");
+      return;
+    }
+
     socket.join(roomName);
     socket.nickname = nickname; // Muy importante para disconnect
 
-    // Si la sala no existe, la creamos con estructura completa
-    if (!rooms[roomName]) {
-      rooms[roomName] = {
-        roomName: roomName,
-        language: "es",
-        difficulty: "easy",
-        users: [], // Usar users consistentemente
-      };
-    }
-
-    console.log(rooms[roomName]);
-    // Cambiar de players a users para consistencia
-    if (!rooms[roomName].users) {
-      rooms[roomName].users = rooms[roomName].players || [];
-      delete rooms[roomName].players;
-    }
-
     // Añadimos el nickname si no está ya
-    if (!rooms[roomName].users.includes(nickname)) {
-      rooms[roomName].users.push(nickname);
+    if (!rooms[roomName].players.includes(nickname)) {
+      rooms[roomName].players.push(nickname);
     }
 
     console.log(
@@ -247,8 +236,11 @@ io.on("connection", (socket) => {
     // Notificamos a todos los clientes de la sala
     io.to(roomName).emit("userJoined", { id: socket.id, roomName, nickname });
 
+    // Confirmamos específicamente al usuario que se está uniendo
+    socket.emit("joinedRoom", { roomName, nickname });
+
     // Enviamos la lista actualizada a todos los clientes en esa sala
-    io.to(roomName).emit("updateUserList", rooms[roomName].users);
+    io.to(roomName).emit("updateUserList", rooms[roomName].players);
 
     // Enviamos la info de la sala también (opcional)
     io.to(roomName).emit("roomInfo", rooms[roomName]);
@@ -272,6 +264,22 @@ io.on("connection", (socket) => {
         seconds: roomTimers[roomName].seconds,
         isActive: true,
       });
+    }
+  });
+
+  // Comenzamos una partida
+  socket.on("startGame", async (data) => {
+    const { roomName } = data;
+    if (rooms[roomName]) {
+      await getTexts(roomName);
+      console.log(
+        "Textos asignados a los jugadores de la sala",
+        rooms[roomName].players
+      );
+      rooms[roomName].status = "inGame";
+      io.to(roomName).emit("gameStarted", { roomInfo: rooms[roomName] });
+      io.emit("roomList", { rooms });
+      console.log(`Juego iniciado en la sala ${roomName}`);
     }
   });
 
@@ -357,7 +365,7 @@ io.on("connection", (socket) => {
     }
 
     // Remover usuario de la sala
-    const userList = rooms[roomName].users;
+    const userList = rooms[roomName].players;
     const index = userList.indexOf(nickname);
 
     // Si el usuario está en la sala, lo removemos
@@ -422,7 +430,7 @@ io.on("connection", (socket) => {
     }
 
     // Verificar que hay al menos 2 jugadores
-    if (rooms[roomName].users.length < 2) {
+    if (rooms[roomName].players.length < 2) {
       socket.emit("startTimerError", {
         message: "Se necesitan al menos 2 jugadores para iniciar el timer",
       });
@@ -460,10 +468,10 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     for (const [room, roomObj] of Object.entries(rooms)) {
-      // roomObj debe ser { info: {...}, users: [...] }
-      if (!roomObj || !Array.isArray(roomObj.users)) continue;
+      // roomObj debe ser { info: {...}, players: [...] }
+      if (!roomObj || !Array.isArray(roomObj.players)) continue;
 
-      const userList = roomObj.users;
+      const userList = roomObj.players;
       const index = userList.indexOf(socket.nickname);
       if (index !== -1) {
         userList.splice(index, 1);
@@ -490,6 +498,33 @@ io.on("connection", (socket) => {
     console.log(`Usuario desconectado: ${socket.id}`);
   });
 });
+
+function getTexts(roomName) {
+  return new Promise((resolve, reject) => {
+    con.query(
+      "SELECT ID FROM TEXTS WHERE LANGUAGE_CODE = ? AND DIFFICULTY = ?",
+      [rooms[roomName].language, rooms[roomName].difficulty],
+      (err, results) => {
+        if (err) {
+          console.log({ error: "Error al obtener los datos" });
+          reject(err);
+          return;
+        }
+        console.log("Textos disponibles:", results);
+        for (let index = 0; index < rooms[roomName].players.length; index++) {
+          // Guardar exactamente 5 ids aleatorios (o menos si no hay suficientes)
+          rooms[roomName].players[index].textsIds = [];
+          const count = Math.min(5, results.length);
+          const numbers = results.slice();
+          for (let i = 0; i < count; i++) {
+            rooms[roomName].players[index].textsIds.push(numbers[i].ID);
+          }
+        }
+        resolve();
+      }
+    );
+  });
+}
 
 // Textos
 app.get("/texts", (req, res) => {
