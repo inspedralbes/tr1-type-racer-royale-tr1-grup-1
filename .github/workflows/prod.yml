@@ -72,6 +72,7 @@ jobs:
   copy_shared:
     name: Copy shared folder to front and back
     runs-on: ubuntu-latest
+    needs: create_frontend_env
     steps:
       - name: Copy shared folder
         uses: appleboy/ssh-action@v1.0.3
@@ -88,7 +89,7 @@ jobs:
   deploy_containers:
     name: Build and deploy containers
     runs-on: ubuntu-latest
-    needs: create_frontend_env
+    needs: copy_shared
     steps:
       - name: Docker Compose build & up
         uses: appleboy/ssh-action@v1.0.3
