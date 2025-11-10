@@ -80,8 +80,6 @@ import { getText } from "@/services/communicationManager.js";
 import { io } from "socket.io-client";
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-// shared speed function (mounted via docker volume into /usr/src/app/shared)
-import { calcPlayerSpeed } from "@/../shared/speed.js";
 
 const socket = io("http://localhost:3000");
 
@@ -187,33 +185,32 @@ function charClass(i) {
   return "char untouched";
 }
 
-// --- RACE: emit progress (throttled) ---
-let lastEmit = 0;
-const EMIT_MS = 250;
-function emitProgressThrottled() {
-  const now = performance.now();
-  if (now - lastEmit < EMIT_MS) return;
-  lastEmit = now;
-  const speed = calcPlayerSpeed(wpm.value);
-  socket.emit("typing:progress", {
-    room: ROOM,
-    nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed,
-  });
-}
+const prevCorrect = ref(0);
 
 // INPUT HANDLERS
 function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
+
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
 
-  emitProgressThrottled();
+  const was = prevCorrect.value;
+  const now = correctChars.value;
+  const correctChar = now > was;  // exactly what we want
+
+  // Emit only the info server needs to adjust speed
+  socket.emit("typing:progress", {
+    room: ROOM,                 // your current room
+    nickname: user.nickname,    // optional
+    correctChar,                // <<—— IMPORTANT
+    wpm: wpm.value,             // optional legacy UI
+    accuracy: accuracy.value,   // optional legacy UI
+  });
+
+  prevCorrect.value = now;
 
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
@@ -239,6 +236,7 @@ function reset() {
   userInput.value = "";
   startedAt.value = null;
   endedAt.value = null;
+  prevCorrect.value = 0;
   focusInput();
 }
 

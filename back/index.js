@@ -6,7 +6,13 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 // Shared speed helpers for race velocity
-import { calcPlayerSpeed, integratePosition } from "./shared/speed.js";
+import {
+  TRACK_LEN,
+  BASE_SPEED,
+  applyCorrectChar,
+  decaySpeed,
+  integratePosition,
+} from "./shared/speed.js";
 
 dotenv.config();
 
@@ -37,7 +43,6 @@ const timers = {};  // Temporizadores activos
 
 // 🔹 RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
-const TRACK_LEN = 100; // “distance” in %
 const TICK_MS = 100;   // 10 updates per second
 
 // --------------------------------
@@ -77,8 +82,9 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       nickname,
       wpm: 0,
       accuracy: 100,
-      speed: 0,
-      position: 0
+      speed: BASE_SPEED,
+      position: 0,
+      lastTypingTs: Date.now()
     });
   }
 
@@ -166,17 +172,16 @@ function roomSnapshot(roomId) {
 
 // Update loop
 setInterval(() => {
-  for (const [roomId, map] of racePlayers.entries()) {
+  const now = Date.now();
+  for (const [room, map] of racePlayers.entries()) {
     for (const p of map.values()) {
-      p.speed = calcPlayerSpeed(p.wpm);
-      p.position = integratePosition(
-        p.position,
-        p.speed,
-        TICK_MS / 1000,
-        TRACK_LEN
-      );
+      // decay toward base if idle
+      const dt = TICK_MS / 1000;
+      const idleSeconds = (now - (p.lastTypingTs || now)) / 1000;
+        p.speed = decaySpeed(p.speed, dt);
+      p.position = integratePosition(p.position, p.speed, dt, TRACK_LEN);
     }
-    io.to(roomId).emit("race:update", roomSnapshot(roomId));
+    io.to(room).emit("race:update", roomSnapshot(room));
   }
 }, TICK_MS);
 
@@ -224,13 +229,20 @@ io.on("connection", (socket) => {
   });
 
   // Recibir progreso de tipeo (PlayView)
-  socket.on("typing:progress", ({ room, wpm, accuracy }) => {
+  socket.on("typing:progress", ({ room, correctChar, wpm, accuracy }) => {
     const map = racePlayers.get(room);
     if (!map) return;
     const p = map.get(socket.id);
     if (!p) return;
+
+
     p.wpm = Number(wpm) || 0;
     p.accuracy = Number(accuracy) || 0;
+
+    if (correctChar === true) {
+      p.speed = applyCorrectChar(p.speed);
+    }
+    p.lastTypingTs = Date.now();
   });
 
   // Finalización del juego
@@ -243,6 +255,7 @@ io.on("connection", (socket) => {
         p.wpm = Number(wpm) || 0;
         p.accuracy = Number(accuracy) || 0;
         p.position = TRACK_LEN;
+        p.speed = 0;
       }
     }
     addGameResult(room, nickname, wpm, accuracy);

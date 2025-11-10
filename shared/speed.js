@@ -1,8 +1,8 @@
-export const TRACK_LEN = 100;      // percent
-export const BASE_SPEED = 10;      // % per second baseline
-export const CHAR_INC   = 0.7;     // +%/s per correct char
+export const TRACK_LEN = 400;      // percent
+export const BASE_SPEED = 0.5;      // % per second baseline
+export const CHAR_INC   = 0.2;     // +%/s per correct char
 export const MAX_SPEED  = 40;      // cap %/s
-export const IDLE_DECAY = 6;       // %/s decay when idle
+export const IDLE_DECAY = 0;       // %/s decay when idle
 
 export function clamp(v, lo, hi) {
   return Math.min(hi, Math.max(lo, v));
