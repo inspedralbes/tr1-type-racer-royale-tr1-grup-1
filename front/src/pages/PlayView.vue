@@ -80,12 +80,11 @@
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
-    <Keyboard :nickname="user.nickname" />
+    <Keyboard :nickname="user.nickname" :room="ROOM" />
   </main>
 </template>
 
 <script setup>
-const ROOM = "<dynamic_room_id>"; // TODO: replace with dynamic room id when lobby wires it
 import {
   ref,
   computed,
@@ -95,16 +94,39 @@ import {
   nextTick,
 } from "vue";
 import { getText } from "@/services/communicationManager.js";
-import { io } from "socket.io-client";
 import { socket } from "@/services/socket";
 import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-import { calcPlayerSpeed } from "@/services/speedCalculator.js";
+import { calcPlayerSpeed } from "@/../shared/speed.js";
+import Keyboard from "@/components/Keyboard.vue";
 const router = useRouter();
 const user = useUserStore();
 const toast = useToast();
+
+// Variables para la sala dinámica
+const roomList = ref([]);
+const currentRoom = ref(null);
+
+// Computed para obtener el nombre de la sala actual
+const ROOM = computed(() => {
+  if (currentRoom.value) {
+    return currentRoom.value.name;
+  }
+  // Buscar en la lista de salas la que contiene al usuario actual
+  const userRoom = roomList.value.find(
+    (room) =>
+      room.players &&
+      room.players.some((player) =>
+        typeof player === "string"
+          ? player === user.nickname
+          : player.nickname === user.nickname
+      )
+  );
+  return userRoom ? userRoom.name : "";
+});
+
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
 // DATA LOADING
@@ -218,7 +240,7 @@ function emitProgressThrottled() {
   lastEmit = now;
   const speed = calcPlayerSpeed(wpm.value);
   socket.emit("typing:progress", {
-    room: ROOM,
+    room: ROOM.value,
     nickname: user.nickname,
     wpm: wpm.value,
     accuracy: accuracy.value,
@@ -259,7 +281,7 @@ function onInput() {
       totalErrors.value
     );
     socket.emit("userPerformance", {
-      room: ROOM,
+      room: ROOM.value,
       nickname: user.nickname,
       status: "bad",
       message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
@@ -296,7 +318,7 @@ function onInput() {
 
     // Enviar resultados al servidor
     socket.emit("gameFinished", {
-      room: ROOM,
+      room: ROOM.value,
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
@@ -330,9 +352,39 @@ async function nextText() {
 
 // MOUNT
 onMounted(async () => {
-  // Join the room when socket connects
+  // Solicitar lista de salas primero
+  socket.emit("requestRoomList");
+
+  // Escuchar actualizaciones de la lista de salas
+  socket.on("roomList", (data) => {
+    roomList.value = data.rooms || [];
+    console.log("Lista de salas actualizada:", roomList.value);
+
+    // Buscar la sala del usuario actual
+    const userRoom = roomList.value.find(
+      (room) =>
+        room.players &&
+        room.players.some((player) =>
+          typeof player === "string"
+            ? player === user.nickname
+            : player.nickname === user.nickname
+        )
+    );
+
+    if (userRoom) {
+      currentRoom.value = userRoom;
+      console.log("Sala actual del usuario:", userRoom.name);
+    }
+  });
+
+  // Join the room when socket connects and we have room info
   socket.on("connect", () => {
-    socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
+    if (ROOM.value) {
+      socket.emit("joinRoom", {
+        roomName: ROOM.value,
+        nickname: user.nickname,
+      });
+    }
   });
 
   // Sala: resultados
@@ -377,6 +429,7 @@ onBeforeUnmount(() => {
   socket.off("userPerformance");
   socket.off("race:update");
   socket.off("connect");
+  socket.off("roomList");
 });
 
 // When target changes (Next Text), reset everything

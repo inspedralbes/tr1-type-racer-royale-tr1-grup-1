@@ -31,6 +31,7 @@ let teclaPremuda = ref("");
 const emit = defineEmits(["key-clicked"]);
 const props = defineProps({
   nickname: { type: String, default: "" },
+  room: { type: String, default: "" },
 });
 
 // mapa de teclas presionadas por OTROS jugadores
@@ -69,7 +70,7 @@ function handleKeyDown(event) {
   }
   // emite el evento al servidor
   socket.emit("userKey", {
-    room: "main-room",
+    room: props.room,
     nickname: props.nickname,
     key: teclaPremuda.value,
   });

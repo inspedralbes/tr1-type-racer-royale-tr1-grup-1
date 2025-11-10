@@ -74,7 +74,12 @@ function addPlayerToRoom(roomId, nickname, socketId) {
   }
 
   // add also to race state
-  const map = racePlayers.get(roomId);
+  let map = racePlayers.get(roomId);
+  if (!map) {
+    map = new Map();
+    racePlayers.set(roomId, map);
+  }
+
   if (!map.has(socketId)) {
     map.set(socketId, {
       id: socketId,
@@ -242,6 +247,25 @@ setInterval(() => {
   }
 }, TICK_MS);
 
+///// ***** FUNCIONES DE SOCKET.IO ***** /////
+
+///// ***** FUNCIONES DE SOCKET.IO ***** /////
+// Enviar lista de salas a todos los clientes conectados
+function broadcastRoomList() {
+  const roomList = Object.values(rooms).map((room) => ({
+    name: room.roomName,
+    players: room.players,
+    playerCount: room.players.length,
+    status: room.status,
+    language: room.language,
+    difficulty: room.difficulty,
+    createdBy: room.createdBy, // Incluir información del creador
+  }));
+
+  io.emit("roomList", { rooms: roomList });
+  console.log(" Lista de salas enviada:", roomList);
+}
+
 // -----------------------------------
 // SOCKET.IO - EVENTOS EN TIEMPO REAL
 // -----------------------------------
@@ -295,12 +319,13 @@ io.on("connection", (socket) => {
       roomName: data.roomName,
       language: data.language,
       difficulty: data.difficulty,
-      players: [data.userName], // Cambiar de users a players y añadir creador
+      players: [],
       status: "waiting",
       createdBy: data.userName, // Trackear el creador de la sala
     };
 
     socket.join(data.roomName);
+    addPlayerToRoom(data.roomName, data.userName, socket.id);
     socket.nickname = data.userName; // Establecer nickname para disconnect
 
     // Inicializamos el estado del juego de la sala si no existe
@@ -331,9 +356,6 @@ io.on("connection", (socket) => {
     const roomName = data.roomName;
     const nickname = data.nickname;
 
-    socket.join(room);
-    socket.nickname = nickname; // Muy importante para disconnect
-
     console.log(roomName, nickname);
 
     // Verificar que la sala existe y está esperando
@@ -342,28 +364,18 @@ io.on("connection", (socket) => {
       return;
     }
 
-    socket.join(room);
-    socket.nickname = nickname;
-    socket.currentRoom = room;
+    socket.join(roomName);
+    socket.nickname = nickname; // Muy importante para disconnect
+    socket.currentRoom = roomName;
 
-    addPlayerToRoom(room, nickname, socket.id);
-      io.to(room).emit("updateUserList", rooms[room].players);
-
-      if (rooms[room].players.length > 1 && !timers[room]) {
-        startRoomTimer(room);
-      }
-
-      // enviar snapshot inicial de carrera
-      io.to(room).emit("race:update", roomSnapshot(room));
-    } catch (err) {
-      console.error("Error en joinRoom:", err);
-    }
+    // Añadir jugador usando la función existente
+    addPlayerToRoom(roomName, nickname, socket.id);
 
     console.log(
-      `Cliente ${nickname} (${socket.id}) se ha unido a la sala ${room}`
+      `Cliente ${nickname} (${socket.id}) se ha unido a la sala ${roomName}`
     );
 
-        // Notificamos a todos los clientes de la sala
+    // Notificamos a todos los clientes de la sala
     io.to(roomName).emit("userJoined", { id: socket.id, roomName, nickname });
 
     // Confirmamos específicamente al usuario que se está uniendo
@@ -395,6 +407,25 @@ io.on("connection", (socket) => {
         isActive: true,
       });
     }
+
+    // Enviar snapshot inicial de carrera
+    io.to(roomName).emit("race:update", roomSnapshot(roomName));
+  });
+
+  // Comenzamos una partida
+  socket.on("startGame", async (data) => {
+    const { roomName } = data;
+    if (rooms[roomName]) {
+      await getTexts(roomName);
+      console.log(
+        "Textos asignados a los jugadores de la sala",
+        rooms[roomName].players
+      );
+      rooms[roomName].status = "inGame";
+      io.to(roomName).emit("gameStarted", { roomInfo: rooms[roomName] });
+      io.emit("roomList", { rooms });
+      console.log(`Juego iniciado en la sala ${roomName}`);
+    }
   });
 
   socket.on("typing:progress", ({ room, wpm, accuracy }) => {
@@ -418,9 +449,196 @@ io.on("connection", (socket) => {
         p.position = TRACK_LEN;
       }
     }
-    addGameResult(room, nickname, wpm, accuracy);
-    io.to(room).emit("updateGameResults", rooms[room].results);
-    io.to(room).emit("race:update", roomSnapshot(room));
+
+    if (roomStatus[room]) {
+      // Añadir el resultado a la sala
+      roomStatus[room].results.push({
+        nickname,
+        wpm,
+        accuracy,
+        timestamp: Date.now(),
+      });
+
+      // Enviar los resultados actualizados a todos en la sala
+      io.to(room).emit("updateGameResults", roomStatus[room].results);
+      io.to(room).emit("race:update", roomSnapshot(room));
+      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
+    }
+  });
+
+  // Eliminar sala (solo el creador puede hacerlo)
+  socket.on("deleteRoom", (data) => {
+    const { roomName, nickname } = data;
+
+    // Verificar que la sala existe
+    if (!rooms[roomName]) {
+      socket.emit("roomDeleteError", {
+        message: "La sala no existe",
+      });
+      return;
+    }
+
+    // Verificar que el usuario es el creador de la sala
+    if (rooms[roomName].createdBy !== nickname) {
+      socket.emit("roomDeleteError", {
+        message: "Solo el creador puede eliminar la sala",
+      });
+      return;
+    }
+
+    console.log(` Eliminando sala ${roomName} por ${nickname}`);
+
+    // Notificar a todos los usuarios en la sala antes de eliminarla
+    io.to(roomName).emit("roomDeleted", {
+      roomName: roomName,
+      message: "La sala ha sido eliminada por el creador",
+    });
+
+    // Detener timer si existe
+    if (roomTimers[roomName]) {
+      clearInterval(roomTimers[roomName].interval);
+      delete roomTimers[roomName];
+    }
+
+    // Limpiar datos de la sala
+    delete rooms[roomName];
+    delete roomStatus[roomName];
+
+    // Actualizar lista de salas para todos los clientes
+    broadcastRoomList();
+
+    // Confirmar eliminación al creador
+    socket.emit("roomDeleteSuccess", {
+      roomName: roomName,
+      message: "Sala eliminada exitosamente",
+    });
+
+    console.log(` Sala ${roomName} eliminada exitosamente`);
+  });
+
+  // Salir de una sala específica (sin desconectar del servidor)
+  socket.on("leaveRoom", (data) => {
+    const { roomName, nickname } = data;
+
+    console.log(` ${nickname} está saliendo de la sala ${roomName}`);
+
+    // Verificar que la sala existe
+    if (!rooms[roomName]) {
+      console.log(`Intento de salir de sala inexistente: ${roomName}`);
+      return;
+    }
+
+    // Remover usuario de la sala (buscar por nickname ya que los players son objetos)
+    const userList = rooms[roomName].players;
+    const index = userList.findIndex(
+      (p) =>
+        (typeof p === "string" && p === nickname) ||
+        (typeof p === "object" && p.nickname === nickname)
+    );
+
+    // Si el usuario está en la sala, lo removemos
+    if (index !== -1) {
+      userList.splice(index, 1);
+      console.log(
+        `${nickname} removido de la sala ${roomName}. Jugadores restantes: ${userList.length}`
+      );
+
+      // También remover de racePlayers
+      const raceMap = racePlayers.get(roomName);
+      if (raceMap && raceMap.has(socket.id)) {
+        raceMap.delete(socket.id);
+      }
+
+      // Hacer que el socket salga de la room de Socket.IO
+      socket.leave(roomName);
+
+      // Notificar a los usuarios restantes en la sala
+      io.to(roomName).emit("updateUserList", userList);
+      io.to(roomName).emit("userLeft", {
+        nickname: nickname,
+        roomName: roomName,
+        remainingPlayers: userList.length,
+      });
+
+      // Manejar timer basado en número de jugadores restantes
+      handleRoomPlayerCount(roomName);
+
+      // Si la sala queda vacía, limpiarla
+      if (userList.length === 0) {
+        console.log(`Limpiando sala vacía: ${roomName}`);
+        delete rooms[roomName];
+        delete roomStatus[roomName];
+        racePlayers.delete(roomName);
+        if (roomTimers[roomName]) {
+          clearInterval(roomTimers[roomName].interval);
+          delete roomTimers[roomName];
+        }
+      }
+
+      // Actualizar lista de salas para todos los clientes
+      broadcastRoomList();
+    } else {
+      console.log(` Usuario ${nickname} no encontrado en la sala ${roomName}`);
+    }
+  });
+
+  // Iniciar timer manualmente (solo el creador puede hacerlo)
+  socket.on("startTimer", (data) => {
+    const { roomName, nickname } = data;
+
+    console.log(` ${nickname} quiere iniciar el timer en la sala ${roomName}`);
+
+    // Verificar que la sala existe
+    if (!rooms[roomName]) {
+      socket.emit("startTimerError", {
+        message: "La sala no existe",
+      });
+      return;
+    }
+
+    // Verificar que el usuario es el creador de la sala
+    if (rooms[roomName].createdBy !== nickname) {
+      socket.emit("startTimerError", {
+        message: "Solo el creador puede iniciar el timer",
+      });
+      return;
+    }
+
+    // Verificar que hay al menos 2 jugadores
+    if (rooms[roomName].players.length < 2) {
+      socket.emit("startTimerError", {
+        message: "Se necesitan al menos 2 jugadores para iniciar el timer",
+      });
+      return;
+    }
+
+    // Verificar que no hay un timer ya activo
+    if (roomTimers[roomName]?.isActive) {
+      socket.emit("startTimerError", {
+        message: "El timer ya está activo",
+      });
+      return;
+    }
+
+    console.log(`Iniciando timer manual para sala ${roomName} por ${nickname}`);
+
+    // Iniciar el timer
+    startRoomTimer(roomName);
+
+    // Notificar a todos en la sala que el timer ha iniciado
+    io.to(roomName).emit("timerStarted", {
+      roomName: roomName,
+      startedBy: nickname,
+      message: `Timer iniciado por ${nickname}`,
+    });
+
+    // Confirmar al creador
+    socket.emit("startTimerSuccess", {
+      roomName: roomName,
+      message: "Timer iniciado exitosamente",
+    });
+
+    console.log(`Timer iniciado exitosamente en sala ${roomName}`);
   });
 
   // Detectar rendimiento de jugador (bueno o malo)
@@ -467,27 +685,57 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    for (const [room, roomObj] of Object.entries(rooms)) {
-      // roomObj debe ser { info: {...}, players: [...] }
+    console.log(`Usuario desconectándose: ${socket.id} (${socket.nickname})`);
+
+    // Limpiar de todas las salas donde esté el usuario
+    for (const [roomName, roomObj] of Object.entries(rooms)) {
       if (!roomObj || !Array.isArray(roomObj.players)) continue;
 
       const userList = roomObj.players;
-      const index = userList.indexOf(socket.nickname);
+      const initialLength = userList.length;
+
+      // Buscar y remover por socket.id (más confiable)
+      const index = userList.findIndex(
+        (p) =>
+          (typeof p === "object" && p.id === socket.id) ||
+          (typeof p === "string" && p === socket.nickname)
+      );
+
       if (index !== -1) {
+        const removedPlayer = userList[index];
         userList.splice(index, 1);
-        io.to(room).emit("updateUserList", userList);
+
+        console.log(
+          `${socket.nickname} removido de la sala ${roomName}. Jugadores restantes: ${userList.length}`
+        );
+
+        // Limpiar de racePlayers
+        const raceMap = racePlayers.get(roomName);
+        if (raceMap && raceMap.has(socket.id)) {
+          raceMap.delete(socket.id);
+        }
+
+        // Notificar a los usuarios restantes en la sala
+        io.to(roomName).emit("updateUserList", userList);
+        io.to(roomName).emit("userLeft", {
+          nickname: socket.nickname,
+          roomName: roomName,
+          remainingPlayers: userList.length,
+        });
 
         // Manejar timer basado en número de jugadores restantes
-        handleRoomPlayerCount(room);
+        handleRoomPlayerCount(roomName);
       }
 
-      // Si la sala queda vacía, la limpiamos
+      // Si la sala queda vacía, limpiarla
       if (userList.length === 0) {
-        delete rooms[room];
-        delete roomStatus[room];
-        if (roomTimers[room]) {
-          clearInterval(roomTimers[room].interval);
-          delete roomTimers[room];
+        console.log(`Limpiando sala vacía: ${roomName}`);
+        delete rooms[roomName];
+        delete roomStatus[roomName];
+        racePlayers.delete(roomName);
+        if (roomTimers[roomName]) {
+          clearInterval(roomTimers[roomName].interval);
+          delete roomTimers[roomName];
         }
       }
     }
@@ -495,7 +743,8 @@ io.on("connection", (socket) => {
     // Enviar lista actualizada de salas después de la desconexión
     broadcastRoomList();
 
-    console.log(`Usuario desconectado: ${socket.id}`);
+    console.log(`Usuario desconectado completamente: ${socket.id}`);
+  });
 });
 
 // -------------------------
