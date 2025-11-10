@@ -225,7 +225,7 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { socket } from "@/services/socket"; // import del cliente socket.io
+import { socket } from "@/services/socket.js";
 
 const router = useRouter();
 const user = useUserStore();

@@ -64,25 +64,47 @@
       </div>
     </section>
 
+    <!-- Race progress (server-authoritative) -->
+    <section v-if="raceState.length" class="race-progress">
+      <h3>Race progress</h3>
+      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
+        <span>{{ p.nickname }}</span>
+        <div class="bar-container">
+          <div class="bar" :style="{ width: p.position + '%' }"></div>
+        </div>
+        <small>{{ p.position.toFixed(0) }}%</small>
+      </div>
+    </section>
+
     <footer class="actions">
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
-    <Keyboard />
+    <Keyboard :nickname="user.nickname" />
   </main>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from "vue";
+const ROOM = "<dynamic_room_id>"; // TODO: replace with dynamic room id when lobby wires it
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 import { getText } from "@/services/communicationManager.js";
+import { io } from "socket.io-client";
 import { socket } from "@/services/socket";
+import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-import Keyboard from "@/components/Keyboard.vue";
-
+import { calcPlayerSpeed } from "@/services/speedCalculator.js";
 const router = useRouter();
 const user = useUserStore();
+const toast = useToast();
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
 // DATA LOADING
@@ -94,16 +116,21 @@ const gameResults = ref([]);
 const participants = ref([]); // <-- nueva ref para participantes
 const targetChars = computed(() => Array.from(target.value));
 
+// RACE STATE (from server)
+const raceState = ref([]);
+socket.on("race:update", (snapshot) => {
+  raceState.value = snapshot || [];
+});
+
+const totalErrors = ref(0);
+const lastTypedLength = ref(0);
+const lastWpmEmit = ref(0);
+
 async function pickRandomText() {
   try {
-    // Obtenemos un ID aleatorio (suponiendo que hay 10 textos)
     const randomId = Math.floor(Math.random() * 10) + 1;
-
-    // Llamamos al communication manager (usa HTTP)
     const data = await getText(randomId);
-
     const text = data.text ?? data.TEXT_CONTENT ?? data.TEXT;
-
     current.value = data;
     target.value = text ?? "";
   } catch (err) {
@@ -149,42 +176,29 @@ const accuracy = computed(() => {
   return Math.round((correctChars.value / typedChars.value) * 100);
 });
 
-// CARET POSITION (needs arreglation)
+// CARET POSITION
 const caretStyle = computed(() => {
   const pos = userInput.value.length;
-
   if (!textWrapper.value) {
     return { position: "absolute", left: "0px", top: "0px" };
   }
-
-  // Encontrar el span del carácter actual o el anterior
   const spans = textWrapper.value.querySelectorAll("span");
-
   if (pos === 0) {
-    // Si no hay caracteres tipeados, posicionar al inicio
-    return {
-      position: "absolute",
-      left: "0px",
-      top: "0px",
-    };
+    return { position: "absolute", left: "0px", top: "0px" };
   }
-
   if (spans[pos - 1]) {
-    // Posicionar después del último carácter tipeado
     const rect = spans[pos - 1].getBoundingClientRect();
     const containerRect = textWrapper.value.getBoundingClientRect();
-
     return {
       position: "absolute",
       left: `${rect.right - containerRect.left}px`,
       top: `${rect.top - containerRect.top}px`,
     };
   }
-
   return { position: "absolute", left: "0px", top: "0px" };
 });
 
-//CLASS LOGIC
+// CLASS LOGIC
 function charClass(i) {
   const typed = userInput.value[i];
   if (i < userInput.value.length) {
@@ -195,30 +209,103 @@ function charClass(i) {
   return "char untouched";
 }
 
-//INPUT HANDLERS
+// --- RACE: emit progress (throttled) ---
+let lastEmit = 0;
+const EMIT_MS = 250;
+function emitProgressThrottled() {
+  const now = performance.now();
+  if (now - lastEmit < EMIT_MS) return;
+  lastEmit = now;
+  const speed = calcPlayerSpeed(wpm.value);
+  socket.emit("typing:progress", {
+    room: ROOM,
+    nickname: user.nickname,
+    wpm: wpm.value,
+    accuracy: accuracy.value,
+    speed,
+  });
+}
+
+// INPUT HANDLERS
 function onInput() {
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
-  // Cap to target length (maxlength covers it, but just in case)
+
   if (userInput.value.length > target.value.length) {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
+
+  // --- NUEVO: conteo acumulativo de errores ---
+  const len = userInput.value.length;
+  const diff = len - lastTypedLength.value;
+
+  if (diff > 0) {
+    // Usuario escribió nuevos caracteres
+    for (let i = lastTypedLength.value; i < len; i++) {
+      if (userInput.value[i] !== target.value[i]) {
+        totalErrors.value++;
+        console.log("Nuevo error acumulado:", totalErrors.value);
+      }
+    }
+  }
+
+  lastTypedLength.value = len;
+
+  // Emitir cada vez que los errores acumulados sean múltiplo de 5 (y mayor que 0)
+  if (totalErrors.value > 0 && totalErrors.value % 5 === 0) {
+    console.log(
+      "Enviando notificación de bajo rendimiento (múltiplo de 5):",
+      totalErrors.value
+    );
+    socket.emit("userPerformance", {
+      room: ROOM,
+      nickname: user.nickname,
+      status: "bad",
+      message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
+    });
+  }
+
+  // // Si mejora su precisión y baja de 3 errores → enviar mejora
+  // if (errorCount.value === 2) {
+  //   socket.emit("userPerformance", {
+  //     room: "main-room",
+  //     nickname: user.nickname,
+  //     status: "recovered",
+  //     message: `${user.nickname} se ha recuperado y está escribiendo mejor.`,
+  //   });
+  // }
+
+  // // ---  NUEVO: detección de velocidad alta
+  // if (wpm.value >= 80 && wpm.value !== lastWpmEmit.value) {
+  //   lastWpmEmit.value = wpm.value;
+  //   socket.emit("userPerformance", {
+  //     room: "main-room",
+  //     nickname: user.nickname,
+  //     status: "fast",
+  //     message: `${user.nickname} está escribiendo muy rápido (${wpm.value} WPM)!`,
+  //   });
+  // }
+
+  // Finalización
+
+  emitProgressThrottled();
+
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
 
     // Enviar resultados al servidor
     socket.emit("gameFinished", {
-      room: "main-room", // o la sala actual si tienes múltiples salas
+      room: ROOM,
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
+      errors: totalErrors.value,
     });
   }
 }
 
 function onKeydown(e) {
-  // prevent tabbing away
   if (e.key === "Tab") e.preventDefault();
 }
 
@@ -231,6 +318,8 @@ function reset() {
   userInput.value = "";
   startedAt.value = null;
   endedAt.value = null;
+  totalErrors.value = 0; // 🔹 resetear errores
+  lastTypedLength.value = 0;
   focusInput();
 }
 
@@ -241,10 +330,24 @@ async function nextText() {
 
 // MOUNT
 onMounted(async () => {
-  // Escuchar actualizaciones de resultados
+  // Join the room when socket connects
+  socket.on("connect", () => {
+    socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
+  });
+
+  // Sala: resultados
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
-    console.log(" Resultados actualizados:", results);
+    console.log("Resultados actualizados:", results);
+  });
+
+  toast.info("Conectado al servidor de notificaciones.");
+
+  socket.on("userPerformance", (data) => {
+    console.log("Notificación de rendimiento:", data);
+    if (data.nickname !== user.nickname) {
+      toast.info(data.message, { timeout: 2500 });
+    }
   });
 
   // Escuchar lista de usuarios en la sala
@@ -253,23 +356,27 @@ onMounted(async () => {
     console.log(" Lista de usuarios actualizada:", participants.value);
   });
 
-  // // Unirnos a la sala principal (asegúrate que coincide con la sala del servidor)
-  // socket.emit("joinRoom", { room: "main-room", nickname: user.nickname });
-
   await pickRandomText();
   await nextTick();
 
-  if (target) {
-    loading.value = false;
-    focusInput();
-  } else {
+  if (!target) {
     const interval = setInterval(() => {
       if (target.value) {
         clearInterval(interval);
         focusInput();
       }
     }, 100);
+  } else {
+    loading.value = false;
+    focusInput();
   }
+});
+
+onBeforeUnmount(() => {
+  socket.off("updateGameResults");
+  socket.off("userPerformance");
+  socket.off("race:update");
+  socket.off("connect");
 });
 
 // When target changes (Next Text), reset everything
@@ -284,7 +391,7 @@ watch(
 watch(
   () => userInput.value,
   async () => {
-    await nextTick(); // Esperar a que el DOM se actualice
+    await nextTick();
   }
 );
 
@@ -295,13 +402,38 @@ function findResult(nick) {
 </script>
 
 <style scoped>
-/* Layout */
+/* Race bars */
+.race-progress {
+  margin-top: 1.5rem;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.bar-container {
+  flex: 1;
+  background: #e5e7eb;
+  border-radius: 4px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  transition: width 0.1s linear;
+  background: #2563eb;
+}
+
+/* Page layout */
 .typing-page {
   max-width: 900px;
   margin: 0 auto;
   padding: 1.25rem;
 }
-
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -309,12 +441,10 @@ function findResult(nick) {
   gap: 1rem;
   margin-bottom: 1rem;
 }
-
 .topbar h1 {
   margin: 0;
   font-size: 1.5rem;
 }
-
 .stats {
   display: flex;
   gap: 1rem;
@@ -331,23 +461,20 @@ function findResult(nick) {
   line-height: 1.6;
   font-size: 1.05rem;
   background: #0f172a0d;
-  /* subtle slate */
   cursor: text;
   user-select: none;
-  /* so clicks focus input */
 }
 
 .text-wrapper {
   position: relative;
-  /* Para que el caret se posicione relativo a este contenedor */
   color: #6b7280;
-  /* base (darkened) text */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
+/* Status */
 .status-message {
   text-align: center;
   padding: 2rem;

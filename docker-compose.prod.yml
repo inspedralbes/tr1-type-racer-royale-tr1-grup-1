@@ -2,11 +2,9 @@ version: "3.9"
 
 services:
   tr1g1-front:
-    image: httpd:2.4-alpine
-    command: sh -c "npm run build"
+    build:
+      context: ./front
     restart: always
-    volumes:
-      - ./front/dist/:/usr/local/apache2/htdocs/:ro
     ports:
       - 80:80
     depends_on:
@@ -14,7 +12,7 @@ services:
 
   tr1g1-back:
     image: node:23-bookworm-slim
-    command: sh -c "cp .env.PROD .env && npm install && node index.js"
+    command: sh -c "cp -f .env.PROD .env && npm install && node index.js"
     volumes:
       - ./back:/usr/src/app
     working_dir: /usr/src/app
@@ -25,14 +23,12 @@ services:
     image: mysql
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: QUESTIONS
     volumes:
       - mysql-db:/var/lib/mysql:rw
       - ./back/data/create_db.sql:/docker-entrypoint-initdb.d/create.sql
       - ./back/data/insert_db.sql:/docker-entrypoint-initdb.d/inserts.sql
-    ports:
-      - 3306:3306
 
   adminer:
     image: adminer
@@ -44,5 +40,16 @@ services:
     depends_on:
       - tr1g1-mysql
 
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:lts
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - 9443:9443
+
 volumes:
   mysql-db:
+  portainer_data:

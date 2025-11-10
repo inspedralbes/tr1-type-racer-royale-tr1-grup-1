@@ -122,7 +122,7 @@
 import { ref, watchEffect, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { socket } from "@/services/socket";
+import { socket } from "@/services/socket.js";
 
 const router = useRouter();
 const route = useRoute();
