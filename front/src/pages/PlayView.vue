@@ -24,8 +24,16 @@
       </div>
 
       <!-- hidden input to capture keyboard, mobile-friendly -->
-      <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
-        @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
+      <textarea
+        ref="hiddenInput"
+        v-model="userInput"
+        class="hidden-input"
+        @input="onInput"
+        @keydown="onKeydown"
+        @paste.prevent
+        :maxlength="target.length"
+        aria-label="Typing input"
+      ></textarea>
     </section>
 
     <!-- Mostrar jugadores de la sala -->
@@ -34,8 +42,8 @@
       <div class="results-grid">
         <div v-for="nick in participants" :key="nick" class="result-card">
           <strong>{{ nick }}</strong>
-          <div>WPM: {{ findResult(nick)?.wpm ?? '-' }}</div>
-          <div>Precisión: {{ findResult(nick)?.accuracy ?? '-' }}%</div>
+          <div>WPM: {{ findResult(nick)?.wpm ?? "-" }}</div>
+          <div>Precisión: {{ findResult(nick)?.accuracy ?? "-" }}%</div>
         </div>
       </div>
     </section>
@@ -44,7 +52,11 @@
     <section v-if="gameResults.length > 0" class="results-section">
       <h3>Resultados de la sala:</h3>
       <div class="results-grid">
-        <div v-for="result in gameResults" :key="result.timestamp" class="result-card">
+        <div
+          v-for="result in gameResults"
+          :key="result.timestamp"
+          class="result-card"
+        >
           <strong>{{ result.nickname }}</strong>
           <div>WPM: {{ result.wpm }}</div>
           <div>Precisión: {{ result.accuracy }}%</div>
@@ -62,14 +74,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from "vue";
-//import { getText } from "@/communicationManager.js";
 import { getText } from "@/services/communicationManager.js";
 import { socket } from "@/services/socket";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
 import Keyboard from "@/components/Keyboard.vue";
-
 
 const router = useRouter();
 const user = useUserStore();
@@ -96,12 +106,10 @@ async function pickRandomText() {
 
     current.value = data;
     target.value = text ?? "";
-
   } catch (err) {
     console.error("Error cargando texto:", err);
     error.value = "Error al cargar el texto. ¿Está el servidor funcionando?";
-  }
-  finally {
+  } finally {
     loading.value = false;
   }
 }
@@ -204,7 +212,7 @@ function onInput() {
       room: "main-room", // o la sala actual si tienes múltiples salas
       nickname: user.nickname,
       wpm: wpm.value,
-      accuracy: accuracy.value
+      accuracy: accuracy.value,
     });
   }
 }
@@ -251,21 +259,18 @@ onMounted(async () => {
   await pickRandomText();
   await nextTick();
 
-  if (!target) {
+  if (target) {
+    loading.value = false;
+    focusInput();
+  } else {
     const interval = setInterval(() => {
       if (target.value) {
         clearInterval(interval);
         focusInput();
       }
     }, 100);
-
-  } else {
-    loading.value = false;
-    focusInput();
   }
-
 });
-
 
 // When target changes (Next Text), reset everything
 watch(
