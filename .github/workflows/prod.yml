@@ -69,6 +69,33 @@ jobs:
             cd /tr1-type-racer-royale-tr1-grup-1/front
             echo -e "VITE_URL_BACK=http://${{ secrets.IP_SERVER }}:3000" > .env.PROD
 
+  copy_shared:
+    name: Copy shared folder in front and back
+    runs-on: ubuntu-latest
+    needs: create_backend_env
+    steps:
+      - name: Copy shared folder to front
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            cp -r shared ./front/shared
+
+      - name: Copy shared folder to back
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            cp -r shared ./back/shared
+
   deploy_containers:
     name: Build and deploy containers
     runs-on: ubuntu-latest
