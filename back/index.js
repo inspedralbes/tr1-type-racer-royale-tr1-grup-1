@@ -171,10 +171,21 @@ function startRoomTimer(roomName) {
     if (roomTimers[roomName].seconds <= 0) {
       clearInterval(roomTimers[roomName].interval);
       roomTimers[roomName].isActive = false;
-
-      // Notificar que el juego debe comenzar
-      io.to(roomName).emit("gameStart", { roomName });
-      console.log(`Juego iniciado en sala ${roomName}!`);
+      (async () => {
+        try {
+          await getTexts(roomName);
+          console.log(
+            "Textos asignados a los jugadores de la sala",
+            rooms[roomName].players
+          );
+          rooms[roomName].status = "inGame";
+          io.to(roomName).emit("gameStart", { roomName });
+          io.emit("roomList", { rooms });
+          console.log(`Juego iniciado en la sala ${roomName}`);
+        } catch (err) {
+          console.error(`Error al asignar textos para sala ${roomName}:`, err);
+        }
+      })();
     }
   }, 1000);
 }
@@ -763,21 +774,21 @@ function getTexts(roomName) {
       "SELECT ID FROM TEXTS WHERE LANGUAGE_CODE = ? AND DIFFICULTY = ?",
       [rooms[roomName].language, rooms[roomName].difficulty],
       (err, results) => {
-        if (err) {
-          console.log({ error: "Error al obtener los datos" });
-          reject(err);
-          return;
-        }
+        if (err) return reject(err);
         console.log("Textos disponibles:", results);
-        for (let index = 0; index < rooms[roomName].players.length; index++) {
-          // Guardar exactamente 5 ids aleatorios (o menos si no hay suficientes)
-          rooms[roomName].players[index].textsIds = [];
-          const count = Math.min(5, results.length);
-          const numbers = results.slice();
-          for (let i = 0; i < count; i++) {
-            rooms[roomName].players[index].textsIds.push(numbers[i].ID);
+        for (let player of rooms[roomName].players) {
+          player.textsIds = [];
+          for (let i = 0; i < 5 && i < results.length; i++) {
+            // elegir índice aleatorio
+            const randomIndex = Math.floor(Math.random() * results.length);
+            player.textsIds.push(results[randomIndex].ID);
           }
         }
+
+        console.log(
+          "Textos asignados a los jugadores de la sala",
+          rooms[roomName].players
+        );
         resolve();
       }
     );

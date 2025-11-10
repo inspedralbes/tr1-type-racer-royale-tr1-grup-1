@@ -6,123 +6,98 @@
     </p>
 
     <!-- Información de la sala -->
-    <div
-      v-if="roomInfo"
-      style="
+    <div v-if="roomInfo" style="
         margin: 1rem 0;
         padding: 1rem;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 0.5rem;
-      "
-    >
-      <h3
-        style="
+      ">
+      <h3 style="
           font-weight: 600;
           font-size: 1rem;
           margin: 0 0 0.5rem 0;
           color: #1e293b;
-        "
-      >
+        ">
         Sala: {{ roomInfo.roomName }}
       </h3>
-      <div
-        style="
+      <div style="
           display: flex;
           gap: 1rem;
           flex-wrap: wrap;
           font-size: 0.9rem;
           color: #64748b;
-        "
-      >
-        <span
-          >Idioma:
+        ">
+        <span>Idioma:
           {{
             roomInfo.language === "es"
               ? "Español"
               : roomInfo.language === "ca"
-              ? "Catalán"
-              : "Inglés"
-          }}</span
-        >
-        <span
-          >Dificultad:
+                ? "Catalán"
+                : "Inglés"
+          }}</span>
+        <span>Dificultad:
           {{
             typeof roomInfo.difficulty === "number"
               ? roomInfo.difficulty === 1
                 ? "Fácil"
                 : roomInfo.difficulty === 2
-                ? "Intermedio"
-                : "Difícil"
+                  ? "Intermedio"
+                  : "Difícil"
               : roomInfo.difficulty === "facil"
-              ? "Fácil"
-              : roomInfo.difficulty === "intermig"
-              ? "Intermedio"
-              : "Difícil"
-          }}</span
-        >
+                ? "Fácil"
+                : roomInfo.difficulty === "intermig"
+                  ? "Intermedio"
+                  : "Difícil"
+          }}</span>
         <span>Jugadores: {{ players.length }}</span>
       </div>
     </div>
   </section>
   <section>
-    <div
-      style="
+    <div style="
         max-width: 400px;
         margin: 1rem auto;
         border: 1px solid #d1d5db;
         border-radius: 0.5rem;
         padding: 0.75rem;
-      "
-    >
+      ">
       <h3 style="font-weight: 600; font-size: 1rem">
         Jugadores conectados ({{ players.length }})
       </h3>
 
       <!-- Mostrar lista de jugadores y timer cuando hay más de 1 jugador -->
       <div v-if="players.length > 1">
-        <ul
-          style="
+        <ul style="
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             padding: 0.5rem;
             margin-top: 0.5rem;
             list-style: none;
-          "
-        >
-          <li
-            v-for="player in players"
-            :key="player.id"
-            style="padding: 0.25rem 0"
-          >
+          ">
+          <li v-for="player in players" :key="player.id" style="padding: 0.25rem 0">
             <span>{{ player.name }}</span>
-            <span
-              v-if="player.name === user.nickname"
-              style="color: #2563eb; font-size: 0.85rem; margin-left: 4px"
-            >
+            <span v-if="player.name === user.nickname" style="color: #2563eb; font-size: 0.85rem; margin-left: 4px">
               (You)
             </span>
           </li>
         </ul>
 
         <!-- Timer sincronizado que se muestra cuando está activo -->
-        <div
-          v-if="isTimerActive"
-          :style="{
-            width: '75px',
-            height: '75px',
-            borderRadius: '50%',
-            border: `6px solid ${seconds <= 5 ? '#dc2626' : '#2563eb'}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem',
-            fontWeight: 'bold',
-            color: 'black',
-            margin: '1.5rem auto',
-            transition: 'all 0.3s ease',
-          }"
-        >
+        <div v-if="isTimerActive" :style="{
+          width: '75px',
+          height: '75px',
+          borderRadius: '50%',
+          border: `6px solid ${seconds <= 5 ? '#dc2626' : '#2563eb'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          color: 'black',
+          margin: '1.5rem auto',
+          transition: 'all 0.3s ease',
+        }">
           {{ seconds }}
         </div>
 
@@ -133,11 +108,7 @@
           </p>
 
           <!-- Botón para iniciar timer (solo para el creador) -->
-          <button
-            v-if="isRoomCreator"
-            @click="startTimer"
-            :disabled="startingTimer"
-            style="
+          <button v-if="isRoomCreator" @click="startTimer" :disabled="startingTimer" style="
               background: #2563eb;
               color: white;
               border: none;
@@ -145,19 +116,14 @@
               border-radius: 0.5rem;
               cursor: pointer;
               font-weight: 600;
-            "
-            :style="{
+            " :style="{
               opacity: startingTimer ? '0.5' : '1',
               cursor: startingTimer ? 'not-allowed' : 'pointer',
-            }"
-          >
+            }">
             {{ startingTimer ? "Iniciando..." : "Iniciar Timer" }}
           </button>
 
-          <p
-            v-else
-            style="color: #6b7280; font-size: 0.85rem; margin-top: 0.5rem"
-          >
+          <p v-else style="color: #6b7280; font-size: 0.85rem; margin-top: 0.5rem">
             Solo el creador puede iniciar el timer
           </p>
         </div>
@@ -173,48 +139,37 @@
       </div>
     </div>
 
-    <div
-      style="
+    <div style="
         margin-top: 1rem;
         text-align: center;
         display: flex;
         gap: 0.5rem;
         justify-content: center;
         flex-wrap: wrap;
-      "
-    >
+      ">
       <!-- Botón para eliminar sala (solo para el creador) -->
-      <button
-        v-if="isRoomCreator"
-        @click="deleteRoom"
-        :disabled="deleting"
-        style="
+      <button v-if="isRoomCreator" @click="deleteRoom" :disabled="deleting" style="
           border: 1px solid #dc2626;
           padding: 0.5rem 1rem;
           border-radius: 0.5rem;
           background: white;
           color: #dc2626;
           cursor: pointer;
-        "
-        :style="{
+        " :style="{
           opacity: deleting ? '0.5' : '1',
           cursor: deleting ? 'not-allowed' : 'pointer',
-        }"
-      >
+        }">
         {{ deleting ? "Eliminando..." : " Eliminar Sala" }}
       </button>
 
-      <button
-        @click="logout"
-        style="
+      <button @click="logout" style="
           border: 1px solid #d1d5db;
           padding: 0.5rem 1rem;
           border-radius: 0.5rem;
           background: white;
           color: #6b7280;
           cursor: pointer;
-        "
-      >
+        ">
         Salir de la sala
       </button>
     </div>
@@ -260,9 +215,9 @@ onMounted(() => {
   // Nos unimos a la sala activa (si ya existe en backend)
   socket.on("updateUserList", (list) => {
     console.log("Lista actualizada desde el servidor:", list);
-    players.value = list.map((name, i) => ({
-      id: i + 1,
-      name,
+    players.value = list.map((p, i) => ({
+      id: p.id || i + 1,
+      name: p.nickname ?? p.name ?? String(p)
     }));
   });
 
@@ -285,7 +240,11 @@ onMounted(() => {
   // Escuchar cuando la sala es eliminada
   socket.on("roomDeleted", (data) => {
     console.log("Sala eliminada:", data);
-    alert(`${data.message}`);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: `${data.message}`,
+    });
     router.push("/");
   });
 
@@ -293,7 +252,11 @@ onMounted(() => {
   socket.on("roomDeleteSuccess", (data) => {
     console.log("Sala eliminada exitosamente:", data);
     deleting.value = false;
-    alert(`${data.message}`);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: `${data.message}`,
+    });
     router.push("/");
   });
 
@@ -301,7 +264,12 @@ onMounted(() => {
   socket.on("roomDeleteError", (data) => {
     console.log("Error al eliminar sala:", data);
     deleting.value = false;
-    alert(`Error: ${data.message}`);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: `${data.message}`,
+    });
+    router.push('/');
   });
 
   // Escuchar cuando el timer es iniciado
@@ -320,7 +288,12 @@ onMounted(() => {
   socket.on("startTimerError", (data) => {
     console.log("Error al iniciar timer:", data);
     startingTimer.value = false;
-    alert(`Error: ${data.message}`);
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: `${data.message}`,
+    });
+    router.push('/');
   });
 });
 
