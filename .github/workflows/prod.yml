@@ -83,8 +83,8 @@ jobs:
           port: 22
           script: |
             cd /tr1-type-racer-royale-tr1-grup-1
-            cp -r shared ./front/shared
-            cp -r shared ./back/shared
+            cp -r shared ./front/
+            cp -r shared ./back/
 
   deploy_containers:
     name: Build and deploy containers
