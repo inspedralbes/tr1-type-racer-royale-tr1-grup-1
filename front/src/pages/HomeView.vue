@@ -1,4 +1,7 @@
 <template>
+  <div class="text-3xl text-lime-400 font-bold text-center mt-10">
+    Tailwind está funcionando
+  </div>
   <main class="min-h-screen grid place-items-center p-6">
     <div class="w-full max-w-sm space-y-4">
       <!-- for now here are vibecoded Tailwind classes, you can change those for yours later-->
@@ -6,31 +9,45 @@
         Giga Racer Royale Pro Max Deluxe
       </h1>
 
-      <p v-if="route.query.needNick" class="rounded-md" style="
+      <p
+        v-if="route.query.needNick"
+        class="rounded-md"
+        style="
           background: #fef2f2;
           border: 1px solid #fecaca;
           color: #991b1b;
           padding: 0.5rem 0.75rem;
           font-size: 0.9rem;
-        ">
+        "
+      >
         Please enter a nickname before joining.
       </p>
 
       <label class="block">
         <span style="font-size: 0.9rem; color: #374151">Nickname</span>
-        <input v-model.trim="nick" type="text" placeholder="Your nickname" @keyup.enter="join" autofocus style="
+        <input
+          v-model.trim="nick"
+          type="text"
+          placeholder="Your nickname"
+          @keyup.enter="join"
+          autofocus
+          style="
             margin-top: 0.25rem;
             width: 100%;
             border: 1px solid #d1d5db;
             border-radius: 0.5rem;
             padding: 0.5rem 0.75rem;
-          " />
-        <small v-if="user.hasNick" style="
+          "
+        />
+        <small
+          v-if="user.hasNick"
+          style="
             color: #059669;
             font-size: 0.8rem;
             margin-top: 0.25rem;
             display: block;
-          ">
+          "
+        >
           ✓ Identificado como: {{ user.nickname }}
         </small>
       </label>
@@ -42,25 +59,35 @@
         </div>
 
         <ul v-else class="space-y-3 mt-3">
-          <li v-for="room in rooms" :key="room.name" class="p-3 border rounded-md flex items-center justify-between">
+          <li
+            v-for="room in rooms"
+            :key="room.name"
+            class="p-3 border rounded-md flex items-center justify-between"
+          >
             <div>
               <div class="font-medium">{{ room.name }}</div>
               <div class="text-sm text-gray-500">
                 Jugadores: {{ room.playerCount }} · Estado:
                 {{ room.status || "waiting" }} · Idioma: {{ room.language }} ·
                 Dificultad: {{ room.difficulty }}
-                <span v-if="room.createdBy">· Creada por: {{ room.createdBy }}</span>
+                <span v-if="room.createdBy"
+                  >· Creada por: {{ room.createdBy }}</span
+                >
               </div>
             </div>
 
             <div>
-              <button class="px-3 py-1 rounded-md bg-blue-600 text-white disabled:opacity-50" :disabled="!nick" @click="
-                user.setNickname(nick);
-              socket.emit('joinRoom', {
-                roomName: room.name,
-                nickname: user.nickname,
-              });
-              ">
+              <button
+                class="px-3 py-1 rounded-md bg-blue-600 text-white disabled:opacity-50"
+                :disabled="!nick"
+                @click="
+                  user.setNickname(nick);
+                  socket.emit('joinRoom', {
+                    roomName: room.name,
+                    nickname: user.nickname,
+                  });
+                "
+              >
                 Unirse
               </button>
             </div>
@@ -68,7 +95,10 @@
         </ul>
       </div>
     </div>
-    <button @click="goToCreateRoom" :disabled="!nick?.trim()" style="
+    <button
+      @click="goToCreateRoom"
+      :disabled="!nick?.trim()"
+      style="
         width: 100%;
         border-radius: 0.5rem;
         padding: 0.5rem 0.75rem;
@@ -76,10 +106,12 @@
         background: white;
         border: 1px solid #2563eb;
         cursor: pointer;
-      " :style="{
+      "
+      :style="{
         opacity: !nick?.trim() ? '0.5' : '1',
         cursor: !nick?.trim() ? 'not-allowed' : 'pointer',
-      }">
+      }"
+    >
       {{
         !nick?.trim()
           ? "Introduce un nickname para crear sala"
