@@ -36,6 +36,18 @@
       ></textarea>
     </section>
 
+    <!-- Mostrar jugadores de la sala -->
+    <section v-if="participants.length > 0" class="participants-section">
+      <h3>Jugadores en la sala:</h3>
+      <div class="results-grid">
+        <div v-for="nick in participants" :key="nick" class="result-card">
+          <strong>{{ nick }}</strong>
+          <div>WPM: {{ findResult(nick)?.wpm ?? "-" }}</div>
+          <div>Precisión: {{ findResult(nick)?.accuracy ?? "-" }}%</div>
+        </div>
+      </div>
+    </section>
+
     <!-- Mostrar resultados si hay -->
     <section v-if="gameResults.length > 0" class="results-section">
       <h3>Resultados de la sala:</h3>
@@ -68,12 +80,11 @@
       <button class="btn" @click="reset">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
-    <Keyboard :nickname="user.nickname" />
+    <Keyboard :nickname="user.nickname" :room="ROOM" />
   </main>
 </template>
 
 <script setup>
-const ROOM = "main-room"; // TODO: replace with dynamic room id when lobby wires it
 import {
   ref,
   computed,
@@ -83,19 +94,39 @@ import {
   nextTick,
 } from "vue";
 import { getText } from "@/services/communicationManager.js";
+import { socket } from "@/services/socket";
 import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-// shared speed function (mounted via docker volume into /usr/src/app/shared)
 import { calcPlayerSpeed } from "@/../shared/speed.js";
-
-import { socket } from "@/services/socket.js";
 import Keyboard from "@/components/Keyboard.vue";
-
 const router = useRouter();
 const user = useUserStore();
 const toast = useToast();
+
+// Variables para la sala dinámica
+const roomList = ref([]);
+const currentRoom = ref(null);
+
+// Computed para obtener el nombre de la sala actual
+const ROOM = computed(() => {
+  if (currentRoom.value) {
+    return currentRoom.value.name;
+  }
+  // Buscar en la lista de salas la que contiene al usuario actual
+  const userRoom = roomList.value.find(
+    (room) =>
+      room.players &&
+      room.players.some((player) =>
+        typeof player === "string"
+          ? player === user.nickname
+          : player.nickname === user.nickname
+      )
+  );
+  return userRoom ? userRoom.name : "";
+});
+
 if (!user.hasNick) router.replace({ name: "home", query: { needNick: "1" } });
 
 // DATA LOADING
@@ -104,6 +135,7 @@ const target = ref("");
 const loading = ref(true);
 const error = ref(null);
 const gameResults = ref([]);
+const participants = ref([]); // <-- nueva ref para participantes
 const targetChars = computed(() => Array.from(target.value));
 
 // RACE STATE (from server)
@@ -208,7 +240,7 @@ function emitProgressThrottled() {
   lastEmit = now;
   const speed = calcPlayerSpeed(wpm.value);
   socket.emit("typing:progress", {
-    room: ROOM,
+    room: ROOM.value,
     nickname: user.nickname,
     wpm: wpm.value,
     accuracy: accuracy.value,
@@ -249,7 +281,7 @@ function onInput() {
       totalErrors.value
     );
     socket.emit("userPerformance", {
-      room: ROOM,
+      room: ROOM.value,
       nickname: user.nickname,
       status: "bad",
       message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
@@ -283,12 +315,14 @@ function onInput() {
 
   if (finished.value && !endedAt.value) {
     endedAt.value = Date.now();
+
+    // Enviar resultados al servidor
     socket.emit("gameFinished", {
-      room: ROOM,
+      room: ROOM.value,
       nickname: user.nickname,
       wpm: wpm.value,
       accuracy: accuracy.value,
-      errors: totalErrors.value, // 🔹 Enviar errores acumulados al servidor
+      errors: totalErrors.value,
     });
   }
 }
@@ -318,9 +352,39 @@ async function nextText() {
 
 // MOUNT
 onMounted(async () => {
-  // Join the room when socket connects
+  // Solicitar lista de salas primero
+  socket.emit("requestRoomList");
+
+  // Escuchar actualizaciones de la lista de salas
+  socket.on("roomList", (data) => {
+    roomList.value = data.rooms || [];
+    console.log("Lista de salas actualizada:", roomList.value);
+
+    // Buscar la sala del usuario actual
+    const userRoom = roomList.value.find(
+      (room) =>
+        room.players &&
+        room.players.some((player) =>
+          typeof player === "string"
+            ? player === user.nickname
+            : player.nickname === user.nickname
+        )
+    );
+
+    if (userRoom) {
+      currentRoom.value = userRoom;
+      console.log("Sala actual del usuario:", userRoom.name);
+    }
+  });
+
+  // Join the room when socket connects and we have room info
   socket.on("connect", () => {
-    socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
+    if (ROOM.value) {
+      socket.emit("joinRoom", {
+        roomName: ROOM.value,
+        nickname: user.nickname,
+      });
+    }
   });
 
   // Sala: resultados
@@ -338,10 +402,16 @@ onMounted(async () => {
     }
   });
 
+  // Escuchar lista de usuarios en la sala
+  socket.on("updateUserList", (list) => {
+    participants.value = list || [];
+    console.log(" Lista de usuarios actualizada:", participants.value);
+  });
+
   await pickRandomText();
   await nextTick();
 
-  if (!target.value) {
+  if (!target) {
     const interval = setInterval(() => {
       if (target.value) {
         clearInterval(interval);
@@ -359,6 +429,7 @@ onBeforeUnmount(() => {
   socket.off("userPerformance");
   socket.off("race:update");
   socket.off("connect");
+  socket.off("roomList");
 });
 
 // When target changes (Next Text), reset everything
@@ -376,6 +447,11 @@ watch(
     await nextTick();
   }
 );
+
+// utility para buscar resultado por nickname
+function findResult(nick) {
+  return gameResults.value.find((r) => r.nickname === nick);
+}
 </script>
 
 <style scoped>
@@ -411,7 +487,6 @@ watch(
   margin: 0 auto;
   padding: 1.25rem;
 }
-
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -419,12 +494,10 @@ watch(
   gap: 1rem;
   margin-bottom: 1rem;
 }
-
 .topbar h1 {
   margin: 0;
   font-size: 1.5rem;
 }
-
 .stats {
   display: flex;
   gap: 1rem;
@@ -505,6 +578,7 @@ watch(
   z-index: 1;
   animation: blink 0.5s steps(2, start) infinite;
 }
+
 @keyframes blink {
   50% {
     opacity: 0;
@@ -544,6 +618,7 @@ watch(
   background: white;
   cursor: pointer;
 }
+
 .btn:hover {
   background: #f3f4f6;
 }
@@ -553,6 +628,12 @@ watch(
   padding: 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
+}
+
+/* Reuso la misma grid para participantes */
+.participants-section {
+  margin: 1.5rem 0;
+  padding: 0.5rem 0;
 }
 
 .results-grid {

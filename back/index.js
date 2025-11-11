@@ -1,5 +1,5 @@
 import express from "express";
-import http from "http";
+import http from "node:http";
 import { Server } from "socket.io";
 import { con } from "./db.js";
 import dotenv from "dotenv";
@@ -15,7 +15,7 @@ dotenv.config();
 // ------------------------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0';
+const HOST = "0.0.0.0";
 
 app.use(cors());
 
@@ -35,8 +35,10 @@ app.get("/", (req, res) => {
 
 const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
 const timers = {}; // Temporizadores activos
+const roomStatus = {}; // Almacenará los resultados de cada sala
+const roomTimers = {}; // Almacenará los timers de cada sala
 
-// 🔹 RACE STATE (server-authoritative)
+// RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
 const TRACK_LEN = 100; // “distance” in %
 const TICK_MS = 100; // 10 updates per second
@@ -72,7 +74,12 @@ function addPlayerToRoom(roomId, nickname, socketId) {
   }
 
   // add also to race state
-  const map = racePlayers.get(roomId);
+  let map = racePlayers.get(roomId);
+  if (!map) {
+    map = new Map();
+    racePlayers.set(roomId, map);
+  }
+
   if (!map.has(socketId)) {
     map.set(socketId, {
       id: socketId,
@@ -125,34 +132,97 @@ function addGameResult(roomId, nickname, wpm, accuracy) {
 // TIMER Y SINCRONIZACIÓN DE JUEGO
 // -----------------------------------
 
-function startRoomTimer(roomId) {
-  if (timers[roomId]) clearInterval(timers[roomId]);
+function startRoomTimer(roomName) {
+  if (roomTimers[roomName]) {
+    clearInterval(roomTimers[roomName].interval);
+  }
 
-  let seconds = 10;
-  io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
+  const COUNTDOWN_TIME = 30; // 30 segundos de countdown
 
-  timers[roomId] = setInterval(() => {
-    seconds--;
+  roomTimers[roomName] = {
+    seconds: COUNTDOWN_TIME,
+    interval: null,
+    isActive: true,
+  };
 
-    if (seconds > 0) {
-      io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
-    } else {
-      io.to(roomId).emit("timerUpdate", { seconds: 0, isActive: false });
-      clearInterval(timers[roomId]);
-      delete timers[roomId];
+  console.log(
+    `Iniciando timer para sala ${roomName} - ${COUNTDOWN_TIME} segundos`
+  );
 
-      if (rooms[roomId]) rooms[roomId].status = "playing";
-      console.log(`Timer terminado para sala ${roomId}. Iniciando juego.`);
+  // Enviar tiempo inicial
+  io.to(roomName).emit("timerUpdate", {
+    seconds: COUNTDOWN_TIME,
+    isActive: true,
+  });
+
+  roomTimers[roomName].interval = setInterval(() => {
+    roomTimers[roomName].seconds--;
+
+    // Enviar actualización de tiempo a todos los jugadores de la sala
+    io.to(roomName).emit("timerUpdate", {
+      seconds: roomTimers[roomName].seconds,
+      isActive: true,
+    });
+
+    console.log(
+      `Timer sala ${roomName}: ${roomTimers[roomName].seconds} segundos`
+    );
+
+    if (roomTimers[roomName].seconds <= 0) {
+      clearInterval(roomTimers[roomName].interval);
+      roomTimers[roomName].isActive = false;
+      (async () => {
+        try {
+          await getTexts(roomName);
+          console.log(
+            "Textos asignados a los jugadores de la sala",
+            rooms[roomName].players
+          );
+          rooms[roomName].status = "inGame";
+          io.to(roomName).emit("gameStart", { roomName });
+          io.emit("roomList", { rooms });
+          console.log(`Juego iniciado en la sala ${roomName}`);
+        } catch (err) {
+          console.error(`Error al asignar textos para sala ${roomName}:`, err);
+        }
+      })();
     }
   }, 1000);
 }
 
-function stopRoomTimer(roomId) {
-  if (timers[roomId]) {
-    clearInterval(timers[roomId]);
-    delete timers[roomId];
-    io.to(roomId).emit("timerUpdate", { seconds: 10, isActive: false });
-    console.log(`Timer detenido para sala ${roomId}`);
+// Función para parar el timer de una sala
+function stopRoomTimer(roomName) {
+  if (roomTimers[roomName]) {
+    clearInterval(roomTimers[roomName].interval);
+    roomTimers[roomName].isActive = false;
+    console.log(`Timer detenido para sala ${roomName}`);
+    io.to(roomName).emit("timerUpdate", {
+      seconds: 0,
+      isActive: false,
+    });
+  }
+}
+
+// Función para manejar el timer cuando cambia el número de jugadores
+function handleRoomPlayerCount(roomName) {
+  if (!rooms[roomName]) return;
+
+  const playerCount = rooms[roomName].players.length;
+
+  console.log(
+    ` Revisando timer para sala ${roomName}: ${playerCount} jugadores`
+  );
+
+  // Solo detener el timer si hay menos de 2 jugadores
+  // El timer solo puede ser iniciado manualmente por el creador de la sala
+  if (playerCount < 2) {
+    // Si hay menos de 2 jugadores, detener timer
+    if (roomTimers[roomName]?.isActive) {
+      console.log(
+        `Deteniendo timer para sala ${roomName} (${playerCount} jugadores)`
+      );
+      stopRoomTimer(roomName);
+    }
   }
 }
 
@@ -188,6 +258,25 @@ setInterval(() => {
   }
 }, TICK_MS);
 
+///// ***** FUNCIONES DE SOCKET.IO ***** /////
+
+///// ***** FUNCIONES DE SOCKET.IO ***** /////
+// Enviar lista de salas a todos los clientes conectados
+function broadcastRoomList() {
+  const roomList = Object.values(rooms).map((room) => ({
+    name: room.roomName,
+    players: room.players,
+    playerCount: room.players.length,
+    status: room.status,
+    language: room.language,
+    difficulty: room.difficulty,
+    createdBy: room.createdBy, // Incluir información del creador
+  }));
+
+  io.emit("roomList", { rooms: roomList });
+  console.log(" Lista de salas enviada:", roomList);
+}
+
 // -----------------------------------
 // SOCKET.IO - EVENTOS EN TIEMPO REAL
 // -----------------------------------
@@ -195,43 +284,161 @@ setInterval(() => {
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
-  socket.on("requestRoomCreation", (data) => {
-    const roomName = data.roomName;
-    if (!rooms[roomName]) createRoom(roomName);
-    socket.emit("confirmRoomCreation", { roomName });
+  // Evento para solicitar la lista de salas disponibles
+  socket.on("requestRoomList", () => {
+    const roomList = Object.values(rooms).map((room) => ({
+      name: room.roomName,
+      players: room.players,
+      playerCount: room.players.length,
+      status: room.status,
+      language: room.language,
+      difficulty: room.difficultyValue,
+      createdBy: room.createdBy, // Incluir información del creador
+    }));
+
+    socket.emit("roomList", { rooms: roomList });
+    console.log(" Lista de salas enviada a", socket.id, ":", roomList);
   });
 
+  // 1) Cliente solicita crear sala
+  // 2) Cliente confirma creación de sala
   socket.on("createRoom", (data) => {
-    const room = data.room || data.roomName;
-    socket.join(room);
-    if (!rooms[room]) createRoom(room);
-    socket.emit("roomCreated", { room });
+    if (
+      !data.roomName ||
+      !data.language ||
+      !data.difficulty ||
+      !data.userName
+    ) {
+      socket.emit("roomNotCreated", {
+        status: "failed",
+        message: "ERROR",
+      });
+      return;
+    }
+
+    // Comprobar si ya existe una sala con ese nombre
+    if (rooms[data.roomName]) {
+      socket.emit("roomNotCreated", {
+        status: "failed",
+        message: "Existent ROOM",
+      });
+      return;
+    }
+
+    // Aseguramos que la sala esté inicializada como objeto en rooms
+    rooms[data.roomName] = {
+      roomName: data.roomName,
+      language: data.language,
+      difficulty: data.difficulty,
+      players: [],
+      status: "waiting",
+      createdBy: data.userName, // Trackear el creador de la sala
+    };
+
+    socket.join(data.roomName);
+    addPlayerToRoom(data.roomName, data.userName, socket.id);
+    socket.nickname = data.userName; // Establecer nickname para disconnect
+
+    // Inicializamos el estado del juego de la sala si no existe
+    if (!roomStatus[data.roomName]) {
+      roomStatus[data.roomName] = {
+        results: [],
+      };
+    }
+    console.log(rooms[data.roomName]);
+
+    // Emitimos al cliente que ya está en la sala (y devolvemos info)
+    socket.emit("roomCreated", { room: data.roomName });
+
+    // Enviar información de la sala al creador
+    socket.emit("roomInfo", rooms[data.roomName]);
+
+    // Actualizar lista de usuarios en la sala
+    io.to(data.roomName).emit("updateUserList", rooms[data.roomName].players);
+
+    // Enviar lista actualizada de salas a todos los clientes
+    broadcastRoomList();
+
+    // Manejar timer basado en número de jugadores
+    handleRoomPlayerCount(data.roomName);
   });
 
   socket.on("joinRoom", (data) => {
-    try {
-      const { room, nickname } = data;
-      if (!room || !nickname) return;
+    const roomName = data.roomName;
+    const nickname = data.nickname;
 
-      socket.join(room);
-      socket.nickname = nickname;
-      socket.currentRoom = room;
+    console.log(roomName, nickname);
 
-      addPlayerToRoom(room, nickname, socket.id);
-      io.to(room).emit("updateUserList", rooms[room].players);
+    // Verificar que la sala existe y está esperando
+    if (!rooms[roomName] || rooms[roomName].status !== "waiting") {
+      socket.emit("errorJoin");
+      return;
+    }
 
-      if (rooms[room].players.length > 1 && !timers[room]) {
-        startRoomTimer(room);
-      }
+    socket.join(roomName);
+    socket.nickname = nickname; // Muy importante para disconnect
+    socket.currentRoom = roomName;
 
-      // enviar snapshot inicial de carrera
-      io.to(room).emit("race:update", roomSnapshot(room));
-    } catch (err) {
-      console.error("Error en joinRoom:", err);
+    // Añadir jugador usando la función existente
+    addPlayerToRoom(roomName, nickname, socket.id);
+
+    console.log(
+      `Cliente ${nickname} (${socket.id}) se ha unido a la sala ${roomName}`
+    );
+
+    // Notificamos a todos los clientes de la sala
+    io.to(roomName).emit("userJoined", { id: socket.id, roomName, nickname });
+
+    // Confirmamos específicamente al usuario que se está uniendo
+    socket.emit("joinedRoom", { roomName, nickname });
+
+    // Enviamos la lista actualizada a todos los clientes en esa sala
+    io.to(roomName).emit("updateUserList", rooms[roomName].players);
+
+    // Enviamos la info de la sala también (opcional)
+    io.to(roomName).emit("roomInfo", rooms[roomName]);
+
+    // Enviar lista actualizada de salas a todos los clientes
+    broadcastRoomList();
+
+    // Inicializamos el estado de la sala si no existe
+    if (!roomStatus[roomName]) {
+      roomStatus[roomName] = {
+        results: [],
+      };
+    }
+
+    // Manejar timer basado en número de jugadores
+    handleRoomPlayerCount(roomName);
+
+    // Si ya hay un timer activo, enviar el estado actual al nuevo jugador
+    if (roomTimers[roomName]?.isActive) {
+      socket.emit("timerUpdate", {
+        seconds: roomTimers[roomName].seconds,
+        isActive: true,
+      });
+    }
+
+    // Enviar snapshot inicial de carrera
+    io.to(roomName).emit("race:update", roomSnapshot(roomName));
+  });
+
+  // Comenzamos una partida
+  socket.on("startGame", async (data) => {
+    const { roomName } = data;
+    if (rooms[roomName]) {
+      await getTexts(roomName);
+      console.log(
+        "Textos asignados a los jugadores de la sala",
+        rooms[roomName].players
+      );
+      rooms[roomName].status = "inGame";
+      io.to(roomName).emit("gameStarted", { roomInfo: rooms[roomName] });
+      io.emit("roomList", { rooms });
+      console.log(`Juego iniciado en la sala ${roomName}`);
     }
   });
 
-  // Recibir progreso de tipeo (PlayView)
   socket.on("typing:progress", ({ room, wpm, accuracy }) => {
     const map = racePlayers.get(room);
     if (!map) return;
@@ -241,7 +448,7 @@ io.on("connection", (socket) => {
     p.accuracy = Number(accuracy) || 0;
   });
 
-  // Finalización del juego
+  /// Finalización del juego
   socket.on("gameFinished", (data) => {
     const { room, nickname, wpm, accuracy } = data;
     const map = racePlayers.get(room);
@@ -253,9 +460,196 @@ io.on("connection", (socket) => {
         p.position = TRACK_LEN;
       }
     }
-    addGameResult(room, nickname, wpm, accuracy);
-    io.to(room).emit("updateGameResults", rooms[room].results);
-    io.to(room).emit("race:update", roomSnapshot(room));
+
+    if (roomStatus[room]) {
+      // Añadir el resultado a la sala
+      roomStatus[room].results.push({
+        nickname,
+        wpm,
+        accuracy,
+        timestamp: Date.now(),
+      });
+
+      // Enviar los resultados actualizados a todos en la sala
+      io.to(room).emit("updateGameResults", roomStatus[room].results);
+      io.to(room).emit("race:update", roomSnapshot(room));
+      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
+    }
+  });
+
+  // Eliminar sala (solo el creador puede hacerlo)
+  socket.on("deleteRoom", (data) => {
+    const { roomName, nickname } = data;
+
+    // Verificar que la sala existe
+    if (!rooms[roomName]) {
+      socket.emit("roomDeleteError", {
+        message: "La sala no existe",
+      });
+      return;
+    }
+
+    // Verificar que el usuario es el creador de la sala
+    if (rooms[roomName].createdBy !== nickname) {
+      socket.emit("roomDeleteError", {
+        message: "Solo el creador puede eliminar la sala",
+      });
+      return;
+    }
+
+    console.log(` Eliminando sala ${roomName} por ${nickname}`);
+
+    // Notificar a todos los usuarios en la sala antes de eliminarla
+    io.to(roomName).emit("roomDeleted", {
+      roomName: roomName,
+      message: "La sala ha sido eliminada por el creador",
+    });
+
+    // Detener timer si existe
+    if (roomTimers[roomName]) {
+      clearInterval(roomTimers[roomName].interval);
+      delete roomTimers[roomName];
+    }
+
+    // Limpiar datos de la sala
+    delete rooms[roomName];
+    delete roomStatus[roomName];
+
+    // Actualizar lista de salas para todos los clientes
+    broadcastRoomList();
+
+    // Confirmar eliminación al creador
+    socket.emit("roomDeleteSuccess", {
+      roomName: roomName,
+      message: "Sala eliminada exitosamente",
+    });
+
+    console.log(` Sala ${roomName} eliminada exitosamente`);
+  });
+
+  // Salir de una sala específica (sin desconectar del servidor)
+  socket.on("leaveRoom", (data) => {
+    const { roomName, nickname } = data;
+
+    console.log(` ${nickname} está saliendo de la sala ${roomName}`);
+
+    // Verificar que la sala existe
+    if (!rooms[roomName]) {
+      console.log(`Intento de salir de sala inexistente: ${roomName}`);
+      return;
+    }
+
+    // Remover usuario de la sala (buscar por nickname ya que los players son objetos)
+    const userList = rooms[roomName].players;
+    const index = userList.findIndex(
+      (p) =>
+        (typeof p === "string" && p === nickname) ||
+        (typeof p === "object" && p.nickname === nickname)
+    );
+
+    // Si el usuario está en la sala, lo removemos
+    if (index !== -1) {
+      userList.splice(index, 1);
+      console.log(
+        `${nickname} removido de la sala ${roomName}. Jugadores restantes: ${userList.length}`
+      );
+
+      // También remover de racePlayers
+      const raceMap = racePlayers.get(roomName);
+      if (raceMap && raceMap.has(socket.id)) {
+        raceMap.delete(socket.id);
+      }
+
+      // Hacer que el socket salga de la room de Socket.IO
+      socket.leave(roomName);
+
+      // Notificar a los usuarios restantes en la sala
+      io.to(roomName).emit("updateUserList", userList);
+      io.to(roomName).emit("userLeft", {
+        nickname: nickname,
+        roomName: roomName,
+        remainingPlayers: userList.length,
+      });
+
+      // Manejar timer basado en número de jugadores restantes
+      handleRoomPlayerCount(roomName);
+
+      // Si la sala queda vacía, limpiarla
+      if (userList.length === 0) {
+        console.log(`Limpiando sala vacía: ${roomName}`);
+        delete rooms[roomName];
+        delete roomStatus[roomName];
+        racePlayers.delete(roomName);
+        if (roomTimers[roomName]) {
+          clearInterval(roomTimers[roomName].interval);
+          delete roomTimers[roomName];
+        }
+      }
+
+      // Actualizar lista de salas para todos los clientes
+      broadcastRoomList();
+    } else {
+      console.log(` Usuario ${nickname} no encontrado en la sala ${roomName}`);
+    }
+  });
+
+  // Iniciar timer manualmente (solo el creador puede hacerlo)
+  socket.on("startTimer", (data) => {
+    const { roomName, nickname } = data;
+
+    console.log(` ${nickname} quiere iniciar el timer en la sala ${roomName}`);
+
+    // Verificar que la sala existe
+    if (!rooms[roomName]) {
+      socket.emit("startTimerError", {
+        message: "La sala no existe",
+      });
+      return;
+    }
+
+    // Verificar que el usuario es el creador de la sala
+    if (rooms[roomName].createdBy !== nickname) {
+      socket.emit("startTimerError", {
+        message: "Solo el creador puede iniciar el timer",
+      });
+      return;
+    }
+
+    // Verificar que hay al menos 2 jugadores
+    if (rooms[roomName].players.length < 2) {
+      socket.emit("startTimerError", {
+        message: "Se necesitan al menos 2 jugadores para iniciar el timer",
+      });
+      return;
+    }
+
+    // Verificar que no hay un timer ya activo
+    if (roomTimers[roomName]?.isActive) {
+      socket.emit("startTimerError", {
+        message: "El timer ya está activo",
+      });
+      return;
+    }
+
+    console.log(`Iniciando timer manual para sala ${roomName} por ${nickname}`);
+
+    // Iniciar el timer
+    startRoomTimer(roomName);
+
+    // Notificar a todos en la sala que el timer ha iniciado
+    io.to(roomName).emit("timerStarted", {
+      roomName: roomName,
+      startedBy: nickname,
+      message: `Timer iniciado por ${nickname}`,
+    });
+
+    // Confirmar al creador
+    socket.emit("startTimerSuccess", {
+      roomName: roomName,
+      message: "Timer iniciado exitosamente",
+    });
+
+    console.log(`Timer iniciado exitosamente en sala ${roomName}`);
   });
 
   // Detectar rendimiento de jugador (bueno o malo)
@@ -301,19 +695,66 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Desconexión
   socket.on("disconnect", () => {
-    const roomId = socket.currentRoom;
-    removePlayer(socket.id);
+    console.log(`Usuario desconectándose: ${socket.id} (${socket.nickname})`);
 
-    if (roomId && rooms[roomId]) {
-      io.to(roomId).emit("updateUserList", rooms[roomId].players);
-      if (rooms[roomId].players.length < 2 && timers[roomId]) {
-        stopRoomTimer(roomId);
+    // Limpiar de todas las salas donde esté el usuario
+    for (const [roomName, roomObj] of Object.entries(rooms)) {
+      if (!roomObj || !Array.isArray(roomObj.players)) continue;
+
+      const userList = roomObj.players;
+      const initialLength = userList.length;
+
+      // Buscar y remover por socket.id (más confiable)
+      const index = userList.findIndex(
+        (p) =>
+          (typeof p === "object" && p.id === socket.id) ||
+          (typeof p === "string" && p === socket.nickname)
+      );
+
+      if (index !== -1) {
+        const removedPlayer = userList[index];
+        userList.splice(index, 1);
+
+        console.log(
+          `${socket.nickname} removido de la sala ${roomName}. Jugadores restantes: ${userList.length}`
+        );
+
+        // Limpiar de racePlayers
+        const raceMap = racePlayers.get(roomName);
+        if (raceMap && raceMap.has(socket.id)) {
+          raceMap.delete(socket.id);
+        }
+
+        // Notificar a los usuarios restantes en la sala
+        io.to(roomName).emit("updateUserList", userList);
+        io.to(roomName).emit("userLeft", {
+          nickname: socket.nickname,
+          roomName: roomName,
+          remainingPlayers: userList.length,
+        });
+
+        // Manejar timer basado en número de jugadores restantes
+        handleRoomPlayerCount(roomName);
       }
-      io.to(roomId).emit("race:update", roomSnapshot(roomId));
+
+      // Si la sala queda vacía, limpiarla
+      if (userList.length === 0) {
+        console.log(`Limpiando sala vacía: ${roomName}`);
+        delete rooms[roomName];
+        delete roomStatus[roomName];
+        racePlayers.delete(roomName);
+        if (roomTimers[roomName]) {
+          clearInterval(roomTimers[roomName].interval);
+          delete roomTimers[roomName];
+        }
+      }
     }
-    console.log(`Usuario desconectado: ${socket.id}`);
+
+    // Enviar lista actualizada de salas después de la desconexión
+    broadcastRoomList();
+
+    console.log(`Usuario desconectado completamente: ${socket.id}`);
   });
 });
 
@@ -326,6 +767,33 @@ app.get("/api/rooms/:roomId", (req, res) => {
   if (!room) return res.status(404).json({ error: "Sala no encontrada" });
   res.json(room);
 });
+
+function getTexts(roomName) {
+  return new Promise((resolve, reject) => {
+    con.query(
+      "SELECT ID FROM TEXTS WHERE LANGUAGE_CODE = ? AND DIFFICULTY = ?",
+      [rooms[roomName].language, rooms[roomName].difficulty],
+      (err, results) => {
+        if (err) return reject(err);
+        console.log("Textos disponibles:", results);
+        for (let player of rooms[roomName].players) {
+          player.textsIds = [];
+          for (let i = 0; i < 5 && i < results.length; i++) {
+            // elegir índice aleatorio
+            const randomIndex = Math.floor(Math.random() * results.length);
+            player.textsIds.push(results[randomIndex].ID);
+          }
+        }
+
+        console.log(
+          "Textos asignados a los jugadores de la sala",
+          rooms[roomName].players
+        );
+        resolve();
+      }
+    );
+  });
+}
 
 app.get("/api/rooms", (req, res) => {
   res.json(Object.values(rooms));
@@ -374,7 +842,9 @@ app.get("/words/:language", (req, res) => {
 // INICIAR SERVIDOR
 // -----------------
 server.listen(PORT, HOST, () => {
-  console.log(`Servidor Socket.IO corriendo en http://localhost:${HOST}:${PORT}`);
+  console.log(
+    `Servidor Socket.IO corriendo en http://localhost:${HOST}:${PORT}`
+  );
   console.log("Rutas API disponibles:");
   console.log("  GET /api/rooms - Listar salas activas");
   console.log("  GET /api/rooms/:roomId - Info de sala");
