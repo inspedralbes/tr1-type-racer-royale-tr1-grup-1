@@ -39,9 +39,10 @@ const roomStatus = {}; // Almacenará los resultados de cada sala
 const roomTimers = {}; // Almacenará los timers de cada sala
 
 // RACE STATE (server-authoritative)
-const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
-const TRACK_LEN = 100; // “distance” in %
+const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wmp, accuracy, speed, position})
+const TRACK_LEN = 100; // "distance" in %
 const TICK_MS = 100; // 10 updates per second
+const COUNTDOWN_TIME = 30; // 30 segundos de countdown - duración global del timer
 
 // --------------------------------
 // FUNCIONES DE MANEJO DE SALAS
@@ -136,8 +137,6 @@ function startRoomTimer(roomName) {
   if (roomTimers[roomName]) {
     clearInterval(roomTimers[roomName].interval);
   }
-
-  const COUNTDOWN_TIME = 30; // 30 segundos de countdown
 
   roomTimers[roomName] = {
     seconds: COUNTDOWN_TIME,
@@ -298,6 +297,11 @@ io.on("connection", (socket) => {
 
     socket.emit("roomList", { rooms: roomList });
     console.log(" Lista de salas enviada a", socket.id, ":", roomList);
+  });
+
+  // Evento para solicitar la configuración del timer
+  socket.on("requestTimerConfig", () => {
+    socket.emit("timerConfig", { duration: COUNTDOWN_TIME });
   });
 
   // 1) Cliente solicita crear sala

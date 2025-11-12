@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+  font-family: "Dogica";
+  src: url("/src/assets/fonts/dogica.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Aplica Dogica como fuente global */
+html,
+body {
+  font-family: "Dogica", Arial, sans-serif;
+}
