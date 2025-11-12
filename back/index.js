@@ -12,6 +12,13 @@ import {
   applyCorrectChar,
   decaySpeed,
   integratePosition,
+  MONSTER_BASE,
+  MONSTER_ACCEL,
+  MONSTER_MAX,
+  MONSTER_START_GAP,
+  MONSTER_START_DELAY,
+  MONSTER_SAFE_TIME,
+  HIT_BOX, 
 } from "./shared/speed.js";
 
 dotenv.config();
@@ -43,6 +50,8 @@ const timers = {};  // Temporizadores activos
 
 // 🔹 RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
+const raceMonster = new Map();
+const raceMeta = new Map(); // roomId -> { position, speed }
 const TICK_MS = 100;   // 10 updates per second
 
 // --------------------------------
@@ -57,6 +66,8 @@ function createRoom(roomId) {
     results: []
   };
   racePlayers.set(roomId, new Map());
+  raceMonster.set(roomId, { position: -MONSTER_START_GAP, speed: MONSTER_BASE });
+  raceMeta.set(roomId, { monsterStartAt: null });
   console.log(`Sala creada: ${roomId}`);
 }
 
@@ -84,7 +95,8 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       accuracy: 100,
       speed: BASE_SPEED,
       position: 0,
-      lastTypingTs: Date.now()
+      lastTypingTs: Date.now(),
+      alive: true
     });
   }
 
@@ -100,6 +112,8 @@ function removePlayer(socketId) {
     if (room.players.length === 0) {
       delete rooms[roomId];
       racePlayers.delete(roomId);
+      raceMonster.delete(roomId);
+      raceMeta.delete(roomId);
       console.log(`Sala ${roomId} eliminada (vacía)`);
     }
   }
@@ -140,6 +154,12 @@ function startRoomTimer(roomId) {
       delete timers[roomId];
 
       if (rooms[roomId]) rooms[roomId].status = "playing";
+      let meta = raceMeta.get(roomId);
+      if (!meta) {
+        meta = { monsterStartAt: null };
+        raceMeta.set(roomId, meta);
+      }
+      meta.monsterStartAt = Date.now() + MONSTER_START_DELAY * 1000;
       console.log(`Timer terminado para sala ${roomId}. Iniciando juego.`);
     }
   }, 1000);
@@ -160,27 +180,148 @@ function stopRoomTimer(roomId) {
 
 function roomSnapshot(roomId) {
   const map = racePlayers.get(roomId);
-  if (!map) return [];
-  return Array.from(map.values()).map((p) => ({
-    nickname: p.nickname,
-    wpm: Math.round(p.wpm || 0),
-    accuracy: Math.round(p.accuracy || 0),
-    speed: Number((p.speed || 0).toFixed(2)),
-    position: Number((p.position || 0).toFixed(1))
-  }));
+  const mon = raceMonster.get(roomId);
+  return {
+    trackLen: TRACK_LEN,
+    players: map
+      ? Array.from(map.values()).map(p => ({
+          nickname: p.nickname,
+          wpm: Math.round(p.wpm || 0),
+          accuracy: Math.round(p.accuracy || 0),
+          speed: Number((p.speed || 0).toFixed(2)),
+          position: Number((p.position || 0).toFixed(1)),
+          alive: p.alive !== false,
+        }))
+      : [],
+    monster: mon
+      ? {
+          position: Number((mon.position || 0).toFixed(1)),
+          speed: Number((mon.speed || 0).toFixed(2)),
+        }
+      : null,
+  };
 }
 
 // Update loop
 setInterval(() => {
-  const now = Date.now();
+  const dt = TICK_MS / 1000;
+
   for (const [room, map] of racePlayers.entries()) {
+    // 1) advance players + check finish
     for (const p of map.values()) {
-      // decay toward base if idle
-      const dt = TICK_MS / 1000;
-      const idleSeconds = (now - (p.lastTypingTs || now)) / 1000;
-        p.speed = decaySpeed(p.speed, dt);
+      if (p.alive === false) continue;
+
+      p.speed    = decaySpeed(p.speed, dt);
       p.position = integratePosition(p.position, p.speed, dt, TRACK_LEN);
+
+      // emit single "finished" event per player
+      if (p.position >= TRACK_LEN && !p.finished) {
+        p.finished = true;
+
+        // store + emit once
+        rooms[room].results = rooms[room].results || [];
+        rooms[room].results.push({
+          nickname: p.nickname,
+          wpm: Math.round(p.wpm || 0),
+          accuracy: Math.round(p.accuracy || 0),
+          state: "finished",
+          timestamp: Date.now(),
+        });
+
+        io.to(room).emit("player:finished", {
+          nickname: p.nickname,
+          wpm: Math.round(p.wpm || 0),
+          accuracy: Math.round(p.accuracy || 0),
+        });
+
+        io.to(room).emit("updateGameResults", rooms[room].results);
+      }
     }
+
+    // 2) monster
+    const m    = raceMonster.get(room);
+    let   meta = raceMeta.get(room);
+    const now  = Date.now();
+
+    if (!meta) {
+      meta = { monsterStartAt: null };
+      raceMeta.set(room, meta);
+    }
+
+    let canMove  = true;
+    let canCatch = true;
+
+    if (!meta.monsterStartAt || now < meta.monsterStartAt) {
+      canMove = false;
+      canCatch = false;
+    }
+    if (meta.monsterStartAt && now < meta.monsterStartAt + MONSTER_SAFE_TIME * 1000) {
+      canCatch = false;
+    }
+
+    if (m && canMove) {
+      m.speed += MONSTER_ACCEL * dt;
+      if (m.speed > MONSTER_MAX) m.speed = MONSTER_MAX;
+      m.position += m.speed * dt;
+      if (m.position > TRACK_LEN) m.position = TRACK_LEN;
+    }
+
+    // 3) collisions
+    if (m && canCatch) {
+      for (const p of map.values()) {
+        if (p.alive === false) continue;
+        if (m.position + HIT_BOX >= p.position) {
+          p.alive = false;
+          p.speed = 0;
+
+          // store in room results (so late joiners / refresh get it)
+          rooms[room].results = rooms[room].results || [];
+          rooms[room].results.push({
+            nickname: p.nickname,
+            wpm: Math.round(p.wpm || 0),
+            accuracy: Math.round(p.accuracy || 0),
+            state: "dead",
+            timestamp: Date.now(),
+          });
+
+          io.to(room).emit("player:caught", {
+            nickname: p.nickname,
+            wpm: Math.round(p.wpm || 0),
+            accuracy: Math.round(p.accuracy || 0),
+            mPos: m.position, pPos: p.position,
+            hitBox: HIT_BOX, trackLen: TRACK_LEN,
+          });
+
+          io.to(room).emit("updateGameResults", rooms[room].results);
+        }
+      }
+    }
+
+    // 4) room end?
+    const alive = Array.from(map.values()).filter(p => p.alive !== false);
+    const someoneFinished = alive.some(p => p.position >= TRACK_LEN);
+    const allDead = alive.length === 0;
+    const playersArr = Array.from(map.values());
+    const allResolved = playersArr.every(pl => pl.finished === true || pl.alive === false);
+
+    if (allResolved) {
+      // Optional: pick a winner (first finished); if none, null
+      const winner = rooms[room].results?.find(r => r.state === "finished")?.nickname ?? null;
+      io.to(room).emit("race:over", { winner });
+      rooms[room].status = "finished";
+      continue;
+    }
+    /*if (allDead || someoneFinished) {
+      io.to(room).emit("race:over", {
+        winner: someoneFinished
+          ? alive.find(p => p.position >= TRACK_LEN)?.nickname ?? null
+          : null,
+      });
+      rooms[room].status = "finished";
+      continue; // skip broadcast this tick
+    }*/
+
+    // 5) broadcast snapshot
     io.to(room).emit("race:update", roomSnapshot(room));
   }
 }, TICK_MS);

@@ -89,9 +89,7 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client";
-
-const socket = io("http://localhost:3000");
+import { socket, joinRoomOnce } from "@/services/socket.js";
 
 const router = useRouter();
 const user = useUserStore();
@@ -102,27 +100,19 @@ const totalTime = 20;
 const isTimerActive = ref(false);
 
 onMounted(() => {
-  // Join main room on load
-  socket.emit("joinRoom", {
-    room: "main-room",
-    nickname: user.nickname,
-  });
+  // Join main room once (safe — won’t double-join)
+  joinRoomOnce("main-room", user.nickname);
 
   socket.on("updateUserList", (list) => {
     console.log("📜 Lista actualizada desde el servidor:", list);
 
     if (Array.isArray(list)) {
-      if (list.length > 0 && typeof list[0] === "object" && list[0].nickname) {
-        players.value = list;
-      } else {
-        players.value = list.map((name, i) => ({
-          id: i + 1,
-          nickname: name,
-        }));
-      }
+      players.value = list.map((p, i) =>
+        typeof p === "object" ? p : { id: i + 1, nickname: p }
+      );
     }
 
-    // Auto-start timer if enough players
+    // Auto-start timer if enough players (only if your server expects it)
     if (players.value.length > 1 && !isTimerActive.value) {
       startSynchronizedTimer();
     } else if (players.value.length <= 1) {
@@ -134,9 +124,7 @@ onMounted(() => {
     seconds.value = data.seconds;
     isTimerActive.value = data.isActive;
 
-    if (data.seconds === 0) {
-      router.push("/play");
-    }
+    if (data.seconds === 0) router.push("/play");
   });
 
   socket.on("userJoined", (data) => {

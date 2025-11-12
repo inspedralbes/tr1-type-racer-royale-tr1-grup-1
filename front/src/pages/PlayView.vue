@@ -10,7 +10,7 @@
     </header>
 
     <section class="text-area" @click="focusInput">
-      <!-- Estados de carga y error -->
+      <!-- Estados de carga y error --> 
       <div v-if="loading" class="status-message loading">Cargando texto...</div>
       <div v-else-if="error" class="status-message error">{{ error }}</div>
 
@@ -22,7 +22,7 @@
           :class="charClass(i)"
         >{{ ch }}</span>
         <!-- blinking caret positioned dynamically -->
-        <span v-if="!finished" class="caret" :style="caretStyle"></span>
+        <span v-if="!typingDisabled" class="caret" :style="caretStyle"></span>
       </div>
 
       <!-- hidden input to capture keyboard, mobile-friendly -->
@@ -30,6 +30,7 @@
         ref="hiddenInput"
         v-model="userInput"
         class="hidden-input"
+        :disabled="typingDisabled"
         @input="onInput"
         @keydown="onKeydown"
         @paste.prevent
@@ -38,50 +39,104 @@
       ></textarea>
     </section>
 
-    <!-- Mostrar resultados si hay -->
-    <section v-if="gameResults.length > 0" class="results-section">
-      <h3>Resultados de la sala:</h3>
-      <div class="results-grid">
-        <div
-          v-for="result in gameResults"
-          :key="result.timestamp"
-          class="result-card"
-        >
-          <strong>{{ result.nickname }}</strong>
-          <div>WPM: {{ result.wpm }}</div>
-          <div>Precisión: {{ result.accuracy }}%</div>
-        </div>
-      </div>
-    </section>
-
     <!-- Race progress (server-authoritative) -->
     <section v-if="raceState.length" class="race-progress">
       <h3>Race progress</h3>
-      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
-        <span>{{ p.nickname }}</span>
+
+      <!-- Monster -->
+      <div v-if="monsterState" class="progress-row">
+        <span>🧟 Monster</span>
         <div class="bar-container">
-          <div class="bar" :style="{ width: p.position + '%' }"></div>
+          <div class="bar monster" :style="{ width: pct(monsterState.position) }"></div>
         </div>
-        <small>{{ p.position.toFixed(0) }}%</small>
+        <small>{{ (monsterState.position / trackLen * 100).toFixed(0) }}%</small>
+      </div>
+
+      <!-- Players -->
+      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
+        <span :class="{ dead: p.alive === false }">{{ p.nickname }}</span>
+        <div class="bar-container">
+          <div
+            class="bar"
+            :class="{ dead: p.alive === false }"
+            :style="{ width: pct(p.position) }"
+          />
+        </div>
+        <small>{{ (p.position / trackLen * 100).toFixed(0) }}%</small>
       </div>
     </section>
 
+    <!-- Finish/Death overlay -->
+    <div v-if="showOverlay" class="overlay">
+      <div class="modal">
+        <h3 v-if="dead">You were caught 💀</h3>
+        <h3 v-else>Finished! 🏁</h3>
+
+        <p><strong>WPM:</strong> {{ wpm }}</p>
+        <p><strong>Accuracy:</strong> {{ accuracy }}%</p>
+        <p><strong>Time:</strong> {{ elapsedSeconds }}s</p>
+
+        <div class="modal-actions">
+          <button class="btn" @click="goBackToLobby">Back to Lobby</button>
+          <button class="btn" @click="keepWatching">Keep Watching</button>
+        </div>
+      </div>
+    </div>
+
     <footer class="actions">
-      <button class="btn" @click="reset">Reset</button>
+      <button class="btn" @click="resetAndHide">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
+
+    <div class="corner-stack" v-if="finishedCards.length">
+      <div
+        v-for="c in finishedCards"
+        :key="c.nickname"
+        class="mini-card"
+        :class="c.outcome"
+      >
+        <div class="row">
+          <strong>{{ c.nickname }}</strong>
+          <span v-if="c.outcome==='win'">🏁</span>
+          <span v-else>💀</span>
+        </div>
+        <div class="sub" v-if="c.wpm">
+          {{ c.wpm }} WPM · {{ c.accuracy }}%
+        </div>
+      </div>
+    </div>
+    <aside v-if="gameResults.length" class="results-summary">
+      <h4 class="summary-title">Race Results</h4>
+
+      <div
+        v-for="r in gameResults"
+        :key="r.nickname"
+        class="summary-item"
+        :class="{ me: r.nickname === user.nickname }"
+      >
+        <div class="summary-row">
+          <strong>{{ r.nickname }}</strong>
+          <span v-if="r.nickname === user.nickname" class="you-tag">(You)</span>
+        </div>
+        <div class="summary-stats">
+          <span>🏁 {{ r.wpm }} WPM</span>
+          <span>🎯 {{ r.accuracy }}%</span>
+        </div>
+        <small v-if="r.state === 'dead'">💀 Eliminated</small>
+        <small v-else>🏁 Finished</small>
+      </div>
+    </aside>
   </main>
 </template>
+
 
 <script setup>
 const ROOM = "main-room"; // TODO: replace with dynamic room id when lobby wires it
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { getText } from "@/services/communicationManager.js";
-import { io } from "socket.io-client";
+import { socket, joinRoomOnce } from "@/services/socket.js";
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-
-const socket = io("http://localhost:3000");
 
 const router = useRouter();
 const user = useUserStore();
@@ -94,11 +149,79 @@ const loading = ref(true);
 const error = ref(null);
 const gameResults = ref([]);
 const targetChars = computed(() => Array.from(target.value));
+const finishedCards = ref([]); // {nickname, outcome: 'win'|'dead', wpm, accuracy}
+
+// helper to add or update a card
+function upsertCard(entry) {
+  const i = finishedCards.value.findIndex(c => c.nickname === entry.nickname);
+  if (i === -1) finishedCards.value.unshift(entry);
+  else finishedCards.value[i] = { ...finishedCards.value[i], ...entry };
+}
 
 // RACE STATE (from server)
 const raceState = ref([]);
-socket.on("race:update", (snapshot) => {
-  raceState.value = snapshot || [];
+const monsterState = ref(null);
+const trackLen = ref(100);
+
+
+socket.on("race:update", (snap) => {
+  if (Array.isArray(snap)) {
+    raceState.value    = snap;
+    monsterState.value = null;
+    trackLen.value = 100;
+  } else {
+    raceState.value    = snap.players || [];
+    monsterState.value = snap.monster || null;
+    trackLen.value = snap.trackLen || 100;
+  }
+});
+
+function pct(pos) {
+  const len = trackLen.value || 100;
+  const clamped = Math.max(0, Math.min(pos, len));
+  return ((clamped / len) * 100).toFixed(1) + "%";
+}
+
+function pushResultUnique(entry) {
+  const i = gameResults.value.findIndex(r => r.nickname === entry.nickname);
+  if (i === -1) gameResults.value.push(entry);
+}
+
+socket.on("player:finished", ({ nickname, wpm, accuracy }) => {
+  pushResultUnique({ nickname, wpm, accuracy, state: "finished" });
+
+  if (nickname === user.nickname) {
+    endedAt.value = endedAt.value || Date.now();  // freeze
+    showOverlay.value = true;                     // show modal
+    // mark that we’ve reached the race end so typing is disabled
+    reachedFinish.value = true;
+  }
+});
+
+socket.on("player:caught", ({ nickname, wpm, accuracy }) => {
+  pushResultUnique({ nickname, wpm, accuracy, state: "dead" });
+
+  if (nickname === user.nickname) {
+    dead.value = true;
+    endedAt.value = endedAt.value || Date.now();  // freeze
+    showOverlay.value = true;
+    hiddenInput.value?.blur();
+  }
+});
+
+socket.on("race:over", ({ winner }) => {
+  console.log(`🏁 Race over! Winner: ${winner ?? "none"}`);
+
+  if (winner === user.nickname) {
+    // you reached TRACK_LEN distance
+    endedAt.value = Date.now();
+    showOverlay.value = true;
+    dead.value = false;
+  } else {
+    // didn’t win (died or was slower)
+    // if still alive, show mini summary but no overlay yet
+    dead.value = dead.value; // preserve death state
+  }
 });
 
 async function pickRandomText() {
@@ -185,10 +308,33 @@ function charClass(i) {
   return "char untouched";
 }
 
+function resetAndHide() {
+  showOverlay.value = false;
+  dead.value = false;
+  reset();
+}
+
+function goBackToLobby() {
+  router.push("/lobby");
+}
+
+function keepWatching() {
+  showOverlay.value = false;
+  dead.value = true; // mark as spectator
+  hiddenInput.value?.blur();
+}
+
 const prevCorrect = ref(0);
+const dead = ref(false);
+const showOverlay = ref(false);
+const reachedFinish = ref(false);
+
+const typingDisabled = computed(() => dead.value || reachedFinish.value || finished.value || showOverlay.value);
 
 // INPUT HANDLERS
-function onInput() {
+async function onInput() {
+  if (dead.value || finished.value) return;
+
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
@@ -212,15 +358,10 @@ function onInput() {
 
   prevCorrect.value = now;
 
-  if (finished.value && !endedAt.value) {
-    endedAt.value = Date.now();
-    socket.emit("gameFinished", {
-      room: ROOM,
-      nickname: user.nickname,
-      wpm: wpm.value,
-      accuracy: accuracy.value,
-    });
-  }
+  if (userInput.value.length >= target.value.length) {
+  await nextText(); // fetches next text via getText()
+  userInput.value = "";
+}
 }
 
 function onKeydown(e) {
@@ -236,23 +377,23 @@ function reset() {
   userInput.value = "";
   startedAt.value = null;
   endedAt.value = null;
+  reachedFinish.value = false;
   prevCorrect.value = 0;
   focusInput();
 }
 
 async function nextText() {
+  showOverlay.value = false;
+  dead.value = false;
   await pickRandomText();
   reset();
 }
 
 // MOUNT
 onMounted(async () => {
-  // Join the room when socket connects
-  socket.on("connect", () => {
-    socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
-  });
+  // single, idempotent join (no duplicate players)
+  joinRoomOnce("main-room", user.nickname);
 
-  // Sala: resultados
   socket.on("updateGameResults", (results) => {
     gameResults.value = results;
   });
@@ -277,7 +418,13 @@ onBeforeUnmount(() => {
   socket.off("updateGameResults");
   socket.off("race:update");
   socket.off("connect");
+  socket.off("player:caught");
+  socket.off("race:over");
   // optional: socket.disconnect();
+});
+
+watch(showOverlay, (v) => {
+  if (v) hiddenInput.value?.blur();
 });
 
 // When target changes (Next Text), reset everything
@@ -295,9 +442,111 @@ watch(
     await nextTick();
   }
 );
+
 </script>
 
 <style scoped>
+
+.results-summary {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 0.75rem 0.85rem;
+  width: 230px;
+  max-height: 350px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  z-index: 20;
+  transition: all 0.3s ease;
+}
+
+.summary-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 0.4rem;
+  color: #374151;
+}
+
+.summary-item {
+  background: white;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.35rem;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.summary-item:last-child {
+  margin-bottom: 0;
+}
+
+.summary-item.me {
+  border-color: #2563eb;
+  background: #eff6ff;
+  transform: scale(1.02);
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.you-tag {
+  font-size: 0.75rem;
+  color: #2563eb;
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: space-between;
+  color: #374151;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 0.3rem 0;
+}
+.summary-item:last-child {
+  border-bottom: none;
+}
+.summary-item strong {
+  color: #2563eb;
+}
+
+.overlay {
+  animation: fadeIn 0.25s ease;
+}
+.modal {
+  animation: popIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-actions { display:flex; gap:.5rem; justify-content:center; margin-top:.75rem; }
+
+.bar.monster { background: #dc2626; }
+.bar.dead    { background: #9ca3af; } /* gray for eliminated */
+.dead        { opacity: 0.6; text-decoration: line-through; }
+
 /* Race bars */
 .race-progress {
   margin-top: 1.5rem;
@@ -455,4 +704,22 @@ watch(
   display: block;
   margin-bottom: 0.5rem;
 }
+
+.corner-stack {
+  position: fixed; top: 12px; right: 12px; z-index: 60;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 240px;
+}
+.mini-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  font-size: 0.9rem;
+}
+.mini-card.win  { border-color: #10b981; }
+.mini-card.dead { border-color: #ef4444; opacity: .9; }
+.mini-card .row { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.mini-card .sub { color:#6b7280; font-size:.8rem; margin-top:2px; }
 </style>

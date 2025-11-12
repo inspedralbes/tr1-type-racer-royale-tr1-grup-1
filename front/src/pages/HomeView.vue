@@ -61,8 +61,7 @@
 import { ref, watchEffect } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
-import { io } from "socket.io-client";
-const socket = io("http://localhost:3000");
+import { socket } from "../services/socket.js";
 
 const router = useRouter();
 const route = useRoute();
