@@ -254,8 +254,32 @@ io.on("connection", (socket) => {
       }
     }
     addGameResult(room, nickname, wpm, accuracy);
-    io.to(room).emit("updateGameResults", rooms[room].results);
-    io.to(room).emit("race:update", roomSnapshot(room));
+    // Emitimos resultados actuales a la sala
+    if (rooms[room]) {
+      io.to(room).emit("updateGameResults", rooms[room].results);
+      io.to(room).emit("race:update", roomSnapshot(room));
+
+      // Comprobar si algún jugador ha alcanzado 5 finishes (primer en 5 gana)
+      try {
+        const counts = {};
+        for (const r of rooms[room].results) {
+          const nick = r.nickname ?? "anon";
+          counts[nick] = (counts[nick] || 0) + 1;
+          if (counts[nick] >= 5) {
+            // Declarar ganador y finalizar sala
+            rooms[room].status = "finished";
+            io.to(room).emit("race:finished", {
+              winner: nick,
+              counts,
+              results: rooms[room].results,
+            });
+            break;
+          }
+        }
+      } catch (err) {
+        console.error("Error comprobando ganador de sala:", err);
+      }
+    }
   });
 
   // Detectar rendimiento de jugador (bueno o malo)
