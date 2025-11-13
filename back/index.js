@@ -290,6 +290,7 @@ function roomSnapshot(roomId) {
           speed: Number((p.speed || 0).toFixed(2)),
           position: Number((p.position || 0).toFixed(1)),
           alive: p.alive !== false,
+          avatar: "runner_red",
         }))
       : [],
     monster: mon

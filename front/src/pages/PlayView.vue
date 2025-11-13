@@ -56,32 +56,42 @@
     </section>
 
     <!-- Race progress (server-authoritative) -->
-    <section v-if="raceState.length > 0 || monsterState" class="race-progress">
-      <h3>Race progress</h3>
+    <section v-if="raceState.length" class="race-track">
+      <h3 class="race-title">Escape the Monster!</h3>
 
-      <!-- Monster -->
-      <div v-if="monsterState" class="progress-row">
-        <span>🧟 Monster</span>
-        <div class="bar-container">
-          <div
-            class="bar monster"
-            :style="{ width: pct(monsterState.position) }"
-          ></div>
-        </div>
-        <small>{{ (monsterState.position / trackLen * 100).toFixed(0) }}%</small>
-      </div>
+      <div class="track-wrapper">
+        <!-- Background lane -->
+        <div class="track-lane">
+          <!-- Finish flag -->
+          <div class="finish-flag">🏁</div>
 
-      <!-- Players -->
-      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
-        <span :class="{ dead: p.alive === false }">{{ p.nickname }}</span>
-        <div class="bar-container">
+          <!-- Monster -->
           <div
-            class="bar"
-            :class="{ dead: p.alive === false }"
-            :style="{ width: pct(p.position) }"
-          />
+            v-if="monsterState"
+            class="runner monster"
+            :style="runnerStyle(monsterState.position)"
+          >
+            <div class="runner-sprite monster-sprite">🧟‍♂️</div>
+          </div>
+
+          <!-- Players -->
+          <div
+            v-for="p in raceState"
+            :key="p.nickname"
+            class="runner"
+            :class="{ dead: p.alive === false, me: p.nickname === user.nickname }"
+            :style="runnerStyle(p.position)"
+          >
+            <div class="runner-sprite">
+              <!-- You can swap this emoji with an <img> sprite -->
+              <span v-if="p.alive">🏃‍♂️</span>
+              <span v-else>💀</span>
+            </div>
+            <div class="runner-name">
+              {{ p.nickname }}
+            </div>
+          </div>
         </div>
-        <small>{{ (p.position / trackLen * 100).toFixed(0) }}%</small>
       </div>
     </section>
 
@@ -572,6 +582,15 @@ watch(ROOM, (newRoom) => {
 function findResult(nick) {
   return gameResults.value.find((r) => r.nickname === nick);
 }
+
+function runnerStyle(position) {
+  const len = trackLen.value || TRACK_LEN; // TRACK_LEN from shared/speed.js if imported
+  const clamped = Math.max(0, Math.min(position, len));
+  const pct = (clamped / len) * 100;
+  return {
+    left: pct + '%',   // move relative to track width
+  };
+}
 </script>
 
 <style scoped>
@@ -895,4 +914,82 @@ function findResult(nick) {
   margin-bottom: 0.5rem;
 }
 
+.race-track {
+  margin-top: 1.5rem;
+}
+
+.race-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.track-wrapper {
+  position: relative;
+  border-radius: 2px;     /* or 0 if you want perfectly square */
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(to right, #f9fafb, #eef2ff);
+  padding: 12px 16px;
+}
+
+.track-lane {
+  position: relative;
+  height: 64px;
+  /* optional, keep it small or remove */
+  border-radius: 8px;
+}
+
+/* Finish flag at far right */
+.finish-flag {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.25rem;
+}
+
+/* Each runner (monster + players) */
+.runner {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);  /* Y only */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: transform 0.1s linear, left 0.1s linear;
+}
+
+.runner.me .runner-sprite {
+  box-shadow: 0 0 0 2px #2563eb;
+}
+
+.runner.dead {
+  opacity: 0.5;
+}
+
+/* The avatar circle */
+.runner-sprite {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Special monster skin */
+.monster-sprite {
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+/* name label under avatar */
+.runner-name {
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+}
 </style>
