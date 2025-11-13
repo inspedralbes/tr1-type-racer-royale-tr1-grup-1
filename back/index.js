@@ -466,18 +466,24 @@ io.on("connection", (socket) => {
     }
 
     if (roomStatus[room]) {
-      // Añadir el resultado a la sala
+      // Añadir resultado a la sala
       roomStatus[room].results.push({
         nickname,
         wpm,
         accuracy,
         timestamp: Date.now(),
+        textsCompleted,
       });
 
-      // Enviar los resultados actualizados a todos en la sala
-      io.to(room).emit("updateGameResults", roomStatus[room].results);
-      io.to(room).emit("race:update", roomSnapshot(room));
-      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
+      // Comprobar si alguien terminó 3 textos
+      const someoneFinished = roomStatus[room].results.some(
+        (r) => r.textsCompleted >= 3
+      );
+      if (someoneFinished) {
+        io.to(room).emit("gameFinishedFinal", {
+          results: roomStatus[room].results,
+        });
+      }
     }
   });
 

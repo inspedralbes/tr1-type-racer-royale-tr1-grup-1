@@ -202,22 +202,37 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import rawData from "@/data/leaderboard.json"; // static for now, backend later
+import { ref, computed, onMounted } from "vue";
+import { io } from "socket.io-client";
 
-const rows = ref(rawData);
+// Datos finales recibidos del backend
+const finalResults = ref([]);
 
-// filters / sorting
+// filtros / sorting
 const q = ref("");
 const sortKey = ref("wpm");
 const sortDir = ref("desc");
 const page = ref(1);
 const pageSize = 10;
 
+// Socket
+const socket = io("http://localhost:3000"); // Ajusta la URL de tu backend
+
+onMounted(() => {
+  const roomId = "ROOM_ID"; // reemplazar con la sala actual
+
+  socket.on("gameFinishedFinal", ({ results }) => {
+    finalResults.value = results;
+  });
+});
+
+// Computeds
 const filtered = computed(() => {
   const term = q.value.toLowerCase();
-  if (!term) return rows.value;
-  return rows.value.filter((r) => r.nickname?.toLowerCase().includes(term));
+  if (!term) return finalResults.value;
+  return finalResults.value.filter((r) =>
+    r.nickname?.toLowerCase().includes(term)
+  );
 });
 
 const sorted = computed(() => {
@@ -259,10 +274,7 @@ const sorted = computed(() => {
       vb = b[k];
     }
 
-    if (typeof va === "string") {
-      return va.localeCompare(vb) * dir;
-    }
-
+    if (typeof va === "string") return va.localeCompare(vb) * dir;
     return (va - vb) * dir;
   });
 });
@@ -276,9 +288,9 @@ const pagedRows = computed(() =>
 );
 
 function setSort(key) {
-  if (sortKey.value === key) {
+  if (sortKey.value === key)
     sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
-  } else {
+  else {
     sortKey.value = key;
     sortDir.value = key === "nickname" ? "asc" : "desc";
   }

@@ -437,6 +437,7 @@ function reset() {
 }
 
 async function nextText() {
+  textsCompleted.value++;
   await pickRandomText();
   reset();
 }
