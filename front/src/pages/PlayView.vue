@@ -1,87 +1,195 @@
 <template>
-  <main class="typing-page">
-    <header class="topbar">
-      <h1>Typing Test</h1>
-      <div class="stats">
-        <div><strong>WPM:</strong> {{ wpm }}</div>
-        <div><strong>Accuracy:</strong> {{ accuracy }}%</div>
-        <div><strong>Time:</strong> {{ elapsedSeconds }}s</div>
-      </div>
-    </header>
+  <section
+    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
+  >
+    <!-- Fondo e iluminación -->
+    <img
+      src="/src/assets/halloween_night.jpg"
+      alt="Zombie sky background"
+      class="absolute inset-0 w-full h-full object-cover opacity-80"
+    />
+    <div class="absolute inset-0 bg-black/40"></div>
+    <!-- capa de niebla animada -->
+    <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
 
-    <section class="text-area" @click="focusInput">
-      <!-- Estados de carga y error -->
-      <div v-if="loading" class="status-message loading">Cargando texto...</div>
-      <div v-else-if="error" class="status-message error">{{ error }}</div>
-
-      <!-- Contenido del texto -->
-      <div v-else class="text-wrapper" ref="textWrapper">
-        <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
-          ch
-        }}</span>
-        <!-- blinking caret positioned dynamically -->
-        <span v-if="!finished" class="caret" :style="caretStyle"></span>
-      </div>
-
-      <!-- hidden input to capture keyboard, mobile-friendly -->
-      <textarea
-        ref="hiddenInput"
-        v-model="userInput"
-        class="hidden-input"
-        @input="onInput"
-        @keydown="onKeydown"
-        @paste.prevent
-        :maxlength="target.length"
-        aria-label="Typing input"
-      ></textarea>
-    </section>
-
-    <!-- Mostrar jugadores de la sala -->
-    <section v-if="participants.length > 0" class="participants-section">
-      <h3>Jugadores en la sala:</h3>
-      <div class="results-grid">
-        <div v-for="nick in participants" :key="nick" class="result-card">
-          <strong>{{ nick }}</strong>
-          <div>WPM: {{ findResult(nick)?.wpm ?? "-" }}</div>
-          <div>Precisión: {{ findResult(nick)?.accuracy ?? "-" }}%</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Mostrar resultados si hay -->
-    <section v-if="gameResults.length > 0" class="results-section">
-      <h3>Resultados de la sala:</h3>
-      <div class="results-grid">
-        <div
-          v-for="result in gameResults"
-          :key="result.timestamp"
-          class="result-card"
+    <!-- Contenido principal -->
+    <main class="relative z-20 w-full max-w-6xl space-y-6 animate-fadeIn">
+      <!-- Header con estadísticas -->
+      <header
+        class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
+      >
+        <h1
+          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
         >
-          <strong>{{ result.nickname }}</strong>
-          <div>WPM: {{ result.wpm }}</div>
-          <div>Precisión: {{ result.accuracy }}%</div>
-        </div>
-      </div>
-    </section>
+          Prova de Mecanografia
+        </h1>
 
-    <!-- Race progress (server-authoritative) -->
-    <section v-if="raceState.length" class="race-progress">
-      <h3>Race progress</h3>
-      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
-        <span>{{ p.nickname }}</span>
-        <div class="bar-container">
-          <div class="bar" :style="{ width: p.position + '%' }"></div>
+        <div class="flex flex-wrap gap-6 text-sm">
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">PPM</div>
+            <div class="text-2xl text-lime-300">{{ wpm }}</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">Precisió</div>
+            <div class="text-2xl text-lime-300">{{ accuracy }}%</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">Temps</div>
+            <div class="text-2xl text-lime-300">{{ elapsedSeconds }}s</div>
+          </div>
         </div>
-        <small>{{ p.position.toFixed(0) }}%</small>
-      </div>
-    </section>
+      </header>
 
-    <footer class="actions">
-      <button class="btn" @click="reset">Reset</button>
-      <button class="btn" @click="nextText">Next Text</button>
+      <!-- Área de texto principal -->
+      <section
+        class="bg-black/40 border border-lime-400 rounded-lg p-6 shadow-lg animate-fadeItem delay-[200ms]"
+        @click="focusInput"
+      >
+        <!-- Estados de carga y error -->
+        <div v-if="loading" class="text-center py-12 text-lime-400">
+          Carregant text...
+        </div>
+        <div v-else-if="error" class="text-center py-12 text-red-400">
+          {{ error }}
+        </div>
+
+        <!-- Contenido del texto -->
+        <div v-else class="text-wrapper relative" ref="textWrapper">
+          <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
+            ch
+          }}</span>
+          <!-- blinking caret positioned dynamically -->
+          <span v-if="!finished" class="caret" :style="caretStyle"></span>
+        </div>
+
+        <!-- hidden input to capture keyboard, mobile-friendly -->
+        <textarea
+          ref="hiddenInput"
+          v-model="userInput"
+          class="hidden-input"
+          @input="onInput"
+          @keydown="onKeydown"
+          @paste.prevent
+          :maxlength="target.length"
+          aria-label="Typing input"
+        ></textarea>
+      </section>
+
+      <!-- Progreso de la carrera -->
+      <section
+        v-if="raceState.length"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[300ms]"
+      >
+        <h3 class="text-lime-400 font-semibold text-lg mb-4">
+          Progres de la carrera
+        </h3>
+        <div class="space-y-3">
+          <div
+            v-for="p in raceState"
+            :key="p.nickname"
+            class="flex items-center gap-3"
+          >
+            <span class="text-lime-300 font-semibold min-w-[120px]">{{
+              p.nickname
+            }}</span>
+            <div class="flex-1 bg-gray-800 rounded-full h-3 overflow-hidden">
+              <div
+                class="h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300"
+                :style="{ width: p.position + '%' }"
+              ></div>
+            </div>
+            <small class="text-gray-400 min-w-[40px] text-right"
+              >{{ p.position.toFixed(0) }}%</small
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- Jugadores en la sala -->
+      <section
+        v-if="participants.length > 0"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[400ms]"
+      >
+        <h3 class="text-lime-400 font-semibold text-lg mb-4">
+          Jugadors a la sala:
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="nick in participants"
+            :key="nick"
+            class="bg-gray-800/50 border border-gray-700 rounded-md p-3"
+          >
+            <div class="text-lime-300 font-semibold">{{ nick }}</div>
+            <div class="text-sm text-gray-400">
+              PPM: {{ findResult(nick)?.wpm ?? "-" }}
+            </div>
+            <div class="text-sm text-gray-400">
+              Precisió: {{ findResult(nick)?.accuracy ?? "-" }}%
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Resultados de la sala -->
+      <section
+        v-if="gameResults.length > 0"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[500ms]"
+      >
+        <h3 class="text-lime-400 font-semibold text-lg mb-4">
+          Resultats de la sala:
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="result in gameResults"
+            :key="result.timestamp"
+            class="bg-gray-800/50 border border-gray-700 rounded-md p-3"
+          >
+            <div class="text-lime-300 font-semibold">{{ result.nickname }}</div>
+            <div class="text-sm text-gray-400">PPM: {{ result.wpm }}</div>
+            <div class="text-sm text-gray-400">
+              Precisió: {{ result.accuracy }}%
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Botones de control -->
+      <footer
+        class="flex flex-wrap justify-center gap-2 animate-fadeItem delay-[600ms]"
+      >
+        <button
+          @click="reset"
+          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition"
+        >
+          Reiniciar
+        </button>
+        <button
+          @click="nextText"
+          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition"
+        >
+          Següent Text
+        </button>
+        <button
+          @click="$router.push('/')"
+          class="px-3 py-1 text-sm border border-red-600 text-red-400 rounded-md font-bold uppercase tracking-wider hover:bg-red-600 hover:text-black transition"
+        >
+          Sortir
+        </button>
+      </footer>
+    </main>
+
+    <!-- Teclado -->
+    <div class="relative z-20 w-full animate-fadeItem delay-[700ms]">
+      <Keyboard :nickname="user.nickname" :room="ROOM" />
+    </div>
+
+    <!-- Footer -->
+    <footer
+      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[800ms]"
+    >
+      "Cada paraula conta... La supervivència depèn de la velocitat."
     </footer>
-    <Keyboard :nickname="user.nickname" :room="ROOM" />
-  </main>
+  </section>
 </template>
 
 <script setup>
@@ -288,29 +396,7 @@ function onInput() {
     });
   }
 
-  // // Si mejora su precisión y baja de 3 errores → enviar mejora
-  // if (errorCount.value === 2) {
-  //   socket.emit("userPerformance", {
-  //     room: "main-room",
-  //     nickname: user.nickname,
-  //     status: "recovered",
-  //     message: `${user.nickname} se ha recuperado y está escribiendo mejor.`,
-  //   });
-  // }
-
-  // // ---  NUEVO: detección de velocidad alta
-  // if (wpm.value >= 80 && wpm.value !== lastWpmEmit.value) {
-  //   lastWpmEmit.value = wpm.value;
-  //   socket.emit("userPerformance", {
-  //     room: "main-room",
-  //     nickname: user.nickname,
-  //     status: "fast",
-  //     message: `${user.nickname} está escribiendo muy rápido (${wpm.value} WPM)!`,
-  //   });
-  // }
-
   // Finalización
-
   emitProgressThrottled();
 
   if (finished.value && !endedAt.value) {
@@ -411,7 +497,7 @@ onMounted(async () => {
   await pickRandomText();
   await nextTick();
 
-  if (!target) {
+  if (target.value === "") {
     const interval = setInterval(() => {
       if (target.value) {
         clearInterval(interval);
@@ -455,137 +541,127 @@ function findResult(nick) {
 </script>
 
 <style scoped>
-/* Race bars */
-.race-progress {
-  margin-top: 1.5rem;
+@keyframes fogMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
 }
 
-.progress-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
+.bg-fog {
+  background: url("/src/assets/nice-snow.png");
+  background-repeat: repeat;
+  background-size: 600px 600px;
+  opacity: 0.3;
+  filter: brightness(1.3) contrast(0.8);
+  animation: fogMove 60s linear infinite;
+  z-index: 10;
+  pointer-events: none;
 }
 
-.bar-container {
-  flex: 1;
-  background: #e5e7eb;
-  border-radius: 4px;
-  height: 10px;
-  overflow: hidden;
+/* Animaciones del panel y contenido */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+    filter: brightness(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }
 
-.bar {
-  height: 100%;
-  transition: width 0.1s linear;
-  background: #2563eb;
+@keyframes fadeItem {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Page layout */
-.typing-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.topbar h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-.stats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.95rem;
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-out forwards;
 }
 
-/* Text area */
-.text-area {
-  position: relative;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  min-height: 180px;
-  line-height: 1.6;
-  font-size: 1.05rem;
-  background: #0f172a0d;
-  cursor: text;
-  user-select: none;
+.animate-fadeItem {
+  animation: fadeItem 0.8s ease-out forwards;
+  opacity: 0;
 }
 
+/* Área de texto principal */
 .text-wrapper {
   position: relative;
-  color: #6b7280;
+  color: #9ca3af;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
-}
-
-/* Status */
-.status-message {
-  text-align: center;
-  padding: 2rem;
+  line-height: 1.8;
   font-size: 1.1rem;
+  min-height: 120px;
+  cursor: text;
+  user-select: none;
 }
 
-.loading {
-  color: #2563eb;
-}
-
-.error {
-  color: #dc2626;
-}
-
-/* characters */
+/* Characters styling */
 .char {
   position: relative;
 }
 
 .untouched {
-  opacity: 0.65;
+  opacity: 0.6;
+  color: #6b7280;
 }
 
 .correct {
-  color: #10b981;
+  color: #a3e635;
+  background-color: rgba(16, 185, 129, 0.1);
 }
 
-/* emerald */
 .wrong {
-  color: #e81c1c;
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.2);
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
 
 .current {
-  color: #111827;
-  /* brighten current slot slightly */
+  color: #a3e635;
+  background-color: rgba(101, 252, 241, 0.2);
 }
 
-/* blinking caret positioned dynamically */
+/* Caret animado */
 .caret {
   display: inline-block;
   width: 2px;
-  height: 1.2em;
-  background: #111827;
+  height: 1.4em;
+  background: #a3e635;
   position: absolute;
   z-index: 1;
-  animation: blink 0.5s steps(2, start) infinite;
+  animation: blink 1s ease-in-out infinite;
+  box-shadow: 0 0 5px #a3e635;
 }
 
 @keyframes blink {
+  0%,
   50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
     opacity: 0;
   }
 }
 
-/* hidden input overlay */
+/* Hidden input overlay */
 .hidden-input {
   position: absolute;
   inset: 0;
@@ -595,64 +671,31 @@ function findResult(nick) {
   border: none;
   resize: none;
   cursor: text;
-  caret-color: #111827;
-  /* so the native caret still exists for accessibility */
+  caret-color: transparent;
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
-  padding: 16px;
+  padding: inherit;
   outline: none;
+  z-index: 5;
 }
 
-/* Buttons */
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+/* Scrollbar personalizado */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
 }
 
-.btn {
-  padding: 0.5rem 0.9rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: white;
-  cursor: pointer;
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
 }
 
-.btn:hover {
-  background: #f3f4f6;
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #a3e635;
+  border-radius: 4px;
 }
 
-.results-section {
-  margin: 2rem 0;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-}
-
-/* Reuso la misma grid para participantes */
-.participants-section {
-  margin: 1.5rem 0;
-  padding: 0.5rem 0;
-}
-
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.result-card {
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  background: white;
-}
-
-.result-card strong {
-  color: #2563eb;
-  display: block;
-  margin-bottom: 0.5rem;
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #45a29e;
 }
 </style>

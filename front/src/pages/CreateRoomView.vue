@@ -306,24 +306,4 @@ function onSubmit() {
   animation: fadeItem 0.8s ease-out forwards;
   opacity: 0;
 }
-
-/* Efecto de parpadeo neón del título */
-@keyframes glowFlicker {
-  0%,
-  100% {
-    opacity: 1;
-    text-shadow: 0 0 10px #66fcf1;
-  }
-  50% {
-    opacity: 0.8;
-    text-shadow: 0 0 5px #45a29e;
-  }
-  80% {
-    opacity: 1;
-    text-shadow: 0 0 15px #66fcf1;
-  }
-}
-.animate-glowFlicker {
-  animation: glowFlicker 3s infinite ease-in-out;
-}
 </style>
