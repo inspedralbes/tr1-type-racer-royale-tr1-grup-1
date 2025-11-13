@@ -1,13 +1,9 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
-  >
+    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
     <!-- Fondo e iluminación -->
-    <img
-      src="/src/assets/halloween_night.jpg"
-      alt="Zombie sky background"
-      class="absolute inset-0 w-full h-full object-cover opacity-80"
-    />
+    <img src="/src/assets/halloween_night.jpg" alt="Zombie sky background"
+      class="absolute inset-0 w-full h-full object-cover opacity-80" />
     <div class="absolute inset-0 bg-black/40"></div>
     <!-- capa de niebla animada -->
     <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
@@ -15,12 +11,8 @@
     <!-- Contenido principal -->
     <main class="relative z-20 w-full max-w-6xl space-y-6 animate-fadeIn">
       <!-- Header con estadísticas -->
-      <header
-        class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
-      >
-        <h1
-          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
-        >
+      <header class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
+        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest">
           Prova de Mecanografia
         </h1>
 
@@ -41,10 +33,8 @@
       </header>
 
       <!-- Área de texto principal -->
-      <section
-        class="bg-black/40 border border-lime-400 rounded-lg p-6 shadow-lg animate-fadeItem delay-[200ms]"
-        @click="focusInput"
-      >
+      <section class="bg-black/40 border border-lime-400 rounded-lg p-6 shadow-lg animate-fadeItem delay-[200ms]"
+        @click="focusInput">
         <!-- Estados de carga y error -->
         <div v-if="loading" class="text-center py-12 text-lime-400">
           Carregant text...
@@ -63,62 +53,39 @@
         </div>
 
         <!-- hidden input to capture keyboard, mobile-friendly -->
-        <textarea
-          ref="hiddenInput"
-          v-model="userInput"
-          class="hidden-input"
-          @input="onInput"
-          @keydown="onKeydown"
-          @paste.prevent
-          :maxlength="target.length"
-          aria-label="Typing input"
-        ></textarea>
+        <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
+          @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
       </section>
 
       <!-- Progreso de la carrera -->
-      <section
-        v-if="raceState.length"
-        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[300ms]"
-      >
+      <section v-if="raceState.length"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[300ms]">
         <h3 class="text-lime-400 font-semibold text-lg mb-4">
           Progres de la carrera
         </h3>
         <div class="space-y-3">
-          <div
-            v-for="p in raceState"
-            :key="p.nickname"
-            class="flex items-center gap-3"
-          >
+          <div v-for="p in raceState" :key="p.nickname" class="flex items-center gap-3">
             <span class="text-lime-300 font-semibold min-w-[120px]">{{
               p.nickname
             }}</span>
             <div class="flex-1 bg-gray-800 rounded-full h-3 overflow-hidden">
               <div
-                class="h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300"
-                :style="{ width: p.position + '%' }"
-              ></div>
+                class="bar h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300"
+                :style="{ width: (p.position * 2) + 'px' }"></div>
             </div>
-            <small class="text-gray-400 min-w-[40px] text-right"
-              >{{ p.position.toFixed(0) }}%</small
-            >
+            <small class="text-gray-400 min-w-[40px] text-right">{{ p.position }} pts</small>
           </div>
         </div>
       </section>
 
       <!-- Jugadores en la sala -->
-      <section
-        v-if="participants.length > 0"
-        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[400ms]"
-      >
+      <section v-if="participants.length > 0"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[400ms]">
         <h3 class="text-lime-400 font-semibold text-lg mb-4">
           Jugadors a la sala:
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="nick in participants"
-            :key="nick"
-            class="bg-gray-800/50 border border-gray-700 rounded-md p-3"
-          >
+          <div v-for="nick in participants" :key="nick" class="bg-gray-800/50 border border-gray-700 rounded-md p-3">
             <div class="text-lime-300 font-semibold">{{ nick }}</div>
             <div class="text-sm text-gray-400">
               PPM: {{ findResult(nick)?.wpm ?? "-" }}
@@ -131,19 +98,14 @@
       </section>
 
       <!-- Resultados de la sala -->
-      <section
-        v-if="gameResults.length > 0"
-        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[500ms]"
-      >
+      <section v-if="gameResults.length > 0"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[500ms]">
         <h3 class="text-lime-400 font-semibold text-lg mb-4">
           Resultats de la sala:
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="result in gameResults"
-            :key="result.timestamp"
-            class="bg-gray-800/50 border border-gray-700 rounded-md p-3"
-          >
+          <div v-for="result in gameResults" :key="result.timestamp"
+            class="bg-gray-800/50 border border-gray-700 rounded-md p-3">
             <div class="text-lime-300 font-semibold">{{ result.nickname }}</div>
             <div class="text-sm text-gray-400">PPM: {{ result.wpm }}</div>
             <div class="text-sm text-gray-400">
@@ -154,25 +116,17 @@
       </section>
 
       <!-- Botones de control -->
-      <footer
-        class="flex flex-wrap justify-center gap-2 animate-fadeItem delay-[600ms]"
-      >
-        <button
-          @click="reset"
-          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition"
-        >
+      <footer class="flex flex-wrap justify-center gap-2 animate-fadeItem delay-[600ms]">
+        <button @click="reset"
+          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition">
           Reiniciar
         </button>
-        <button
-          @click="nextText"
-          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition"
-        >
+        <button @click="nextText"
+          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition">
           Següent Text
         </button>
-        <button
-          @click="$router.push('/')"
-          class="px-3 py-1 text-sm border border-red-600 text-red-400 rounded-md font-bold uppercase tracking-wider hover:bg-red-600 hover:text-black transition"
-        >
+        <button @click="$router.push('/')"
+          class="px-3 py-1 text-sm border border-red-600 text-red-400 rounded-md font-bold uppercase tracking-wider hover:bg-red-600 hover:text-black transition">
           Sortir
         </button>
       </footer>
@@ -185,8 +139,7 @@
 
     <!-- Footer -->
     <footer
-      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[800ms]"
-    >
+      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[800ms]">
       "Cada paraula conta... La supervivència depèn de la velocitat."
     </footer>
   </section>
@@ -207,7 +160,6 @@ import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-import { calcPlayerSpeed } from "@/../shared/speed.js";
 import Keyboard from "@/components/Keyboard.vue";
 const router = useRouter();
 const user = useUserStore();
@@ -339,22 +291,28 @@ function charClass(i) {
   return "char untouched";
 }
 
-// --- RACE: emit progress (throttled) ---
+// --- RACE: emit progress (simplificado a +1/-1) ---
 let lastEmit = 0;
-const EMIT_MS = 250;
+const EMIT_MS = 100; // más sensible, puedes subir a 250ms
+
 function emitProgressThrottled() {
   const now = performance.now();
   if (now - lastEmit < EMIT_MS) return;
   lastEmit = now;
-  const speed = calcPlayerSpeed(wpm.value);
+
+  if (userInput.value.length === 0) return;
+
+  const pos = userInput.value.length - 1;
+  const correct = target.value[pos] === userInput.value[pos];
+  const delta = correct ? 1 : -1;
+
   socket.emit("typing:progress", {
     room: ROOM.value,
     nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed,
+    delta,
   });
 }
+
 
 // INPUT HANDLERS
 function onInput() {
@@ -545,6 +503,7 @@ function findResult(nick) {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -568,6 +527,7 @@ function findResult(nick) {
     transform: scale(0.95);
     filter: brightness(0.5);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -580,6 +540,7 @@ function findResult(nick) {
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -651,10 +612,12 @@ function findResult(nick) {
 }
 
 @keyframes blink {
+
   0%,
   50% {
     opacity: 1;
   }
+
   51%,
   100% {
     opacity: 0;
