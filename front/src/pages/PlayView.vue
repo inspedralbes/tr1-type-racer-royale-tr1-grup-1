@@ -294,6 +294,14 @@ function onInput() {
       errors: totalErrors.value, // 🔹 Enviar errores acumulados al servidor
     });
     finishEmitted.value = true;
+    // Notify others in the room that this user finished the current text
+    socket.emit("userFinishedText", {
+      room: ROOM,
+      nickname: user.nickname,
+      wpm: wpm.value,
+      accuracy: accuracy.value,
+      timestamp: Date.now(),
+    });
   }
 }
 
@@ -374,6 +382,17 @@ onMounted(async () => {
     console.log("Notificación de rendimiento:", data);
     if (data.nickname !== user.nickname) {
       toast.info(data.message, { timeout: 2500 });
+    }
+  });
+
+  // Mostrar notificación cuando otro jugador termine un texto
+  socket.on("userFinishedText", (info) => {
+    try {
+      if (!info || info.nickname === user.nickname) return; // no mostrar para el propio
+      const msg = `${info.nickname} ha terminado un texto (${info.wpm ?? "-"} WPM)`;
+      toast.info(msg, { timeout: 3000 });
+    } catch (err) {
+      console.error("Error en userFinishedText handler:", err);
     }
   });
 

@@ -302,6 +302,25 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Reenviar notificación cuando un jugador termine un texto (para mostrar a los demás)
+  socket.on("userFinishedText", (data) => {
+    try {
+      const { room, nickname, wpm, accuracy, timestamp } = data || {};
+      if (!room || !rooms[room]) {
+        console.log(`userFinishedText: sala inexistente ${room}`);
+        return;
+      }
+      io.to(room).emit("userFinishedText", {
+        nickname: nickname ?? "anon",
+        wpm: wpm != null ? Number(wpm) : null,
+        accuracy: accuracy != null ? Number(accuracy) : null,
+        timestamp: timestamp ?? Date.now(),
+      });
+    } catch (err) {
+      console.error("Error manejando userFinishedText:", err);
+    }
+  });
+
   socket.on("userKey", (data) => {
     const { room, nickname, key } = data;
     // Verificar que la sala existe
