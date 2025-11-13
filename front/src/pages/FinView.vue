@@ -202,10 +202,17 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import rawData from "@/data/leaderboard.json"; // static for now, backend later
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { socket } from "@/services/socket.js";
 
-const rows = ref(rawData);
+const BACK_URL = import.meta.env.VITE_URL_BACK || "";
+
+// Load leaderboard from backend API; no local JSON fallback
+const rows = ref([]);
+
+// add loading/error state
+const loading = ref(false);
+const error = ref(null);
 
 // filters / sorting
 const q = ref("");
@@ -213,6 +220,45 @@ const sortKey = ref("wpm");
 const sortDir = ref("desc");
 const page = ref(1);
 const pageSize = 10;
+
+onMounted(async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+  const res = await fetch(`${BACK_URL}/api/leaderboard`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const data = await res.json();
+    rows.value = Array.isArray(data) ? data : data.results ?? [];
+  } catch (e) {
+    console.error(e);
+    error.value = e?.message ?? String(e);
+  } finally {
+    loading.value = false;
+  }
+  // Also listen for real-time updates from server for the current room
+  socket.on("updateGameResults", (results) => {
+    try {
+      if (Array.isArray(results)) {
+        // map server results shape to leaderboard rows
+        rows.value = results.map((r, idx) => ({
+          id: r.id ?? `${idx}`,
+          nickname: r.nickname,
+          wpm: r.wpm != null ? Number(r.wpm) : null,
+          accuracy: r.accuracy != null ? Number(r.accuracy) : null,
+          errors: r.errors != null ? Number(r.errors) : null,
+          time: r.time != null ? Number(r.time) : null,
+          lastPlayed: r.timestamp ?? Date.now(),
+        }));
+      }
+    } catch (err) {
+      console.error("Error processing updateGameResults:", err);
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  socket.off("updateGameResults");
+});
 
 const filtered = computed(() => {
   const term = q.value.toLowerCase();

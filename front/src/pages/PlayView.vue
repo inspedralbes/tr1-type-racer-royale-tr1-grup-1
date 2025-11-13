@@ -281,6 +281,9 @@ const finished = computed(
   () => userInput.value.length >= target.value.length && target.value.length > 0
 );
 
+// Bandera para evitar emitir el finish dos veces desde onInput y nextText
+const finishEmitted = ref(false);
+
 const typedChars = computed(() => userInput.value.length);
 const correctChars = computed(() => {
   let ok = 0;
@@ -410,6 +413,15 @@ function onInput() {
       accuracy: accuracy.value,
       errors: totalErrors.value,
     });
+    finishEmitted.value = true;
+    // Notify others in the room that this user finished the current text
+    socket.emit("userFinishedText", {
+      room: ROOM,
+      nickname: user.nickname,
+      wpm: wpm.value,
+      accuracy: accuracy.value,
+      timestamp: Date.now(),
+    });
   }
 }
 
@@ -428,15 +440,36 @@ function reset() {
   endedAt.value = null;
   totalErrors.value = 0; // 🔹 resetear errores
   lastTypedLength.value = 0;
+  finishEmitted.value = false;
   focusInput();
 }
 
 async function nextText() {
-  await pickRandomText();
-  reset();
+  // Enviar resultados al servido SOLO si no se ha hecho ya en onInput
+  if (!finishEmitted.value) {
+    socket.emit("gameFinished", {
+      room: ROOM,
+      nickname: user.nickname,
+      wpm: wpm.value,
+      accuracy: accuracy.value,
+      errors: totalErrors.value,
+    });
+    finishEmitted.value = true;
+  }
+
+  // Cargar siguiente texto y reiniciar estado local para seguir jugando
+  try {
+    await pickRandomText();
+    reset();
+    focusInput();
+  } catch (err) {
+    console.error("Error cargando siguiente texto:", err);
+  }
+
+  // Asegurar que sigue en la sala
+  socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
 }
 
-// MOUNT
 onMounted(async () => {
   // Solicitar lista de salas primero
   socket.emit("requestRoomList");
@@ -479,12 +512,42 @@ onMounted(async () => {
     console.log("Resultados actualizados:", results);
   });
 
+  // Unirse a la sala al montar la vista para asegurar que el servidor
+  // cree/registre la sala y el jugador antes de enviar resultados.
+  try {
+    socket.emit("joinRoom", { room: ROOM, nickname: user.nickname });
+  } catch (err) {
+    console.warn("Error enviando joinRoom:", err);
+  }
+
+  // Escuchar evento de fin de carrera (servidor declara ganador al llegar a 5 finishes)
+  socket.on("race:finished", (payload) => {
+    console.log("race:finished recibido:", payload);
+    // navegar a pantalla final para todos los jugadores en la sala
+    try {
+      router.push({ name: "fin" });
+    } catch (err) {
+      console.warn("Error navegando a /fin:", err);
+    }
+  });
+
   toast.info("Conectado al servidor de notificaciones.");
 
   socket.on("userPerformance", (data) => {
     console.log("Notificación de rendimiento:", data);
     if (data.nickname !== user.nickname) {
       toast.info(data.message, { timeout: 2500 });
+    }
+  });
+
+  // Mostrar notificación cuando otro jugador termine un texto
+  socket.on("userFinishedText", (info) => {
+    try {
+      if (!info || info.nickname === user.nickname) return; // no mostrar para el propio
+      const msg = `${info.nickname} ha terminado un texto (${info.wpm ?? "-"} WPM)`;
+      toast.info(msg, { timeout: 3000 });
+    } catch (err) {
+      console.error("Error en userFinishedText handler:", err);
     }
   });
 

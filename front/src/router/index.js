@@ -39,6 +39,12 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const user = useUserStore();
+
+  // Bypass de desarrollo: permite acceder si se añade ?dev=1 en la URL
+  if (to.query && to.query.dev === "1") {
+    return true;
+  }
+
   if (to.meta.requiresNick && !user.hasNick) {
     return {
       name: "home",
