@@ -63,20 +63,29 @@ const TICK_MS = 100; // 10 updates per second
 
 function createRoom(roomId) {
   rooms[roomId] = {
-    roomName: roomId,
-    language: null,
-    difficulty: null,
+    id: roomId,
+    roomName: roomId,         // or whatever dev branch uses
     players: [],
     status: "waiting",
-    createdBy: null,
     results: [],
   };
-  racePlayers.set(roomId, new Map());
-  raceMonster.set(roomId, {
-    position: -MONSTER_START_GAP,
-    speed: MONSTER_BASE,
-  });
-  raceMeta.set(roomId, { monsterStartAt: null });
+
+  // race players
+  if (!racePlayers.has(roomId)) {
+    racePlayers.set(roomId, new Map());
+  }
+
+  // 🧟 monster + meta
+  if (!raceMonster.has(roomId)) {
+    raceMonster.set(roomId, {
+      position: -MONSTER_START_GAP,
+      speed: MONSTER_BASE,
+    });
+  }
+  if (!raceMeta.has(roomId)) {
+    raceMeta.set(roomId, { monsterStartAt: null });
+  }
+
   console.log(`Sala creada: ${roomId}`);
 }
 
@@ -209,7 +218,6 @@ function startRoomTimer(roomName) {
           );
           rooms[roomName].status = "inGame";
 
-          // ⬇️ ARRANQUE DEL MONSTRUO TRAS UN RETRASO
           let meta = raceMeta.get(roomName);
           if (!meta) {
             meta = { monsterStartAt: null };
@@ -275,7 +283,7 @@ function roomSnapshot(roomId) {
   return {
     trackLen: TRACK_LEN,
     players: map
-      ? Array.from(map.values()).map((p) => ({
+      ? Array.from(map.values()).map(p => ({
           nickname: p.nickname,
           wpm: Math.round(p.wpm || 0),
           accuracy: Math.round(p.accuracy || 0),
@@ -409,7 +417,8 @@ setInterval(() => {
     }
 
     // 5) broadcast snapshot
-    io.to(room).emit("race:update", roomSnapshot(room));
+    const snap = roomSnapshot(room);
+    io.to(room).emit("race:update", snap);
   }
 }, TICK_MS);
 
@@ -477,31 +486,29 @@ io.on("connection", (socket) => {
       return;
     }
 
-    rooms[data.roomName] = {
-      roomName: data.roomName,
-      language: data.language,
-      difficulty: data.difficulty,
-      players: [],
-      status: "waiting",
-      createdBy: data.userName,
-      results: [],
-    };
+    // ✅ Use the helper – this creates racePlayers, raceMonster, raceMeta, results…
+    createRoom(data.roomName);
+
+    // Fill in lobby-specific fields
+    const room = rooms[data.roomName];
+    room.roomName  = data.roomName;
+    room.language  = data.language;
+    room.difficulty = data.difficulty;
+    room.createdBy = data.userName;
 
     socket.join(data.roomName);
     addPlayerToRoom(data.roomName, data.userName, socket.id);
     socket.nickname = data.userName;
 
     if (!roomStatus[data.roomName]) {
-      roomStatus[data.roomName] = {
-        results: [],
-      };
+      roomStatus[data.roomName] = { results: [] };
     }
-    console.log(rooms[data.roomName]);
+    console.log(room);
 
     socket.emit("roomCreated", { room: data.roomName });
-    socket.emit("roomInfo", rooms[data.roomName]);
+    socket.emit("roomInfo", room);
 
-    io.to(data.roomName).emit("updateUserList", rooms[data.roomName].players);
+    io.to(data.roomName).emit("updateUserList", room.players);
 
     broadcastRoomList();
     handleRoomPlayerCount(data.roomName);

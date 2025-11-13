@@ -55,24 +55,8 @@
       </div>
     </section>
 
-    <!-- Mostrar resultados si hay -->
-    <section v-if="gameResults.length > 0" class="results-section">
-      <h3>Resultados de la sala:</h3>
-      <div class="results-grid">
-        <div
-          v-for="result in gameResults"
-          :key="result.timestamp ?? result.nickname"
-          class="result-card"
-        >
-          <strong>{{ result.nickname }}</strong>
-          <div>WPM: {{ result.wpm }}</div>
-          <div>Precisión: {{ result.accuracy }}%</div>
-        </div>
-      </div>
-    </section>
-
     <!-- Race progress (server-authoritative) -->
-    <section v-if="raceState.length" class="race-progress">
+    <section v-if="raceState.length > 0 || monsterState" class="race-progress">
       <h3>Race progress</h3>
 
       <!-- Monster -->
@@ -122,25 +106,6 @@
       <button class="btn" @click="resetAndHide">Reset</button>
       <button class="btn" @click="nextText">Next Text</button>
     </footer>
-
-    <!-- mini cards arriba a la derecha (stack) -->
-    <div class="corner-stack" v-if="finishedCards.length">
-      <div
-        v-for="c in finishedCards"
-        :key="c.nickname"
-        class="mini-card"
-        :class="c.outcome"
-      >
-        <div class="row">
-          <strong>{{ c.nickname }}</strong>
-          <span v-if="c.outcome === 'win'">🏁</span>
-          <span v-else>💀</span>
-        </div>
-        <div class="sub" v-if="c.wpm">
-          {{ c.wpm }} WPM · {{ c.accuracy }}%
-        </div>
-      </div>
-    </div>
 
     <!-- resumen fijo en la esquina -->
     <aside v-if="gameResults.length" class="results-summary">
@@ -201,6 +166,8 @@ const currentRoom = ref(null);
 const ROOM = computed(() => {
   if (currentRoom.value) return currentRoom.value.name;
 
+  if (!Array.isArray(roomList.value)) return "";
+  
   const userRoom = roomList.value.find(
     (room) =>
       room.players &&
@@ -222,14 +189,6 @@ const error = ref(null);
 const gameResults = ref([]);
 const participants = ref([]); // nicks de los jugadores
 const targetChars = computed(() => Array.from(target.value));
-const finishedCards = ref([]); // {nickname, outcome: 'win'|'dead', wpm, accuracy}
-
-// helper to add or update a mini-card
-function upsertCard(entry) {
-  const i = finishedCards.value.findIndex((c) => c.nickname === entry.nickname);
-  if (i === -1) finishedCards.value.unshift(entry);
-  else finishedCards.value[i] = { ...finishedCards.value[i], ...entry };
-}
 
 // RACE STATE (from server)
 const raceState = ref([]);
@@ -245,6 +204,7 @@ socket.on("race:update", (snap) => {
     raceState.value = snap.players || [];
     monsterState.value = snap.monster || null;
     trackLen.value = snap.trackLen || 100;
+    console.log("🏁 Race update received:", { players: raceState.value.length, monster: monsterState.value });
   }
 });
 
@@ -254,16 +214,30 @@ function pct(pos) {
   return ((clamped / len) * 100).toFixed(1) + "%";
 }
 
+function cleanStat(n, max) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return 0;
+  return Math.max(0, Math.min(max, Math.round(v)));
+}
+
 function pushResultUnique(entry) {
-  const i = gameResults.value.findIndex((r) => r.nickname === entry.nickname);
-  if (i === -1) gameResults.value.push(entry);
-  else gameResults.value[i] = { ...gameResults.value[i], ...entry };
+  const cleaned = {
+    ...entry,
+    wpm: cleanStat(entry.wpm, 400),        // cap at 400 WPM
+    accuracy: cleanStat(entry.accuracy, 100),
+  };
+
+  const i = gameResults.value.findIndex(r => r.nickname === cleaned.nickname);
+  if (i === -1) {
+    gameResults.value.push(cleaned);
+  } else {
+    gameResults.value[i] = { ...gameResults.value[i], ...cleaned };
+  }
 }
 
 // player reached TRACK_LEN (server)
 socket.on("player:finished", ({ nickname, wpm, accuracy }) => {
   pushResultUnique({ nickname, wpm, accuracy, state: "finished" });
-  upsertCard({ nickname, outcome: "win", wpm, accuracy });
 
   if (nickname === user.nickname) {
     endedAt.value = endedAt.value || Date.now();
@@ -275,7 +249,6 @@ socket.on("player:finished", ({ nickname, wpm, accuracy }) => {
 // player got caught by monster
 socket.on("player:caught", ({ nickname, wpm, accuracy }) => {
   pushResultUnique({ nickname, wpm, accuracy, state: "dead" });
-  upsertCard({ nickname, outcome: "dead", wpm, accuracy });
 
   if (nickname === user.nickname) {
     dead.value = true;
@@ -336,10 +309,16 @@ const elapsedMs = computed(() => {
   return Math.max(0, end - startedAt.value);
 });
 const elapsedSeconds = computed(() => Math.floor(elapsedMs.value / 1000));
-const minutes = computed(() => (elapsedMs.value || 1) / 60000);
+const minutes = computed(() => {
+  if (elapsedMs.value <= 0) return 0;
+  return elapsedMs.value / 60000;
+});
+
 const wpm = computed(() => {
+  const mins = minutes.value;
+  if (mins <= 0) return 0;
   const words = correctChars.value / 5;
-  return Math.max(0, Math.round(words / minutes.value));
+  return Math.round(words / mins);
 });
 const accuracy = computed(() => {
   if (typedChars.value === 0) return 100;
@@ -494,19 +473,22 @@ onMounted(async () => {
   socket.emit("requestRoomList");
 
   socket.on("roomList", (data) => {
-    roomList.value = data.rooms || [];
-    const userRoom = roomList.value.find(
-      (room) =>
-        room.players &&
-        room.players.some((player) =>
-          typeof player === "string"
-            ? player === user.nickname
-            : player.nickname === user.nickname
-        )
-    );
-    if (userRoom) {
-      currentRoom.value = userRoom;
-      console.log("Sala actual del usuario:", userRoom.name);
+    roomList.value = Array.isArray(data.rooms) ? data.rooms : [];
+    if (!currentRoom.value) {
+      // Only auto-detect if not already set
+      const userRoom = roomList.value.find(
+        (room) =>
+          room.players &&
+          room.players.some((player) =>
+            typeof player === "string"
+              ? player === user.nickname
+              : player.nickname === user.nickname
+          )
+      );
+      if (userRoom) {
+        currentRoom.value = userRoom;
+        console.log("Sala actual del usuario:", userRoom.name);
+      }
     }
   });
 
@@ -578,6 +560,13 @@ watch(
     await nextTick();
   }
 );
+
+// Debug ROOM changes
+watch(ROOM, (newRoom) => {
+  if (newRoom) {
+    console.log("📍 Current room:", newRoom);
+  }
+});
 
 // utility para buscar resultado por nickname
 function findResult(nick) {
@@ -906,41 +895,4 @@ function findResult(nick) {
   margin-bottom: 0.5rem;
 }
 
-/* corner mini stack */
-.corner-stack {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 240px;
-}
-.mini-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 8px 10px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  font-size: 0.9rem;
-}
-.mini-card.win {
-  border-color: #10b981;
-}
-.mini-card.dead {
-  border-color: #ef4444;
-  opacity: 0.9;
-}
-.mini-card .row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-.mini-card .sub {
-  color: #6b7280;
-  font-size: 0.8rem;
-  margin-top: 2px;
-}
 </style>
