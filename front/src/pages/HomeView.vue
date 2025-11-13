@@ -4,7 +4,7 @@
   >
     <!-- Fondo con imagen -->
     <img
-      src="/src/assets/halloween_night.jpg"
+      src="/src/assets/opt2_img1.png"
       alt="Zombie sky background"
       class="absolute inset-0 object-cover w-full h-full opacity-80"
     />
@@ -124,7 +124,7 @@
 
       <!-- FRASE FINAL -->
       <footer
-        class="text-center text-xs text-gray-500 italic mt-6 tracking-widest animate-fadeItem delay-[500ms]"
+        class="text-center text-xs text-lime-300 italic mt-6 tracking-widest animate-fadeItem delay-[500ms] drop-shadow-lg"
       >
         "Només els més precisos sobreviuran fins a l'alba..."
       </footer>

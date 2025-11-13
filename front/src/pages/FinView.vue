@@ -4,7 +4,7 @@
   >
     <!-- Fondo e iluminación -->
     <img
-      src="/src/assets/halloween_night.jpg"
+      src="/src/assets/opt2_img1.png"
       alt="Zombie sky background"
       class="absolute inset-0 w-full h-full object-cover opacity-80"
     />
@@ -323,7 +323,7 @@ function relativeTime(dt) {
   background: url("/src/assets/nice-snow.png");
   background-repeat: repeat;
   background-size: 600px 600px;
-  opacity: 0.3;
+  opacity: 0.8;
   filter: brightness(1.3) contrast(0.8);
   animation: fogMove 60s linear infinite;
   z-index: 10;

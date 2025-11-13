@@ -4,7 +4,7 @@
   >
     <!-- Fondo -->
     <img
-      src="/src/assets/halloween_night.jpg"
+      src="/src/assets/opt2_img1.png"
       alt="Zombie sky background"
       class="absolute inset-0 w-full h-full object-cover opacity-80"
     />

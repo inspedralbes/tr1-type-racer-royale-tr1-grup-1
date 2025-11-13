@@ -4,7 +4,7 @@
   >
     <!-- Fondo e iluminación -->
     <img
-      src="/src/assets/halloween_night.jpg"
+      src="/src/assets/opt2_img1.png"
       alt="Zombie sky background"
       class="absolute inset-0 w-full h-full object-cover opacity-80"
     />
@@ -99,8 +99,8 @@
             v-if="isTimerActive"
             class="mx-auto w-[75px] h-[75px] flex items-center justify-center rounded-full border-[6px] font-bold text-xl transition-all duration-300"
             :class="
-              seconds <= 5
-                ? 'border-red-600 text-red-400'
+              seconds <= 10
+                ? 'border-purple-600 text-purple-400'
                 : 'border-lime-400 text-lime-400'
             "
           >
@@ -147,7 +147,7 @@
           v-if="isRoomCreator"
           @click="deleteRoom"
           :disabled="deleting"
-          class="border border-red-600 text-red-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-red-600 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
+          class="border border-purple-600 text-purple-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-purple-600 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {{ deleting ? "Eliminant..." : "Eliminar Sala" }}
         </button>

@@ -2,18 +2,25 @@
   <section
     class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
   >
-    <!-- Fondo e iluminación -->
-    <img
-      src="/src/assets/halloween_night.jpg"
-      alt="Zombie sky background"
-      class="absolute inset-0 w-full h-full object-cover opacity-80"
-    />
-    <div class="absolute inset-0 bg-black/40"></div>
-    <!-- capa de niebla animada -->
-    <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
+    <!-- Fondo en capas con efecto paralaje -->
+    <div class="absolute inset-0 overflow-hidden">
+      <!-- Capa 1: Fondo lejano (más lento) -->
+      <div class="absolute inset-0 bg-layer-1 z-0"></div>
+      <!-- capa de niebla animada -->
+      <div class="bg-fog absolute inset-0 z-7 pointer-events-none"></div>
+
+      <!-- Capa 2: Fondo medio (velocidad media) -->
+      <div class="absolute inset-0 bg-layer-2 z-5"></div>
+
+      <!-- Capa oscura -->
+      <div class="absolute inset-0 bg-black/40"></div>
+
+      <!-- Capa 3: Primer plano (más rápido, más cercano al jugador) -->
+      <div class="absolute inset-0 bg-layer-3 z-10"></div>
+    </div>
 
     <!-- Contenido principal -->
-    <main class="relative z-20 w-full max-w-6xl space-y-6 animate-fadeIn">
+    <main class="relative z-30 w-full max-w-6xl space-y-6 animate-fadeIn">
       <!-- Header con estadísticas -->
       <header
         class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
@@ -42,7 +49,7 @@
 
       <!-- Área de texto principal -->
       <section
-        class="bg-black/40 border border-lime-400 rounded-lg p-6 shadow-lg animate-fadeItem delay-[200ms]"
+        class="bg-black/70 border border-lime-400 rounded-lg p-6 shadow-lg animate-fadeItem delay-[200ms]"
         @click="focusInput"
       >
         <!-- Estados de carga y error -->
@@ -171,7 +178,7 @@
         </button>
         <button
           @click="$router.push('/')"
-          class="px-3 py-1 text-sm border border-red-600 text-red-400 rounded-md font-bold uppercase tracking-wider hover:bg-red-600 hover:text-black transition"
+          class="px-3 py-1 text-sm border border-purple-600 text-purple-400 rounded-md font-bold uppercase tracking-wider hover:bg-purple-600 hover:text-black transition"
         >
           Sortir
         </button>
@@ -550,6 +557,33 @@ function findResult(nick) {
   }
 }
 
+@keyframes backgroundMoveSlow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -100vw 0;
+  }
+}
+
+@keyframes backgroundMoveMedium {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -200vw 0;
+  }
+}
+
+@keyframes backgroundMoveFast {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -300vw 0;
+  }
+}
+
 .bg-fog {
   background: url("/src/assets/nice-snow.png");
   background-repeat: repeat;
@@ -557,8 +591,38 @@ function findResult(nick) {
   opacity: 0.3;
   filter: brightness(1.3) contrast(0.8);
   animation: fogMove 60s linear infinite;
-  z-index: 10;
+  z-index: 7;
   pointer-events: none;
+}
+
+/* Capa 1: Fondo lejano (más lento) */
+.bg-layer-1 {
+  background-image: url("/src/assets/opt2_img1.png");
+  background-repeat: repeat-x;
+  background-size: width 1500px;
+  background-position: 0 0;
+  opacity: 0.8;
+  animation: backgroundMoveSlow 60s linear infinite;
+}
+
+/* Capa 2: Fondo medio (velocidad media) */
+.bg-layer-2 {
+  background-image: url("/src/assets/opt1_img2.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 0.6;
+  animation: backgroundMoveMedium 25s linear infinite;
+}
+
+/* Capa 3: Primer plano (más rápido, más cercano) */
+.bg-layer-3 {
+  background-image: url("/src/assets/opt1_img3.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 1;
+  animation: backgroundMoveFast 15s linear infinite;
 }
 
 /* Animaciones del panel y contenido */
@@ -622,17 +686,16 @@ function findResult(nick) {
 
 .correct {
   color: #a3e635;
-  background-color: rgba(16, 185, 129, 0.1);
+  /* background-color: rgba(16, 185, 129, 0.1); */
 }
 
 .wrong {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.2);
+  color: #8f1de0; /* púrpura  */
+  background-color: rgba(190, 164, 231, 0.15);
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+  text-shadow: 0 0 9px rgba(129, 30, 249, 0.6); /* leve glow sangriento */
 }
-
 .current {
   color: #a3e635;
   background-color: rgba(101, 252, 241, 0.2);
