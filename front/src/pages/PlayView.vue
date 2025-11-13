@@ -171,12 +171,6 @@
           Reiniciar
         </button>
         <button
-          @click="nextText"
-          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition"
-        >
-          Següent Text
-        </button>
-        <button
           @click="$router.push('/')"
           class="px-3 py-1 text-sm border border-purple-600 text-purple-400 rounded-md font-bold uppercase tracking-wider hover:bg-purple-600 hover:text-black transition"
         >
@@ -417,6 +411,10 @@ function onInput() {
       accuracy: accuracy.value,
       errors: totalErrors.value,
     });
+
+    setTimeout(() => {
+      nextText();
+    }, 300);
   }
 }
 
