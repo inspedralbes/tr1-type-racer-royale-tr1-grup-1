@@ -1,5 +1,5 @@
 import express from "express";
-import http from "http";
+import http from "node:http";
 import { Server } from "socket.io";
 import { con } from "./db.js";
 import dotenv from "dotenv";
@@ -18,7 +18,7 @@ import {
   MONSTER_START_GAP,
   MONSTER_START_DELAY,
   MONSTER_SAFE_TIME,
-  HIT_BOX, 
+  HIT_BOX,
 } from "./shared/speed.js";
 
 dotenv.config();
@@ -28,6 +28,7 @@ dotenv.config();
 // ------------------------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = "0.0.0.0";
 
 app.use(cors());
 
@@ -45,14 +46,16 @@ app.get("/", (req, res) => {
 // ESTRUCTURA DE DATOS DEL JUEGO
 // -------------------------------
 
-const rooms = {};   // { roomId: { id, players: [], status, results: [] } }
-const timers = {};  // Temporizadores activos
+const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
+const timers = {}; // (legacy, may be unused by dev lobby)
+const roomStatus = {}; // resultados por sala
+const roomTimers = {}; // timers de cada sala
 
-// 🔹 RACE STATE (server-authoritative)
+// RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
 const raceMonster = new Map();
-const raceMeta = new Map(); // roomId -> { position, speed }
-const TICK_MS = 100;   // 10 updates per second
+const raceMeta = new Map(); // roomId -> { monsterStartAt }
+const TICK_MS = 100; // 10 updates per second
 
 // --------------------------------
 // FUNCIONES DE MANEJO DE SALAS
@@ -60,13 +63,19 @@ const TICK_MS = 100;   // 10 updates per second
 
 function createRoom(roomId) {
   rooms[roomId] = {
-    id: roomId,
+    roomName: roomId,
+    language: null,
+    difficulty: null,
     players: [],
     status: "waiting",
-    results: []
+    createdBy: null,
+    results: [],
   };
   racePlayers.set(roomId, new Map());
-  raceMonster.set(roomId, { position: -MONSTER_START_GAP, speed: MONSTER_BASE });
+  raceMonster.set(roomId, {
+    position: -MONSTER_START_GAP,
+    speed: MONSTER_BASE,
+  });
   raceMeta.set(roomId, { monsterStartAt: null });
   console.log(`Sala creada: ${roomId}`);
 }
@@ -81,12 +90,18 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       nickname,
       wpm: 0,
       accuracy: 0,
-      isAlive: true
+      color: getRandomColor(),
+      isAlive: true,
     });
   }
 
   // add also to race state
-  const map = racePlayers.get(roomId);
+  let map = racePlayers.get(roomId);
+  if (!map) {
+    map = new Map();
+    racePlayers.set(roomId, map);
+  }
+
   if (!map.has(socketId)) {
     map.set(socketId, {
       id: socketId,
@@ -96,13 +111,20 @@ function addPlayerToRoom(roomId, nickname, socketId) {
       speed: BASE_SPEED,
       position: 0,
       lastTypingTs: Date.now(),
-      alive: true
+      alive: true,
+      finished: false,
     });
   }
 
   console.log(`${nickname} se ha unido a la sala ${roomId}`);
 }
 
+// Función: generar color aleatorio
+function getRandomColor() {
+  return "#" + Math.floor(Math.random() * 16777215).toString(16);
+}
+
+// Función: eliminar jugador al desconectarse
 function removePlayer(socketId) {
   for (const [roomId, room] of Object.entries(rooms)) {
     room.players = room.players.filter((p) => p.id !== socketId);
@@ -122,11 +144,12 @@ function removePlayer(socketId) {
 
 function addGameResult(roomId, nickname, wpm, accuracy) {
   if (!rooms[roomId]) return;
+  rooms[roomId].results = rooms[roomId].results || [];
   rooms[roomId].results.push({
     nickname,
     wpm: Number(wpm),
     accuracy: Number(accuracy),
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
   console.log(
     `Resultado añadido en ${roomId}: ${nickname} (${wpm}WPM, ${accuracy}%)`
@@ -137,40 +160,108 @@ function addGameResult(roomId, nickname, wpm, accuracy) {
 // TIMER Y SINCRONIZACIÓN DE JUEGO
 // -----------------------------------
 
-function startRoomTimer(roomId) {
-  if (timers[roomId]) clearInterval(timers[roomId]);
+function startRoomTimer(roomName) {
+  if (roomTimers[roomName]) {
+    clearInterval(roomTimers[roomName].interval);
+  }
 
-  let seconds = 10;
-  io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
+  const COUNTDOWN_TIME = 30; // 30 segundos de countdown
 
-  timers[roomId] = setInterval(() => {
-    seconds--;
+  roomTimers[roomName] = {
+    seconds: COUNTDOWN_TIME,
+    interval: null,
+    isActive: true,
+  };
 
-    if (seconds > 0) {
-      io.to(roomId).emit("timerUpdate", { seconds, isActive: true });
-    } else {
-      io.to(roomId).emit("timerUpdate", { seconds: 0, isActive: false });
-      clearInterval(timers[roomId]);
-      delete timers[roomId];
+  console.log(
+    `Iniciando timer para sala ${roomName} - ${COUNTDOWN_TIME} segundos`
+  );
 
-      if (rooms[roomId]) rooms[roomId].status = "playing";
-      let meta = raceMeta.get(roomId);
-      if (!meta) {
-        meta = { monsterStartAt: null };
-        raceMeta.set(roomId, meta);
-      }
-      meta.monsterStartAt = Date.now() + MONSTER_START_DELAY * 1000;
-      console.log(`Timer terminado para sala ${roomId}. Iniciando juego.`);
+  // Enviar tiempo inicial
+  io.to(roomName).emit("timerUpdate", {
+    seconds: COUNTDOWN_TIME,
+    isActive: true,
+  });
+
+  roomTimers[roomName].interval = setInterval(() => {
+    roomTimers[roomName].seconds--;
+
+    // Enviar actualización de tiempo a todos los jugadores de la sala
+    io.to(roomName).emit("timerUpdate", {
+      seconds: roomTimers[roomName].seconds,
+      isActive: true,
+    });
+
+    console.log(
+      `Timer sala ${roomName}: ${roomTimers[roomName].seconds} segundos`
+    );
+
+    if (roomTimers[roomName].seconds <= 0) {
+      clearInterval(roomTimers[roomName].interval);
+      roomTimers[roomName].isActive = false;
+
+      (async () => {
+        try {
+          await getTexts(roomName);
+          console.log(
+            "Textos asignados a los jugadores de la sala",
+            rooms[roomName].players
+          );
+          rooms[roomName].status = "inGame";
+
+          // ⬇️ ARRANQUE DEL MONSTRUO TRAS UN RETRASO
+          let meta = raceMeta.get(roomName);
+          if (!meta) {
+            meta = { monsterStartAt: null };
+            raceMeta.set(roomName, meta);
+          }
+          meta.monsterStartAt = Date.now() + MONSTER_START_DELAY * 1000;
+
+          io.to(roomName).emit("gameStart", { roomName });
+          io.emit("roomList", { rooms });
+          console.log(`Juego iniciado en la sala ${roomName}`);
+        } catch (err) {
+          console.error(
+            `Error al asignar textos para sala ${roomName}:`,
+            err
+          );
+        }
+      })();
     }
   }, 1000);
 }
 
-function stopRoomTimer(roomId) {
-  if (timers[roomId]) {
-    clearInterval(timers[roomId]);
-    delete timers[roomId];
-    io.to(roomId).emit("timerUpdate", { seconds: 10, isActive: false });
-    console.log(`Timer detenido para sala ${roomId}`);
+// Función para parar el timer de una sala
+function stopRoomTimer(roomName) {
+  if (roomTimers[roomName]) {
+    clearInterval(roomTimers[roomName].interval);
+    roomTimers[roomName].isActive = false;
+    console.log(`Timer detenido para sala ${roomName}`);
+    io.to(roomName).emit("timerUpdate", {
+      seconds: 0,
+      isActive: false,
+    });
+  }
+}
+
+// Función para manejar el timer cuando cambia el número de jugadores
+function handleRoomPlayerCount(roomName) {
+  if (!rooms[roomName]) return;
+
+  const playerCount = rooms[roomName].players.length;
+
+  console.log(
+    ` Revisando timer para sala ${roomName}: ${playerCount} jugadores`
+  );
+
+  // Solo detener el timer si hay menos de 2 jugadores
+  if (playerCount < 2) {
+    if (roomTimers[roomName]?.isActive) {
+      console.log(
+        `Deteniendo timer para sala ${roomName} (${playerCount} jugadores)`
+      );
+      stopRoomTimer(roomName);
+    }
   }
 }
 
@@ -184,7 +275,7 @@ function roomSnapshot(roomId) {
   return {
     trackLen: TRACK_LEN,
     players: map
-      ? Array.from(map.values()).map(p => ({
+      ? Array.from(map.values()).map((p) => ({
           nickname: p.nickname,
           wpm: Math.round(p.wpm || 0),
           accuracy: Math.round(p.accuracy || 0),
@@ -207,18 +298,19 @@ setInterval(() => {
   const dt = TICK_MS / 1000;
 
   for (const [room, map] of racePlayers.entries()) {
+    if (!rooms[room]) continue;
+
     // 1) advance players + check finish
     for (const p of map.values()) {
       if (p.alive === false) continue;
 
-      p.speed    = decaySpeed(p.speed, dt);
+      p.speed = decaySpeed(p.speed, dt);
       p.position = integratePosition(p.position, p.speed, dt, TRACK_LEN);
 
       // emit single "finished" event per player
       if (p.position >= TRACK_LEN && !p.finished) {
         p.finished = true;
 
-        // store + emit once
         rooms[room].results = rooms[room].results || [];
         rooms[room].results.push({
           nickname: p.nickname,
@@ -239,23 +331,26 @@ setInterval(() => {
     }
 
     // 2) monster
-    const m    = raceMonster.get(room);
-    let   meta = raceMeta.get(room);
-    const now  = Date.now();
+    const m = raceMonster.get(room);
+    let meta = raceMeta.get(room);
+    const now = Date.now();
 
     if (!meta) {
       meta = { monsterStartAt: null };
       raceMeta.set(room, meta);
     }
 
-    let canMove  = true;
+    let canMove = true;
     let canCatch = true;
 
     if (!meta.monsterStartAt || now < meta.monsterStartAt) {
       canMove = false;
       canCatch = false;
     }
-    if (meta.monsterStartAt && now < meta.monsterStartAt + MONSTER_SAFE_TIME * 1000) {
+    if (
+      meta.monsterStartAt &&
+      now < meta.monsterStartAt + MONSTER_SAFE_TIME * 1000
+    ) {
       canCatch = false;
     }
 
@@ -274,7 +369,6 @@ setInterval(() => {
           p.alive = false;
           p.speed = 0;
 
-          // store in room results (so late joiners / refresh get it)
           rooms[room].results = rooms[room].results || [];
           rooms[room].results.push({
             nickname: p.nickname,
@@ -288,8 +382,10 @@ setInterval(() => {
             nickname: p.nickname,
             wpm: Math.round(p.wpm || 0),
             accuracy: Math.round(p.accuracy || 0),
-            mPos: m.position, pPos: p.position,
-            hitBox: HIT_BOX, trackLen: TRACK_LEN,
+            mPos: m.position,
+            pPos: p.position,
+            hitBox: HIT_BOX,
+            trackLen: TRACK_LEN,
           });
 
           io.to(room).emit("updateGameResults", rooms[room].results);
@@ -298,33 +394,42 @@ setInterval(() => {
     }
 
     // 4) room end?
-    const alive = Array.from(map.values()).filter(p => p.alive !== false);
-    const someoneFinished = alive.some(p => p.position >= TRACK_LEN);
-    const allDead = alive.length === 0;
     const playersArr = Array.from(map.values());
-    const allResolved = playersArr.every(pl => pl.finished === true || pl.alive === false);
+    const allResolved = playersArr.every(
+      (pl) => pl.finished === true || pl.alive === false
+    );
 
     if (allResolved) {
-      // Optional: pick a winner (first finished); if none, null
-      const winner = rooms[room].results?.find(r => r.state === "finished")?.nickname ?? null;
+      const winner =
+        rooms[room].results?.find((r) => r.state === "finished")?.nickname ??
+        null;
       io.to(room).emit("race:over", { winner });
       rooms[room].status = "finished";
       continue;
     }
-    /*if (allDead || someoneFinished) {
-      io.to(room).emit("race:over", {
-        winner: someoneFinished
-          ? alive.find(p => p.position >= TRACK_LEN)?.nickname ?? null
-          : null,
-      });
-      rooms[room].status = "finished";
-      continue; // skip broadcast this tick
-    }*/
 
     // 5) broadcast snapshot
     io.to(room).emit("race:update", roomSnapshot(room));
   }
 }, TICK_MS);
+
+///// ***** FUNCIONES DE SOCKET.IO ***** /////
+
+// Enviar lista de salas a todos los clientes conectados
+function broadcastRoomList() {
+  const roomList = Object.values(rooms).map((room) => ({
+    name: room.roomName,
+    players: room.players,
+    playerCount: room.players.length,
+    status: room.status,
+    language: room.language,
+    difficulty: room.difficulty,
+    createdBy: room.createdBy,
+  }));
+
+  io.emit("roomList", { rooms: roomList });
+  console.log(" Lista de salas enviada:", roomList);
+}
 
 // -----------------------------------
 // SOCKET.IO - EVENTOS EN TIEMPO REAL
@@ -333,39 +438,145 @@ setInterval(() => {
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
-  socket.on("requestRoomCreation", (data) => {
-    const roomName = data.roomName;
-    if (!rooms[roomName]) createRoom(roomName);
-    socket.emit("confirmRoomCreation", { roomName });
+  // Evento para solicitar la lista de salas disponibles
+  socket.on("requestRoomList", () => {
+    const roomList = Object.values(rooms).map((room) => ({
+      name: room.roomName,
+      players: room.players,
+      playerCount: room.players.length,
+      status: room.status,
+      language: room.language,
+      difficulty: room.difficultyValue,
+      createdBy: room.createdBy,
+    }));
+
+    socket.emit("roomList", { rooms: roomList });
+    console.log(" Lista de salas enviada a", socket.id, ":", roomList);
   });
 
+  // Crear sala
   socket.on("createRoom", (data) => {
-    const room = data.room || data.roomName;
-    socket.join(room);
-    if (!rooms[room]) createRoom(room);
-    socket.emit("roomCreated", { room });
+    if (
+      !data.roomName ||
+      !data.language ||
+      !data.difficulty ||
+      !data.userName
+    ) {
+      socket.emit("roomNotCreated", {
+        status: "failed",
+        message: "ERROR",
+      });
+      return;
+    }
+
+    if (rooms[data.roomName]) {
+      socket.emit("roomNotCreated", {
+        status: "failed",
+        message: "Existent ROOM",
+      });
+      return;
+    }
+
+    rooms[data.roomName] = {
+      roomName: data.roomName,
+      language: data.language,
+      difficulty: data.difficulty,
+      players: [],
+      status: "waiting",
+      createdBy: data.userName,
+      results: [],
+    };
+
+    socket.join(data.roomName);
+    addPlayerToRoom(data.roomName, data.userName, socket.id);
+    socket.nickname = data.userName;
+
+    if (!roomStatus[data.roomName]) {
+      roomStatus[data.roomName] = {
+        results: [],
+      };
+    }
+    console.log(rooms[data.roomName]);
+
+    socket.emit("roomCreated", { room: data.roomName });
+    socket.emit("roomInfo", rooms[data.roomName]);
+
+    io.to(data.roomName).emit("updateUserList", rooms[data.roomName].players);
+
+    broadcastRoomList();
+    handleRoomPlayerCount(data.roomName);
   });
 
   socket.on("joinRoom", (data) => {
-    try {
-      const { room, nickname } = data;
-      if (!room || !nickname) return;
+    const roomName = data.roomName;
+    const nickname = data.nickname;
 
-      socket.join(room);
-      socket.nickname = nickname;
-      socket.currentRoom = room;
+    console.log(roomName, nickname);
 
-      addPlayerToRoom(room, nickname, socket.id);
-      io.to(room).emit("updateUserList", rooms[room].players);
+    if (!rooms[roomName] || rooms[roomName].status !== "waiting") {
+      socket.emit("errorJoin");
+      return;
+    }
 
-      if (rooms[room].players.length > 1 && !timers[room]) {
-        startRoomTimer(room);
+    socket.join(roomName);
+    socket.nickname = nickname;
+    socket.currentRoom = roomName;
+
+    addPlayerToRoom(roomName, nickname, socket.id);
+
+    console.log(
+      `Cliente ${nickname} (${socket.id}) se ha unido a la sala ${roomName}`
+    );
+
+    io.to(roomName).emit("userJoined", { id: socket.id, roomName, nickname });
+
+    socket.emit("joinedRoom", { roomName, nickname });
+
+    io.to(roomName).emit("updateUserList", rooms[roomName].players);
+    io.to(roomName).emit("roomInfo", rooms[roomName]);
+
+    broadcastRoomList();
+
+    if (!roomStatus[roomName]) {
+      roomStatus[roomName] = {
+        results: [],
+      };
+    }
+
+    handleRoomPlayerCount(roomName);
+
+    if (roomTimers[roomName]?.isActive) {
+      socket.emit("timerUpdate", {
+        seconds: roomTimers[roomName].seconds,
+        isActive: true,
+      });
+    }
+
+    io.to(roomName).emit("race:update", roomSnapshot(roomName));
+  });
+
+  // Comenzar partida sin countdown (ruta antigua)
+  socket.on("startGame", async (data) => {
+    const { roomName } = data;
+    if (rooms[roomName]) {
+      await getTexts(roomName);
+      console.log(
+        "Textos asignados a los jugadores de la sala",
+        rooms[roomName].players
+      );
+      rooms[roomName].status = "inGame";
+
+      // también iniciar monstruo en esta ruta
+      let meta = raceMeta.get(roomName);
+      if (!meta) {
+        meta = { monsterStartAt: null };
+        raceMeta.set(roomName, meta);
       }
+      meta.monsterStartAt = Date.now() + MONSTER_START_DELAY * 1000;
 
-      // enviar snapshot inicial de carrera
-      io.to(room).emit("race:update", roomSnapshot(room));
-    } catch (err) {
-      console.error("Error en joinRoom:", err);
+      io.to(roomName).emit("gameStarted", { roomInfo: rooms[roomName] });
+      io.emit("roomList", { rooms });
+      console.log(`Juego iniciado en la sala ${roomName}`);
     }
   });
 
@@ -376,7 +587,6 @@ io.on("connection", (socket) => {
     const p = map.get(socket.id);
     if (!p) return;
 
-
     p.wpm = Number(wpm) || 0;
     p.accuracy = Number(accuracy) || 0;
 
@@ -386,7 +596,7 @@ io.on("connection", (socket) => {
     p.lastTypingTs = Date.now();
   });
 
-  // Finalización del juego
+  /// Finalización del juego (alcanzó TRACK_LEN explícitamente)
   socket.on("gameFinished", (data) => {
     const { room, nickname, wpm, accuracy } = data;
     const map = racePlayers.get(room);
@@ -397,25 +607,266 @@ io.on("connection", (socket) => {
         p.accuracy = Number(accuracy) || 0;
         p.position = TRACK_LEN;
         p.speed = 0;
+        p.finished = true;
       }
     }
-    addGameResult(room, nickname, wpm, accuracy);
-    io.to(room).emit("updateGameResults", rooms[room].results);
-    io.to(room).emit("race:update", roomSnapshot(room));
+
+    if (roomStatus[room]) {
+      roomStatus[room].results.push({
+        nickname,
+        wpm,
+        accuracy,
+        timestamp: Date.now(),
+      });
+
+      io.to(room).emit("updateGameResults", roomStatus[room].results);
+      io.to(room).emit("race:update", roomSnapshot(room));
+      console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
+    }
+  });
+
+  // Eliminar sala (solo el creador puede hacerlo)
+  socket.on("deleteRoom", (data) => {
+    const { roomName, nickname } = data;
+
+    if (!rooms[roomName]) {
+      socket.emit("roomDeleteError", {
+        message: "La sala no existe",
+      });
+      return;
+    }
+
+    if (rooms[roomName].createdBy !== nickname) {
+      socket.emit("roomDeleteError", {
+        message: "Solo el creador puede eliminar la sala",
+      });
+      return;
+    }
+
+    console.log(` Eliminando sala ${roomName} por ${nickname}`);
+
+    io.to(roomName).emit("roomDeleted", {
+      roomName: roomName,
+      message: "La sala ha sido eliminada por el creador",
+    });
+
+    if (roomTimers[roomName]) {
+      clearInterval(roomTimers[roomName].interval);
+      delete roomTimers[roomName];
+    }
+
+    delete rooms[roomName];
+    delete roomStatus[roomName];
+
+    broadcastRoomList();
+
+    socket.emit("roomDeleteSuccess", {
+      roomName: roomName,
+      message: "Sala eliminada exitosamente",
+    });
+
+    console.log(` Sala ${roomName} eliminada exitosamente`);
+  });
+
+  // Salir de una sala específica
+  socket.on("leaveRoom", (data) => {
+    const { roomName, nickname } = data;
+
+    console.log(` ${nickname} está saliendo de la sala ${roomName}`);
+
+    if (!rooms[roomName]) {
+      console.log(`Intento de salir de sala inexistente: ${roomName}`);
+      return;
+    }
+
+    const userList = rooms[roomName].players;
+    const index = userList.findIndex(
+      (p) =>
+        (typeof p === "string" && p === nickname) ||
+        (typeof p === "object" && p.nickname === nickname)
+    );
+
+    if (index !== -1) {
+      userList.splice(index, 1);
+      console.log(
+        `${nickname} removido de la sala ${roomName}. Jugadores restantes: ${userList.length}`
+      );
+
+      const raceMap = racePlayers.get(roomName);
+      if (raceMap && raceMap.has(socket.id)) {
+        raceMap.delete(socket.id);
+      }
+
+      socket.leave(roomName);
+
+      io.to(roomName).emit("updateUserList", userList);
+      io.to(roomName).emit("userLeft", {
+        nickname: nickname,
+        roomName: roomName,
+        remainingPlayers: userList.length,
+      });
+
+      handleRoomPlayerCount(roomName);
+
+      if (userList.length === 0) {
+        console.log(`Limpiando sala vacía: ${roomName}`);
+        delete rooms[roomName];
+        delete roomStatus[roomName];
+        racePlayers.delete(roomName);
+        if (roomTimers[roomName]) {
+          clearInterval(roomTimers[roomName].interval);
+          delete roomTimers[roomName];
+        }
+      }
+
+      broadcastRoomList();
+    } else {
+      console.log(` Usuario ${nickname} no encontrado en la sala ${roomName}`);
+    }
+  });
+
+  // Iniciar timer manualmente (solo el creador puede hacerlo)
+  socket.on("startTimer", (data) => {
+    const { roomName, nickname } = data;
+
+    console.log(` ${nickname} quiere iniciar el timer en la sala ${roomName}`);
+
+    if (!rooms[roomName]) {
+      socket.emit("startTimerError", {
+        message: "La sala no existe",
+      });
+      return;
+    }
+
+    if (rooms[roomName].createdBy !== nickname) {
+      socket.emit("startTimerError", {
+        message: "Solo el creador puede iniciar el timer",
+      });
+      return;
+    }
+
+    if (rooms[roomName].players.length < 2) {
+      socket.emit("startTimerError", {
+        message: "Se necesitan al menos 2 jugadores para iniciar el timer",
+      });
+      return;
+    }
+
+    if (roomTimers[roomName]?.isActive) {
+      socket.emit("startTimerError", {
+        message: "El timer ya está activo",
+      });
+      return;
+    }
+
+    console.log(`Iniciando timer manual para sala ${roomName} por ${nickname}`);
+
+    startRoomTimer(roomName);
+
+    io.to(roomName).emit("timerStarted", {
+      roomName: roomName,
+      startedBy: nickname,
+      message: `Timer iniciado por ${nickname}`,
+    });
+
+    socket.emit("startTimerSuccess", {
+      roomName: roomName,
+      message: "Timer iniciado exitosamente",
+    });
+
+    console.log(`Timer iniciado exitosamente en sala ${roomName}`);
+  });
+
+  // Detectar rendimiento de jugador (bueno o malo)
+  socket.on("userPerformance", (data) => {
+    const { room, nickname, status, message } = data;
+
+    if (!rooms[room]) {
+      console.log(`Intento de emitir performance a sala inexistente: ${room}`);
+      return;
+    }
+
+    console.log(`${nickname} (${room}) -> ${status}: ${message}`);
+
+    io.to(room).emit("userPerformance", {
+      nickname,
+      status,
+      message,
+    });
+  });
+
+  socket.on("userKey", (data) => {
+    const { room, nickname, key } = data;
+    if (!rooms[room]) {
+      console.log(`Intento de emitir userKey a sala inexistente: ${room}`);
+      return;
+    }
+    const player = rooms[room].players.find((p) => p.nickname === nickname);
+    const color = player ? player.color : null;
+    if (!player) {
+      console.log(`No se encontró jugador ${nickname} en la sala ${room}`);
+    } else {
+      console.log(`Color de ${nickname} en ${room}: ${color}`);
+    }
+
+    io.to(room).emit("userKey", {
+      nickname,
+      key,
+      color,
+    });
   });
 
   socket.on("disconnect", () => {
-    const roomId = socket.currentRoom;
-    removePlayer(socket.id);
+    console.log(`Usuario desconectándose: ${socket.id} (${socket.nickname})`);
 
-    if (roomId && rooms[roomId]) {
-      io.to(roomId).emit("updateUserList", rooms[roomId].players);
-      if (rooms[roomId].players.length < 2 && timers[roomId]) {
-        stopRoomTimer(roomId);
+    for (const [roomName, roomObj] of Object.entries(rooms)) {
+      if (!roomObj || !Array.isArray(roomObj.players)) continue;
+
+      const userList = roomObj.players;
+
+      const index = userList.findIndex(
+        (p) =>
+          (typeof p === "object" && p.id === socket.id) ||
+          (typeof p === "string" && p === socket.nickname)
+      );
+
+      if (index !== -1) {
+        userList.splice(index, 1);
+
+        console.log(
+          `${socket.nickname} removido de la sala ${roomName}. Jugadores restantes: ${userList.length}`
+        );
+
+        const raceMap = racePlayers.get(roomName);
+        if (raceMap && raceMap.has(socket.id)) {
+          raceMap.delete(socket.id);
+        }
+
+        io.to(roomName).emit("updateUserList", userList);
+        io.to(roomName).emit("userLeft", {
+          nickname: socket.nickname,
+          roomName: roomName,
+          remainingPlayers: userList.length,
+        });
+
+        handleRoomPlayerCount(roomName);
       }
-      io.to(roomId).emit("race:update", roomSnapshot(roomId));
+
+      if (userList.length === 0) {
+        console.log(`Limpiando sala vacía: ${roomName}`);
+        delete rooms[roomName];
+        delete roomStatus[roomName];
+        racePlayers.delete(roomName);
+        if (roomTimers[roomName]) {
+          clearInterval(roomTimers[roomName].interval);
+          delete roomTimers[roomName];
+        }
+      }
     }
-    console.log(`Usuario desconectado: ${socket.id}`);
+
+    broadcastRoomList();
+
+    console.log(`Usuario desconectado completamente: ${socket.id}`);
   });
 });
 
@@ -428,6 +879,32 @@ app.get("/api/rooms/:roomId", (req, res) => {
   if (!room) return res.status(404).json({ error: "Sala no encontrada" });
   res.json(room);
 });
+
+function getTexts(roomName) {
+  return new Promise((resolve, reject) => {
+    con.query(
+      "SELECT ID FROM TEXTS WHERE LANGUAGE_CODE = ? AND DIFFICULTY = ?",
+      [rooms[roomName].language, rooms[roomName].difficulty],
+      (err, results) => {
+        if (err) return reject(err);
+        console.log("Textos disponibles:", results);
+        for (let player of rooms[roomName].players) {
+          player.textsIds = [];
+          for (let i = 0; i < 5 && i < results.length; i++) {
+            const randomIndex = Math.floor(Math.random() * results.length);
+            player.textsIds.push(results[randomIndex].ID);
+          }
+        }
+
+        console.log(
+          "Textos asignados a los jugadores de la sala",
+          rooms[roomName].players
+        );
+        resolve();
+      }
+    );
+  });
+}
 
 app.get("/api/rooms", (req, res) => {
   res.json(Object.values(rooms));
@@ -475,8 +952,10 @@ app.get("/words/:language", (req, res) => {
 // -----------------
 // INICIAR SERVIDOR
 // -----------------
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Servidor Socket.IO corriendo en http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(
+    `Servidor Socket.IO corriendo en http://localhost:${HOST}:${PORT}`
+  );
   console.log("Rutas API disponibles:");
   console.log("  GET /api/rooms - Listar salas activas");
   console.log("  GET /api/rooms/:roomId - Info de sala");
