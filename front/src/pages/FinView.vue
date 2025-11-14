@@ -202,10 +202,29 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import rawData from "@/data/leaderboard.json"; // static for now, backend later
+import { ref, computed, onMounted } from "vue";
+import { io } from "socket.io-client";
 
-const rows = ref(rawData);
+const socket = io("http://localhost:3000"); // o la URL de tu backend
+const rows = ref([]);
+const loading = ref(true);
+
+onMounted(() => {
+  // Cuando lleguen los resultados de la partida
+  socket.on("updateGameResults", (results) => {
+    rows.value = results.map(r => ({
+      nickname: r.nickname,
+      wpm: r.wpm,
+      accuracy: r.accuracy,
+      errors: 100 - r.accuracy,
+      races: r.races ?? "-", // si quieres trackear carreras
+      lastPlayed: r.timestamp
+    }));
+    loading.value = false;
+  });
+  console.log("DATOS", rows.value);
+});
+
 
 // filters / sorting
 const q = ref("");
@@ -217,7 +236,7 @@ const pageSize = 10;
 const filtered = computed(() => {
   const term = q.value.toLowerCase();
   if (!term) return rows.value;
-  return rows.value.filter((r) => r.nickname?.toLowerCase().includes(term));
+  return rows.value.filter(r => r.nickname?.toLowerCase().includes(term));
 });
 
 const sorted = computed(() => {
