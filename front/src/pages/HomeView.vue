@@ -135,12 +135,16 @@ socket.on("joinedRoom", (data) => {
   user.setId(data.playerId);
   user.setNickname(data.nickname);
   user.setRoomName(data.roomName);
-  console.log(`Te has unido a la sala ${data.roomName}`);
+  console.log(`Te has unido a la sala ${data.roomName}`, data);
   router.push("/lobby");
 });
 
 // Mantener el listener userJoined para notificaciones generales
 socket.on("userJoined", (data) => {
+  // También guardar el roomName aquí por si acaso
+  if (data.nickname === user.nickname) {
+    user.setRoomName(data.roomName);
+  }
   console.log(
     `${data.nickname} se unió a la sala ${data.roomName}, id: ${data.playerId}`
   );

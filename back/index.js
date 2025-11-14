@@ -505,6 +505,10 @@ io.on("connection", (socket) => {
 
   socket.on("requestRoomResults", (data) => {
     const { roomName } = data;
+    console.log(
+      ` Resultados solicitados para sala ${roomName}: `,
+      roomStatus[roomName]
+    );
     socket.emit("roomResults", {
       results: roomStatus[roomName]?.results || [],
     });
@@ -558,6 +562,23 @@ io.on("connection", (socket) => {
     });
 
     console.log(` Sala ${roomName} eliminada exitosamente`);
+  });
+
+  // Matar a un jugador
+  socket.on("player:isDeath", (data) => {
+    const { roomName, nickname } = data;
+    console.log(`PREVA ${nickname} ha muerto en la sala ${roomName}`);
+    console.log(` Estado antes:`, rooms);
+    const room = rooms[roomName];
+    if (room && room.players) {
+      const player = room.players.find((p) => p.nickname === nickname);
+      if (player) {
+        player.isAlive = false;
+        console.log(` Estado actualizado: ${nickname} isAlive = false`);
+      }
+    }
+    io.to(roomName).emit("player:dead", { nickname });
+    io.to(roomName).emit("updateUserList", rooms[roomName].players);
   });
 
   // Salir de una sala específica (sin desconectar del servidor)

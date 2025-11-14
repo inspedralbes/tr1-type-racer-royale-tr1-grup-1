@@ -51,10 +51,18 @@
           <div class="bg-black/40 border border-lime-400 rounded-lg p-4">
             <h3 class="text-lime-400 font-semibold text-lg mb-3">Posicions</h3>
             <div class="space-y-2">
-              <div v-for="p in raceState" :key="p.nickname" class="flex justify-between text-sm">
-                <span class="text-lime-300">{{ p.nickname }}</span>
-                <span class="text-gray-200">{{ p.position }}</span>
+              <div v-for="p in [...raceState].sort((a, b) => b.position - a.position)" :key="p.nickname"
+                class="flex justify-between text-sm">
+                <template v-if="p.nickname === user.nickname">
+                  <span class="text-lime-300">{{ user.nickname }}</span>
+                  <span class="text-gray-200">{{ p.position }}</span>
+                </template>
+                <template v-else>
+                  <span class="text-gray-300">{{ p.nickname }}</span>
+                  <span class="text-gray-400">{{ p.position }}</span>
+                </template>
               </div>
+
             </div>
           </div>
         </div>
@@ -148,28 +156,43 @@
       <!-- ESPACIADO REDUCIDO -->
       <div class="h-2"></div>
 
-      <!-- 3. PROGRESO DE LA CARRERA (COMPACTO Y DINÁMICO) -->
+      <!-- 3. PROGRESO DE LA CARRERA -->
       <section v-if="raceState.length"
-        class="bg-black/30 border border-lime-400/60 rounded-lg p-3 shadow-lg animate-fadeItem delay-[250ms] backdrop-blur-sm">
-        <h3 class="text-lime-400 font-semibold text-sm mb-2 tracking-wider">
-          PROGRÉS DE LA CARRERA
+        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+
+        <h3 class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2">
+          Progrés de la carrera
         </h3>
 
-        <div class="space-y-2">
-          <div v-for="p in raceState" :key="p.nickname" class="flex items-center gap-2">
-            <span class="text-lime-300 font-medium text-xs min-w-[80px] truncate">
+        <div class="space-y-4">
+          <div v-for="(p, i) in raceState" :key="p.nickname"
+            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20">
+            <!-- Nombre -->
+            <span class="text-lime-300 font-semibold text-xs w-24 truncate">
               {{ p.nickname }}
             </span>
 
-            <div class="flex-1 bg-gray-800/70 rounded-full h-2 overflow-hidden border border-gray-600/50">
-              <div
-                class="bar h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300 shadow-sm"
-                :style="{ width: p.position * 1.5 + 'px' }"></div>
+            <!-- Pista -->
+            <div class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden">
+
+              <!-- Línea de meta -->
+              <div class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse">
+              </div>
+
+              <!-- ZOMBIE PIXEL ART ANIMADO -->
+              <div class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+                :style="{ left: (p.position * 1.3) + 'px' }"></div>
             </div>
 
-            <small class="text-gray-400 text-xs min-w-[30px] text-right font-mono">
+            <!-- Indica el último (va a morir) -->
+            <span :class="[
+              'text-xs font-mono px-2 py-0.5 rounded-md',
+              p.position === Math.min(...raceState.map(r => r.position))
+                ? 'bg-red-600/40 text-red-200 animate-pulse'
+                : 'text-gray-300'
+            ]">
               {{ p.position }}
-            </small>
+            </span>
           </div>
         </div>
       </section>
@@ -199,6 +222,7 @@ import { socket } from "@/services/socket";
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
 import Keyboard from "@/components/Keyboard.vue";
+import Swal from "sweetalert2";
 const router = useRouter();
 const user = useUserStore();
 
@@ -215,7 +239,6 @@ const isTyping = ref(false);
 const backgroundSpeed = ref(0); // Velocidad actual del fondo (0 = parado, 1 = corriendo)
 const lastTypingTime = ref(0);
 const typingTimeout = ref(null);
-const isAlive = ref(true);
 
 // Función para actualizar la velocidad del fondo
 function updateBackgroundSpeed() {
@@ -345,6 +368,21 @@ function loadParticipants(roomData) {
 socket.on("race:update", (snapshot) => {
   raceState.value = snapshot || [];
 });
+
+// Detectar si alguien llega a 700 de posición para terminar la carrera
+watch(
+  () => raceState.value,
+  (newState) => {
+    if (newState && newState.length > 0) {
+      const maxPosition = Math.max(...newState.map(p => p.position));
+      if (maxPosition >= 700) {
+        console.log("¡Alguien llegó a 700! Enviando endRaceInRoom al servidor");
+        socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+      }
+    }
+  },
+  { deep: true }
+);
 
 const totalErrors = ref(0);
 const lastTypedLength = ref(0);
@@ -532,19 +570,19 @@ function reset() {
   focusInput();
 }
 
-function continueAsSpectator() {
-  console.log("Continuando como espectador...");
-  addServerMessage("Mode espectador activat", "success");
-  // Aquí puedes agregar lógica adicional para el modo espectador
-  // Por ejemplo, deshabilitar el input de texto, cambiar el estado, etc.
-}
+// function continueAsSpectator() {
+//   console.log("Continuando como espectador...");
+//   addServerMessage("Mode espectador activat", "success");
+//   // Aquí puedes agregar lógica adicional para el modo espectador
+//   // Por ejemplo, deshabilitar el input de texto, cambiar el estado, etc.
+// }
 
-function goToFinScreen() {
-  console.log("Yendo a la pantalla de fin...");
-  addServerMessage("Dirigint a resultats finals", "info");
-  // Navegar a la pantalla de fin
-  router.push({ name: "fin" });
-}
+// function goToFinScreen() {
+//   console.log("Yendo a la pantalla de fin...");
+//   addServerMessage("Dirigint a resultats finals", "info");
+//   // Navegar a la pantalla de fin
+//   router.push({ name: "fin" });
+// }
 
 // Función para simular muerte del jugador (para testing)
 function simulatePlayerDeath() {
@@ -653,12 +691,16 @@ onMounted(async () => {
 
   // Carregar Final de la carrera
   socket.on("endRaceInRoom", () => {
+    // Obtener la posición del jugador actual
+    const currentPlayer = participants.value.find(p => p.nickname === user.nickname);
+    const currentPosition = currentPlayer ? currentPlayer.position : 0;
+
     // Enviar resultados al servidor
     socket.emit("gameFinished", {
       room: ROOM.value,
       nickname: user.nickname,
       wpm: getWpm(),
-      accuracy: accuracy.value,
+      position: currentPosition,
       errors: totalErrors.value,
       isAlive: !isPlayerDead.value,
     });
@@ -691,6 +733,52 @@ onMounted(async () => {
       }
     }
     console.log("Sala actualizada:", roomList.value);
+  });
+
+  // Matar jugador
+  // Auto-kill every 15s: encuentra al jugador con menor posición y avisa al servidor
+  const autoKillInterval = setInterval(() => {
+    if (!raceState.value || raceState.value.length === 0) return;
+
+    // Calcular la posición mínima
+    const minPos = Math.min(...raceState.value.map((p) => p.position));
+    // Elegir el primer jugador con esa posición mínima que aún esté vivo (si hay isAlive)
+    const victim = raceState.value.find((p) =>
+      (p.position === minPos) && (typeof p.isAlive === "undefined" ? true : p.isAlive)
+    );
+
+    if (victim) {
+      console.log("Auto-kill: matando a", victim.nickname, "con posición", minPos, "ss", user.roomName);
+      socket.emit("player:isDeath", {
+        roomName: user.roomName,
+        nickname: victim.nickname,
+      });
+    }
+  }, 15000);
+
+  socket.on("player:dead", (data) => {
+    console.log("Jugador muerto recibido:", data);
+    if (data.nickname === user.nickname) {
+      isPlayerDead.value = true;
+      addServerMessage("Has mort!", "error");
+
+      Swal.fire({
+        title: "Has mort!",
+        text: "Estarà en mode espectador.",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 5000,
+      });
+
+      // Deshabilitar el input oculto para que no pueda seguir escribiendo
+      if (hiddenInput.value) {
+        hiddenInput.value.disabled = true;
+        hiddenInput.value.blur();
+      }
+    }
+    else {
+      addServerMessage(`${data.nickname} ha mort!`, "warning");
+    }
   });
 
   // Obtener textos inicialmente si ya tenemos participantes
@@ -985,5 +1073,29 @@ function findResult(nick) {
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #45a29e;
+}
+
+.zombie-sprite {
+  width: 48px;
+  height: 48px;
+  background-image: url('../assets/zombie_run.png');
+  background-repeat: no-repeat;
+  /* background-size = total width / total height para encajar todo en un frame visible */
+  background-size: calc(48px * 3) calc(48px * 2);
+  /* 3 columnas × 2 filas, escalado a 48px cada frame */
+  animation: zombie-run 0.6s steps(2) infinite;
+}
+
+
+@keyframes zombie-run {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: -96px 0;
+  }
+
+  /* 48 * 2 = 96px (solo los 2 primeros frames que se ven bien) */
 }
 </style>
