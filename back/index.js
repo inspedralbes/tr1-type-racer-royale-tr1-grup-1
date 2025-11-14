@@ -53,9 +53,10 @@ const roomTimers = {}; // timers de cada sala
 
 // RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
-const raceMonster = new Map();
-const raceMeta = new Map(); // roomId -> { monsterStartAt }
+const raceMonster = new Map(); // roomId -> { position, speed }
+const raceMeta = new Map();    // roomId -> { monsterStartAt }
 const TICK_MS = 100; // 10 updates per second
+const COUNTDOWN_TIME = 30; // 30 segundos de countdown - duración global del timer
 
 // --------------------------------
 // FUNCIONES DE MANEJO DE SALAS
@@ -64,7 +65,7 @@ const TICK_MS = 100; // 10 updates per second
 function createRoom(roomId) {
   rooms[roomId] = {
     id: roomId,
-    roomName: roomId,         // or whatever dev branch uses
+    roomName: roomId, // or whatever dev branch uses
     players: [],
     status: "waiting",
     results: [],
@@ -174,8 +175,6 @@ function startRoomTimer(roomName) {
     clearInterval(roomTimers[roomName].interval);
   }
 
-  const COUNTDOWN_TIME = 30; // 30 segundos de countdown
-
   roomTimers[roomName] = {
     seconds: COUNTDOWN_TIME,
     interval: null,
@@ -283,7 +282,7 @@ function roomSnapshot(roomId) {
   return {
     trackLen: TRACK_LEN,
     players: map
-      ? Array.from(map.values()).map(p => ({
+      ? Array.from(map.values()).map((p) => ({
           nickname: p.nickname,
           wpm: Math.round(p.wpm || 0),
           accuracy: Math.round(p.accuracy || 0),
@@ -464,6 +463,11 @@ io.on("connection", (socket) => {
     console.log(" Lista de salas enviada a", socket.id, ":", roomList);
   });
 
+ // Evento para solicitar la configuración del timer (rama dev2)
+  socket.on("requestTimerConfig", () => {
+    socket.emit("timerConfig", { duration: COUNTDOWN_TIME });
+  });
+
   // Crear sala
   socket.on("createRoom", (data) => {
     if (
@@ -487,13 +491,13 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // ✅ Use the helper – this creates racePlayers, raceMonster, raceMeta, results…
+    // Use the helper – this creates racePlayers, raceMonster, raceMeta, results…
     createRoom(data.roomName);
 
     // Fill in lobby-specific fields
     const room = rooms[data.roomName];
-    room.roomName  = data.roomName;
-    room.language  = data.language;
+    room.roomName = data.roomName;
+    room.language = data.language;
     room.difficulty = data.difficulty;
     room.createdBy = data.userName;
 

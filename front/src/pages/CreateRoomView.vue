@@ -1,117 +1,160 @@
 <template>
-  <div style="max-width: 500px; margin: 2rem auto; padding: 1.5rem">
-    <h2
-      style="
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        text-align: center;
-      "
+  <section
+    class="relative min-h-screen flex flex-col items-center justify-center font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
+  >
+    <!-- Fondo -->
+    <img
+      src="/src/assets/opt2_img1.png"
+      alt="Zombie sky background"
+      class="absolute inset-0 w-full h-full object-cover opacity-80"
+    />
+    <div class="absolute inset-0 bg-black/40"></div>
+    <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
+
+    <!-- Panel central con animación de entrada -->
+    <div
+      class="relative z-20 w-full max-w-md bg-black/50 border border-lime-400 rounded-xl shadow-[0_0_20px_#66FCF1] p-6 space-y-6 animate-fadeIn"
     >
-      Crear Nueva Sala
-    </h2>
+      <!-- Título con efecto flicker -->
+      <h2
+        class="text-3xl text-center text-lime-400 tracking-widest drop-shadow-[0_0_15px_#66FCF1]"
+      >
+        Crear Nova Sala
+      </h2>
 
-    <form @submit.prevent="onSubmit" class="create-room">
-      <div>
-        <label for="roomName">Nombre de la sala</label>
-        <input
-          id="roomName"
-          v-model="roomName"
-          type="text"
-          required
-          placeholder="Ej: Sala de Velocistas"
-        />
-      </div>
+      <!-- Formulario -->
+      <form @submit.prevent="onSubmit" class="space-y-4">
+        <!-- Nombre sala -->
+        <div class="animate-fadeItem delay-[100ms]">
+          <label class="text-lime-300 text-sm uppercase tracking-wider"
+            >Nom de la sala</label
+          >
+          <input
+            id="roomName"
+            v-model="roomName"
+            type="text"
+            required
+            placeholder="Ex: Sala de Velocistes"
+            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400"
+          />
+        </div>
 
-      <div>
-        <label for="language">Idioma</label>
-        <select id="language" v-model="language" required>
-          <option disabled value="">Selecciona...</option>
-          <option v-for="lang in languages" :key="lang" :value="lang">
+        <!-- Idioma -->
+        <div class="animate-fadeItem delay-[200ms]">
+          <label class="text-lime-300 text-sm uppercase tracking-wider"
+            >Idioma</label
+          >
+          <select
+            id="language"
+            v-model="language"
+            required
+            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400"
+          >
+            <option disabled value="">Selecciona...</option>
+            <option v-for="lang in languages" :key="lang" :value="lang">
+              {{
+                lang === "es" ? "Espanyol" : lang === "ca" ? "Català" : "Anglès"
+              }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Dificultad -->
+        <div class="animate-fadeItem delay-[300ms]">
+          <label class="text-lime-300 text-sm uppercase tracking-wider"
+            >Dificultat</label
+          >
+          <select
+            id="difficulty"
+            v-model="difficulty"
+            required
+            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400"
+          >
+            <option disabled value="">Selecciona...</option>
+            <option v-for="d in difficulties" :key="d" :value="d">
+              {{
+                d === "facil"
+                  ? "Fàcil"
+                  : d === "intermig"
+                  ? "Intermedi"
+                  : "Difícil"
+              }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Tu nombre -->
+        <div class="animate-fadeItem delay-[400ms]">
+          <label class="text-lime-300 text-sm uppercase tracking-wider"
+            >El teu nom</label
+          >
+          <input
+            id="userName"
+            v-model="userName"
+            type="text"
+            required
+            placeholder="Introdueix el teu nom"
+            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400"
+          />
+          <small class="text-gray-400 text-xs block mt-1">
             {{
-              lang === "es" ? "Español" : lang === "ca" ? "Catalán" : "Inglés"
+              userStore.hasNick
+                ? "Pots canviar el teu nom si vols"
+                : "Aquest serà el teu nom a la sala"
             }}
-          </option>
-        </select>
-      </div>
+          </small>
+        </div>
 
-      <div>
-        <label for="difficulty">Dificultad</label>
-        <select id="difficulty" v-model="difficulty" required>
-          <option disabled value="">Selecciona...</option>
-          <option v-for="d in difficulties" :key="d" :value="d">
-            {{
-              d === "facil"
-                ? "Fácil"
-                : d === "intermig"
-                ? "Intermedio"
-                : "Difícil"
-            }}
-          </option>
-        </select>
-      </div>
+        <!-- Botón crear -->
+        <div class="animate-fadeItem delay-[500ms]">
+          <button
+            type="submit"
+            :disabled="!isValid || sending"
+            class="w-full mt-4 py-2 rounded-md text-black font-bold uppercase tracking-widest transition disabled:opacity-40 disabled:cursor-not-allowed"
+            :class="
+              !isValid || sending
+                ? 'bg-gray-500'
+                : 'bg-lime-400 hover:bg-lime-300'
+            "
+          >
+            {{ sending ? "Creant..." : "Crear Sala" }}
+          </button>
+        </div>
 
-      <div>
-        <label for="userName">Tu nombre</label>
-        <input
-          id="userName"
-          v-model="userName"
-          type="text"
-          required
-          placeholder="Introduce tu nombre"
-        />
-        <small
-          style="
-            color: #6b7280;
-            font-size: 0.8rem;
-            margin-top: 0.25rem;
-            display: block;
-          "
+        <!-- Botón volver -->
+        <div class="animate-fadeItem delay-[600ms] text-center">
+          <button
+            type="button"
+            @click="router.push('/')"
+            class="border border-lime-400 text-lime-400 px-4 py-2 rounded-md font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition"
+          >
+            Tornar a l'inici
+          </button>
+        </div>
+
+        <!-- Mensajes -->
+        <p
+          v-if="error"
+          class="text-purple-400 text-center text-sm font-semibold animate-fadeItem delay-[700ms]"
         >
-          {{
-            userStore.hasNick
-              ? "Puedes cambiar tu nombre si quieres"
-              : "Este será tu nombre en la sala"
-          }}
-        </small>
-      </div>
-
-      <div style="margin-top: 1rem">
-        <button
-          type="submit"
-          :disabled="!isValid || sending"
-          :style="{
-            backgroundColor: !isValid || sending ? '#9ca3af' : '#2563eb',
-            cursor: !isValid || sending ? 'not-allowed' : 'pointer',
-          }"
+          {{ error }}
+        </p>
+        <p
+          v-if="success"
+          class="text-lime-400 text-center text-sm font-semibold animate-fadeItem delay-[700ms]"
         >
-          {{ sending ? "Creando..." : "Crear Sala" }}
-        </button>
-      </div>
+          {{ success }}
+        </p>
+      </form>
+    </div>
 
-      <div style="margin-top: 1rem; text-align: center">
-        <button
-          type="button"
-          @click="router.push('/')"
-          style="
-            background: none;
-            border: 1px solid #d1d5db;
-            color: #6b7280;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-          "
-        >
-          Volver al inicio
-        </button>
-      </div>
-
-      <p v-if="error" class="error" style="margin-top: 1rem">{{ error }}</p>
-      <p v-if="success" class="success" style="margin-top: 1rem">
-        {{ success }}
-      </p>
-    </form>
-  </div>
+    <!-- Frase inferior -->
+    <footer
+      class="relative z-20 text-center text-xs text-gray-500 italic mt-6 tracking-widest animate-fadeItem delay-[800ms]"
+    >
+      "Només els valents creen la seva pròpia batalla..."
+    </footer>
+  </section>
 </template>
 
 <script setup>
@@ -154,7 +197,7 @@ const isValid = computed(() => {
 
 function onSubmit() {
   if (!isValid.value) {
-    error.value = "Rellena todos los campos correctamente.";
+    error.value = "Omple tots els camps correctament.";
     return;
   }
 
@@ -192,7 +235,7 @@ function onSubmit() {
 
   socket.once("roomCreated", (data) => {
     console.log("Room creada con éxito:", data);
-    success.value = `Sala "${payload.roomName}" creada exitosamente`;
+    success.value = `Sala "${payload.roomName}" creada amb èxit`;
 
     // Navegar al lobby
     setTimeout(() => {
@@ -204,7 +247,7 @@ function onSubmit() {
     console.log("Error al crear room:", data);
     error.value =
       data.message === "Existent ROOM"
-        ? "Ya existe una sala con ese nombre"
+        ? "Ja existeix una sala amb aquest nom"
         : "Error al crear la sala";
     sending.value = false;
   });
@@ -213,33 +256,54 @@ function onSubmit() {
   // socket.once('room-created', (data) => { ... })
 }
 </script>
-
 <style scoped>
-.create-room {
-  max-width: 420px;
-  display: grid;
-  gap: 8px;
+@keyframes fogMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+.bg-fog {
+  background: url("/src/assets/nice-snow.png");
+  background-repeat: repeat;
+  background-size: 600px 600px;
+  opacity: 0.3;
+  filter: brightness(1.3) contrast(0.8);
+  animation: fogMove 60s linear infinite;
+  z-index: 10;
+  pointer-events: none;
 }
 
-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 4px;
+/* Animaciones del panel y contenido */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+    filter: brightness(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }
-
-input,
-select,
-button {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
+@keyframes fadeItem {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-
-.error {
-  color: #a00;
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-out forwards;
 }
-
-.success {
-  color: #080;
+.animate-fadeItem {
+  animation: fadeItem 0.8s ease-out forwards;
+  opacity: 0;
 }
 </style>

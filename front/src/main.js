@@ -1,11 +1,10 @@
 import { createApp } from "vue";
 import App from "./App.vue";
+import "./assets/main.css";
 import router from "./router";
 import { createPinia } from "pinia";
 import Toast from "vue-toastification";
 import "vue-toastification/dist/index.css";
-import "../style/style.css";
-
 
 const toastOptions = {
   position: "top-left",

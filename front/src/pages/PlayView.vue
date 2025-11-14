@@ -1,101 +1,184 @@
 <template>
-  <main class="typing-page">
-    <header class="topbar">
-      <h1>Typing Test</h1>
-      <div class="stats">
-        <div><strong>WPM:</strong> {{ wpm }}</div>
-        <div><strong>Accuracy:</strong> {{ accuracy }}%</div>
-        <div><strong>Time:</strong> {{ elapsedSeconds }}s</div>
-      </div>
-    </header>
+  <section
+    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
+  >
+    <!-- Fondo en capas con efecto paralaje -->
+    <div class="absolute inset-0 overflow-hidden">
+      <!-- Capa 1: Fondo lejano (más lento) -->
+      <div class="absolute inset-0 bg-layer-1 z-0"></div>
 
-    <section class="text-area" @click="focusInput">
-      <!-- Estados de carga y error -->
-      <div v-if="loading" class="status-message loading">Cargando texto...</div>
-      <div v-else-if="error" class="status-message error">{{ error }}</div>
+      <!-- capa de niebla animada -->
+      <div class="bg-fog absolute inset-0 z-7 pointer-events-none"></div>
 
-      <!-- Contenido del texto -->
-      <div v-else class="text-wrapper" ref="textWrapper">
-        <span
-          v-for="(ch, i) in targetChars"
-          :key="i"
-          :class="charClass(i)"
-        >{{ ch }}</span>
-        <!-- blinking caret positioned dynamically -->
-        <span v-if="!typingDisabled" class="caret" :style="caretStyle"></span>
-      </div>
+      <!-- Capa 2: Fondo medio (velocidad media) -->
+      <div class="absolute inset-0 bg-layer-2 z-5"></div>
 
-      <!-- hidden input to capture keyboard, mobile-friendly -->
-      <textarea
-        ref="hiddenInput"
-        v-model="userInput"
-        class="hidden-input"
-        :disabled="typingDisabled"
-        @input="onInput"
-        @keydown="onKeydown"
-        @paste.prevent
-        :maxlength="target.length"
-        aria-label="Typing input"
-      ></textarea>
-    </section>
+      <!-- Capa oscura -->
+      <div class="absolute inset-0 bg-black/40 z-[8]"></div>
 
-    <!-- Jugadores de la sala -->
-    <section v-if="participants.length > 0" class="participants-section">
-      <h3>Jugadores en la sala:</h3>
-      <div class="results-grid">
-        <div
-          v-for="nick in participants"
-          :key="nick"
-          class="result-card"
+      <!-- Capa 3: Primer plano (más rápido, más cercano al jugador) -->
+      <div class="absolute inset-0 bg-layer-3 z-10"></div>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="relative z-30 w-full max-w-6xl space-y-6 animate-fadeIn">
+      <!-- Header con estadísticas -->
+      <header
+        class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
+      >
+        <h1
+          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
         >
-          <strong>{{ nick }}</strong>
-          <div>WPM: {{ findResult(nick)?.wpm ?? "-" }}</div>
-          <div>Precisión: {{ findResult(nick)?.accuracy ?? "-" }}%</div>
-        </div>
-      </div>
-    </section>
+          Escape the Monster
+        </h1>
 
-    <!-- Race progress (server-authoritative) -->
-    <section v-if="raceState.length" class="race-track">
-      <h3 class="race-title">Escape the Monster!</h3>
-
-      <div class="track-wrapper">
-        <!-- Background lane -->
-        <div class="track-lane">
-          <!-- Finish flag -->
-          <div class="finish-flag">🏁</div>
-
-          <!-- Monster -->
-          <div
-            v-if="monsterState"
-            class="runner monster"
-            :style="runnerStyle(monsterState.position)"
-          >
-            <div class="runner-sprite monster-sprite">🧟‍♂️</div>
+        <div class="flex flex-wrap gap-6 text-sm">
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">WPM</div>
+            <div class="text-2xl text-lime-300">{{ wpm }}</div>
           </div>
-
-          <!-- Players -->
-          <div
-            v-for="p in raceState"
-            :key="p.nickname"
-            class="runner"
-            :class="{ dead: p.alive === false, me: p.nickname === user.nickname }"
-            :style="runnerStyle(p.position)"
-          >
-            <div class="runner-sprite">
-              <!-- You can swap this emoji with an <img> sprite -->
-              <span v-if="p.alive">🏃‍♂️</span>
-              <span v-else>💀</span>
-            </div>
-            <div class="runner-name">
-              {{ p.nickname }}
-            </div>
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">Accuracy</div>
+            <div class="text-2xl text-lime-300">{{ accuracy }}%</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">Time</div>
+            <div class="text-2xl text-lime-300">{{ elapsedSeconds }}s</div>
           </div>
         </div>
-      </div>
-    </section>
+      </header>
 
-    <!-- Finish/Death overlay -->
+      <!-- Área de texto principal -->
+      <section
+        class="bg-black/70 border border-lime-400 rounded-lg p-6 shadow-lg animate-fadeItem delay-[200ms]"
+        @click="focusInput"
+      >
+        <!-- Estados de carga y error -->
+        <div v-if="loading" class="text-center py-12 text-lime-400">
+          Cargando texto...
+        </div>
+        <div v-else-if="error" class="text-center py-12 text-red-400">
+          {{ error }}
+        </div>
+
+        <!-- Contenido del texto -->
+        <div v-else class="text-wrapper relative" ref="textWrapper">
+          <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
+            ch
+          }}</span>
+          <!-- blinking caret positioned dynamically -->
+          <span v-if="!typingDisabled" class="caret" :style="caretStyle"></span>
+        </div>
+
+        <!-- hidden input to capture keyboard, mobile-friendly -->
+        <textarea
+          ref="hiddenInput"
+          v-model="userInput"
+          class="hidden-input"
+          :disabled="typingDisabled"
+          @input="onInput"
+          @keydown="onKeydown"
+          @paste.prevent
+          :maxlength="target.length"
+          aria-label="Typing input"
+        ></textarea>
+      </section>
+
+      <!-- Pista de carrera con monstruito -->
+      <section
+        v-if="raceState.length"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[300ms]"
+      >
+        <h3 class="text-lime-400 font-semibold text-lg mb-4">
+          Escape the Monster!
+        </h3>
+
+        <div class="track-wrapper">
+          <!-- lane -->
+          <div class="track-lane">
+            <!-- Finish flag -->
+            <div class="finish-flag">🏁</div>
+
+            <!-- Monster -->
+            <div
+              v-if="monsterState"
+              class="runner monster"
+              :style="runnerStyle(monsterState.position)"
+            >
+              <div class="runner-sprite monster-sprite">🧟‍♂️</div>
+            </div>
+
+            <!-- Players -->
+            <div
+              v-for="p in raceState"
+              :key="p.nickname"
+              class="runner"
+              :class="{ dead: p.alive === false, me: p.nickname === user.nickname }"
+              :style="runnerStyle(p.position)"
+            >
+              <div class="runner-sprite">
+                <span v-if="p.alive">🏃‍♂️</span>
+                <span v-else>💀</span>
+              </div>
+              <div class="runner-name">
+                {{ p.nickname }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Jugadores en la sala -->
+      <section
+        v-if="participants.length > 0"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[400ms]"
+      >
+        <h3 class="text-lime-400 font-semibold text-lg mb-4">
+          Jugadores en la sala:
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="nick in participants"
+            :key="nick"
+            class="bg-gray-800/50 border border-gray-700 rounded-md p-3"
+          >
+            <div class="text-lime-300 font-semibold">{{ nick }}</div>
+            <div class="text-sm text-gray-400">
+              WPM: {{ findResult(nick)?.wpm ?? "-" }}
+            </div>
+            <div class="text-sm text-gray-400">
+              Precisión: {{ findResult(nick)?.accuracy ?? "-" }}%
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Botones de control -->
+      <footer
+        class="flex flex-wrap justify-center gap-2 animate-fadeItem delay-[600ms]"
+      >
+        <button
+          @click="resetAndHide"
+          class="px-3 py-1 text-sm border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition"
+        >
+          Reset
+        </button>
+        <button
+          @click="nextText"
+          class="px-3 py-1 text-sm border border-sky-500 text-sky-400 rounded-md font-bold uppercase tracking-wider hover:bg-sky-500 hover:text-black transition"
+        >
+          Next Text
+        </button>
+        <button
+          @click="goBackToLobby"
+          class="px-3 py-1 text-sm border border-purple-600 text-purple-400 rounded-md font-bold uppercase tracking-wider hover:bg-purple-600 hover:text-black transition"
+        >
+          Back to Lobby
+        </button>
+      </footer>
+    </main>
+
+    <!-- Overlay de fin / muerte -->
     <div v-if="showOverlay" class="overlay">
       <div class="modal">
         <h3 v-if="dead">You were caught 💀</h3>
@@ -111,11 +194,6 @@
         </div>
       </div>
     </div>
-
-    <footer class="actions">
-      <button class="btn" @click="resetAndHide">Reset</button>
-      <button class="btn" @click="nextText">Next Text</button>
-    </footer>
 
     <!-- resumen fijo en la esquina -->
     <aside v-if="gameResults.length" class="results-summary">
@@ -140,9 +218,18 @@
       </div>
     </aside>
 
-    <!-- teclado bonito de la rama dev -->
-    <Keyboard :nickname="user.nickname" :room="ROOM" />
-  </main>
+    <!-- Teclado -->
+    <div class="relative z-20 w-full max-w-6xl mt-4 animate-fadeItem delay-[700ms]">
+      <Keyboard :nickname="user.nickname" :room="ROOM" />
+    </div>
+
+    <!-- Footer -->
+    <footer
+      class="relative z-20 text-center text-xs text-gray-500 italic mt-4 tracking-widest animate-fadeItem delay-[800ms]"
+    >
+      "Cada paraula conta... La supervivència depèn de la velocitat."
+    </footer>
+  </section>
 </template>
 
 <script setup>
@@ -169,15 +256,14 @@ if (!user.hasNick) {
   router.replace({ name: "home", query: { needNick: "1" } });
 }
 
-// ----- ROOM dinámico (rama dev) -----
+// ----- ROOM dinámico -----
 const roomList = ref([]);
 const currentRoom = ref(null);
 
 const ROOM = computed(() => {
   if (currentRoom.value) return currentRoom.value.name;
-
   if (!Array.isArray(roomList.value)) return "";
-  
+
   const userRoom = roomList.value.find(
     (room) =>
       room.players &&
@@ -214,15 +300,12 @@ socket.on("race:update", (snap) => {
     raceState.value = snap.players || [];
     monsterState.value = snap.monster || null;
     trackLen.value = snap.trackLen || 100;
-    console.log("🏁 Race update received:", { players: raceState.value.length, monster: monsterState.value });
+    console.log("🏁 Race update received:", {
+      players: raceState.value.length,
+      monster: monsterState.value,
+    });
   }
 });
-
-function pct(pos) {
-  const len = trackLen.value || 100;
-  const clamped = Math.max(0, Math.min(pos, len));
-  return ((clamped / len) * 100).toFixed(1) + "%";
-}
 
 function cleanStat(n, max) {
   const v = Number(n);
@@ -233,11 +316,11 @@ function cleanStat(n, max) {
 function pushResultUnique(entry) {
   const cleaned = {
     ...entry,
-    wpm: cleanStat(entry.wpm, 400),        // cap at 400 WPM
+    wpm: cleanStat(entry.wpm, 400),
     accuracy: cleanStat(entry.accuracy, 100),
   };
 
-  const i = gameResults.value.findIndex(r => r.nickname === cleaned.nickname);
+  const i = gameResults.value.findIndex((r) => r.nickname === cleaned.nickname);
   if (i === -1) {
     gameResults.value.push(cleaned);
   } else {
@@ -268,16 +351,15 @@ socket.on("player:caught", ({ nickname, wpm, accuracy }) => {
   }
 });
 
-// global race over (all resolved)
+// race over info (already handled above for UI)
 socket.on("race:over", ({ winner }) => {
   console.log(`🏁 Race over! Winner: ${winner ?? "none"}`);
-  // We already handle overlay for winner/loser via player:finished / player:caught
 });
 
-// errores y rendimiento (rama dev)
+// errores y rendimiento
 const totalErrors = ref(0);
 const lastTypedLength = ref(0);
-const lastWpmEmit = ref(0); // reservado por si luego quieres usarlo de nuevo
+const lastWpmEmit = ref(0); // reservado para mejoras futuras
 
 async function pickRandomText() {
   try {
@@ -406,7 +488,7 @@ async function onInput() {
     userInput.value = userInput.value.slice(0, target.value.length);
   }
 
-  // ---- error tracking (rama dev) ----
+  // ---- error tracking ----
   const len = userInput.value.length;
   const diff = len - lastTypedLength.value;
 
@@ -429,7 +511,7 @@ async function onInput() {
     });
   }
 
-  // ---- race speed bump per correct char (HEAD logic) ----
+  // ---- race speed bump per correct char ----
   const was = prevCorrect.value;
   const now = correctChars.value;
   const correctChar = now > was;
@@ -445,7 +527,7 @@ async function onInput() {
 
   // ---- texto infinito: cuando terminas el texto, cargar el siguiente ----
   if (userInput.value.length >= target.value.length) {
-    await nextText(); // carga nuevo texto
+    await nextText();
     userInput.value = "";
   }
 }
@@ -485,7 +567,6 @@ onMounted(async () => {
   socket.on("roomList", (data) => {
     roomList.value = Array.isArray(data.rooms) ? data.rooms : [];
     if (!currentRoom.value) {
-      // Only auto-detect if not already set
       const userRoom = roomList.value.find(
         (room) =>
           room.players &&
@@ -583,31 +664,33 @@ function findResult(nick) {
   return gameResults.value.find((r) => r.nickname === nick);
 }
 
+// estilo inline para runners (monster y jugadores)
 function runnerStyle(position) {
-  const len = trackLen.value || TRACK_LEN; // TRACK_LEN from shared/speed.js if imported
+  const len = trackLen.value || 100;
   const clamped = Math.max(0, Math.min(position, len));
   const pct = (clamped / len) * 100;
   return {
-    left: pct + '%',   // move relative to track width
+    left: pct + "%",
   };
 }
 </script>
 
 <style scoped>
+/* ----- HUD de resultados flotante ----- */
 .results-summary {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #e5e7eb;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid #4b5563;
   border-radius: 10px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
   padding: 0.75rem 0.85rem;
-  width: 230px;
+  width: 240px;
   max-height: 350px;
   overflow-y: auto;
   font-size: 0.85rem;
-  z-index: 20;
+  z-index: 40;
   transition: all 0.3s ease;
 }
 
@@ -616,15 +699,15 @@ function runnerStyle(position) {
   font-size: 0.9rem;
   text-align: center;
   margin-bottom: 0.4rem;
-  color: #374151;
+  color: #e5e7eb;
 }
 
 .summary-item {
-  background: white;
+  background: rgba(15, 23, 42, 0.9);
   border-radius: 8px;
   padding: 0.4rem 0.6rem;
   margin-bottom: 0.35rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #374151;
   display: flex;
   flex-direction: column;
   transition: background 0.3s, transform 0.2s;
@@ -635,10 +718,10 @@ function runnerStyle(position) {
 }
 
 .summary-item.me {
-  border-color: #2563eb;
-  background: #eff6ff;
+  border-color: #a3e635;
+  background: rgba(34, 197, 94, 0.1);
   transform: scale(1.02);
-  box-shadow: 0 0 0 1px #2563eb;
+  box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.5);
 }
 
 .summary-row {
@@ -649,57 +732,167 @@ function runnerStyle(position) {
 
 .you-tag {
   font-size: 0.75rem;
-  color: #2563eb;
+  color: #a3e635;
 }
 
 .summary-stats {
   display: flex;
   justify-content: space-between;
-  color: #374151;
+  color: #e5e7eb;
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }
 
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid #f3f4f6;
-  padding: 0.3rem 0;
-}
-.summary-item:last-child {
-  border-bottom: none;
-}
 .summary-item strong {
-  color: #2563eb;
+  color: #f9fafb;
 }
 
+/* ----- Overlay / modal ----- */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
-  animation: fadeIn 0.25s ease;
+  animation: fadeInOverlay 0.25s ease;
 }
+
 .modal {
-  background: white;
+  background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 1rem 1.25rem;
+  padding: 1.25rem 1.5rem;
   min-width: 260px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   animation: popIn 0.2s ease;
 }
+
 .modal-actions {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
   margin-top: 0.75rem;
 }
+
+.btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #f3f4f6;
+}
+
+/* ----- Animaciones de fondo ----- */
+@keyframes fogMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes backgroundMoveSlow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -100vw 0;
+  }
+}
+
+@keyframes backgroundMoveMedium {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -200vw 0;
+  }
+}
+
+@keyframes backgroundMoveFast {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -300vw 0;
+  }
+}
+
+.bg-fog {
+  background: url("/src/assets/nice-snow.png");
+  background-repeat: repeat;
+  background-size: 600px 600px;
+  opacity: 0.3;
+  filter: brightness(1.3) contrast(0.8);
+  animation: fogMove 60s linear infinite;
+  z-index: 7;
+  pointer-events: none;
+}
+
+/* Capa 1: Fondo lejano (más lento) */
+.bg-layer-1 {
+  background-image: url("/src/assets/opt2_img1.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 0.8;
+  animation: backgroundMoveSlow 60s linear infinite;
+}
+
+/* Capa 2: Fondo medio (velocidad media) */
+.bg-layer-2 {
+  background-image: url("/src/assets/opt1_img2.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 0.6;
+  animation: backgroundMoveMedium 25s linear infinite;
+}
+
+/* Capa 3: Primer plano (más rápido, más cercano) */
+.bg-layer-3 {
+  background-image: url("/src/assets/opt1_img3.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 1;
+  animation: backgroundMoveFast 15s linear infinite;
+}
+
+/* Animaciones del panel y contenido */
 @keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+    filter: brightness(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes fadeItem {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInOverlay {
   from {
     opacity: 0;
   }
@@ -707,6 +900,7 @@ function runnerStyle(position) {
     opacity: 1;
   }
 }
+
 @keyframes popIn {
   from {
     transform: scale(0.95);
@@ -718,100 +912,28 @@ function runnerStyle(position) {
   }
 }
 
-.bar.monster {
-  background: #dc2626;
-}
-.bar.dead {
-  background: #9ca3af;
-}
-.dead {
-  opacity: 0.6;
-  text-decoration: line-through;
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-out forwards;
 }
 
-/* Race bars */
-.race-progress {
-  margin-top: 1.5rem;
+.animate-fadeItem {
+  animation: fadeItem 0.8s ease-out forwards;
+  opacity: 0;
 }
 
-.progress-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.bar-container {
-  flex: 1;
-  background: #e5e7eb;
-  border-radius: 4px;
-  height: 10px;
-  overflow: hidden;
-}
-
-.bar {
-  height: 100%;
-  transition: width 0.1s linear;
-  background: #2563eb;
-}
-
-/* Page layout */
-.typing-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.topbar h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-.stats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.95rem;
-}
-
-/* Text area */
-.text-area {
-  position: relative;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  min-height: 180px;
-  line-height: 1.6;
-  font-size: 1.05rem;
-  background: #0f172a0d;
-  cursor: text;
-  user-select: none;
-}
-
+/* Área de texto principal */
 .text-wrapper {
   position: relative;
-  color: #6b7280;
+  color: #9ca3af;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
-}
-
-/* Status */
-.status-message {
-  text-align: center;
-  padding: 2rem;
+  line-height: 1.8;
   font-size: 1.1rem;
-}
-.loading {
-  color: #2563eb;
-}
-.error {
-  color: #dc2626;
+  min-height: 120px;
+  cursor: text;
+  user-select: none;
 }
 
 /* characters */
@@ -819,38 +941,47 @@ function runnerStyle(position) {
   position: relative;
 }
 .untouched {
-  opacity: 0.65;
+  opacity: 0.6;
+  color: #6b7280;
 }
 .correct {
-  color: #10b981;
+  color: #a3e635;
 }
 .wrong {
-  color: #e81c1c;
+  color: #8f1de0;
+  background-color: rgba(190, 164, 231, 0.15);
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+  text-shadow: 0 0 9px rgba(129, 30, 249, 0.6);
 }
 .current {
-  color: #111827;
+  color: #a3e635;
+  background-color: rgba(101, 252, 241, 0.2);
 }
 
-/* blinking caret positioned dynamically */
+/* Caret animado */
 .caret {
   display: inline-block;
   width: 2px;
-  height: 1.2em;
-  background: #111827;
+  height: 1.4em;
+  background: #a3e635;
   position: absolute;
   z-index: 1;
-  animation: blink 0.5s steps(2, start) infinite;
+  animation: blink 1s ease-in-out infinite;
+  box-shadow: 0 0 5px #a3e635;
 }
 @keyframes blink {
+  0%,
   50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
     opacity: 0;
   }
 }
 
-/* hidden input overlay */
+/* Hidden input overlay */
 .hidden-input {
   position: absolute;
   inset: 0;
@@ -860,82 +991,31 @@ function runnerStyle(position) {
   border: none;
   resize: none;
   cursor: text;
-  caret-color: #111827;
+  caret-color: transparent;
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
-  padding: 16px;
+  padding: inherit;
   outline: none;
+  z-index: 5;
 }
 
-/* Buttons */
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-.btn {
-  padding: 0.5rem 0.9rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: white;
-  cursor: pointer;
-}
-.btn:hover {
-  background: #f3f4f6;
-}
-
-/* results grids */
-.results-section {
-  margin: 2rem 0;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-}
-.participants-section {
-  margin: 1.5rem 0;
-  padding: 0.5rem 0;
-}
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.result-card {
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  background: white;
-}
-.result-card strong {
-  color: #2563eb;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
+/* ----- Pista de carrera ----- */
 .race-track {
   margin-top: 1.5rem;
 }
 
-.race-title {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
 .track-wrapper {
   position: relative;
-  border-radius: 2px;     /* or 0 if you want perfectly square */
-  border: 1px solid #e5e7eb;
-  background: linear-gradient(to right, #f9fafb, #eef2ff);
-  padding: 12px 16px;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: radial-gradient(circle at 0 0, #111827, #020617);
+  padding: 14px 18px;
 }
 
 .track-lane {
   position: relative;
-  height: 64px;
-  /* optional, keep it small or remove */
-  border-radius: 8px;
+  height: 72px;
 }
 
 /* Finish flag at far right */
@@ -951,7 +1031,7 @@ function runnerStyle(position) {
 .runner {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);  /* Y only */
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -960,7 +1040,7 @@ function runnerStyle(position) {
 }
 
 .runner.me .runner-sprite {
-  box-shadow: 0 0 0 2px #2563eb;
+  box-shadow: 0 0 0 2px #60a5fa;
 }
 
 .runner.dead {
@@ -969,11 +1049,11 @@ function runnerStyle(position) {
 
 /* The avatar circle */
 .runner-sprite {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: #020617;
+  border: 2px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -981,15 +1061,16 @@ function runnerStyle(position) {
 
 /* Special monster skin */
 .monster-sprite {
-  background: #fee2e2;
+  background: #7f1d1d;
   border-color: #fecaca;
 }
 
 /* name label under avatar */
 .runner-name {
   font-size: 0.7rem;
-  padding: 2px 4px;
+  padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e5e7eb;
 }
 </style>
