@@ -43,7 +43,7 @@ const roomTimers = {}; // Almacenará los timers de cada sala
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wmp, accuracy, speed, position})
 const TRACK_LEN = 100; // "distance" in %
 const TICK_MS = 100; // 10 updates per second
-const COUNTDOWN_TIME = 10; // 30 segundos de countdown - duración global del timer
+const COUNTDOWN_TIME = 20; // 20 segundos de countdown - duración global del timer
 
 // --------------------------------
 // FUNCIONES DE MANEJO DE SALAS
@@ -375,8 +375,6 @@ io.on("connection", (socket) => {
 
   socket.on("joinRoom", (data) => {
     const { roomName, nickname } = data;
-
-
 
     if (!rooms[roomName] || rooms[roomName].status !== "waiting") {
       socket.emit("errorJoin");
