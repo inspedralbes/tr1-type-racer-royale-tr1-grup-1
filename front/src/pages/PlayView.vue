@@ -101,12 +101,12 @@
             }}</span>
             <div class="flex-1 bg-gray-800 rounded-full h-3 overflow-hidden">
               <div
-                class="h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300"
-                :style="{ width: p.position + '%' }"
+                class="bar h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300"
+                :style="{ width: p.position * 2 + 'px' }"
               ></div>
             </div>
             <small class="text-gray-400 min-w-[40px] text-right"
-              >{{ p.position.toFixed(0) }}%</small
+              >{{ p.position }} pts</small
             >
           </div>
         </div>
@@ -208,7 +208,6 @@ import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-import { calcPlayerSpeed } from "@/../shared/speed.js";
 import Keyboard from "@/components/Keyboard.vue";
 const router = useRouter();
 const user = useUserStore();
@@ -340,20 +339,25 @@ function charClass(i) {
   return "char untouched";
 }
 
-// --- RACE: emit progress (throttled) ---
+// --- RACE: emit progress (simplificado a +1/-1) ---
 let lastEmit = 0;
-const EMIT_MS = 250;
+const EMIT_MS = 100; // más sensible, puedes subir a 250ms
+
 function emitProgressThrottled() {
   const now = performance.now();
   if (now - lastEmit < EMIT_MS) return;
   lastEmit = now;
-  const speed = calcPlayerSpeed(wpm.value);
+
+  if (userInput.value.length === 0) return;
+
+  const pos = userInput.value.length - 1;
+  const correct = target.value[pos] === userInput.value[pos];
+  const delta = correct ? 1 : -1;
+
   socket.emit("typing:progress", {
     room: ROOM.value,
     nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed,
+    delta,
   });
 }
 
@@ -550,6 +554,7 @@ function findResult(nick) {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -630,6 +635,7 @@ function findResult(nick) {
     transform: scale(0.95);
     filter: brightness(0.5);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -642,6 +648,7 @@ function findResult(nick) {
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -716,6 +723,7 @@ function findResult(nick) {
   50% {
     opacity: 1;
   }
+
   51%,
   100% {
     opacity: 0;

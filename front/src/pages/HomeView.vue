@@ -93,7 +93,7 @@
 
               <button
                 class="px-3 py-1 bg-lime-400 text-black rounded-md font-bold text-xs hover:bg-lime-300 transition disabled:opacity-50"
-                :disabled="!nick"
+                :disabled="!nick?.trim() || nicknameExists(room)"
                 @click="
                   user.setNickname(nick);
                   socket.emit('joinRoom', {
@@ -102,7 +102,7 @@
                   });
                 "
               >
-                Unir-se
+                {{ nicknameExists(room) ? "Nom ja en ús" : "Unir-se" }}
               </button>
             </div>
           </li>
@@ -165,13 +165,17 @@ socket.on("roomList", (data) => {
 
 // Escuchar cuando el usuario se une exitosamente a una sala
 socket.on("joinedRoom", (data) => {
+  user.setId(data.playerId);
+  user.setNickname(data.nickname);
   console.log(`Te has unido a la sala ${data.roomName}`);
   router.push("/lobby");
 });
 
 // Mantener el listener userJoined para notificaciones generales
 socket.on("userJoined", (data) => {
-  console.log(`${data.nickname} se unió a la sala ${data.roomName}`);
+  console.log(
+    `${data.nickname} se unió a la sala ${data.roomName}, id: ${data.playerId}`
+  );
 });
 
 // Escuchar error al unirse
@@ -182,6 +186,13 @@ socket.on("errorJoin", () => {
     text: "No s'ha pogut unir a la sala. La sala no existeix o no està disponible.",
   });
 });
+
+function nicknameExists(room) {
+  if (!nick.value?.trim()) return false;
+  return room.players?.some(
+    (p) => p.nickname.toLowerCase() === nick.value.trim().toLowerCase()
+  );
+}
 
 function joinRoom(roomName) {
   if (!nick.value?.trim()) return;
@@ -209,26 +220,6 @@ function goToCreateRoom() {
 function join() {
   if (!nick.value?.trim()) return;
   user.setNickname(nick.value);
-
-  // Emitimos la petición de crear sala
-  socket.emit("requestRoomCreation", { roomName: "defaultRoom" });
-
-  // Escuchamos la confirmación del servidor
-  socket.on("confirmRoomCreation", (data) => {
-    console.log("Confirmación recibida:", data.roomName);
-
-    // Una vez confirmado, emitimos para crear o unirnos a la sala
-    socket.emit("createRoom", { room: data.roomName });
-  });
-
-  // Escuchamos cuando se crea la sala
-  socket.on("roomCreated", (data) => {
-    console.log("Sala creada o unida:", data.room);
-
-    // go back where they intended, else /lobby
-    const redirectTo = route.query.redirectTo || "/lobby";
-    router.push(redirectTo);
-  });
 }
 </script>
 <style scoped>
@@ -236,15 +227,18 @@ function join() {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
 }
+
 .bg-fog {
   background: url("/src/assets/nice-snow.png");
   background-repeat: repeat;
   background-size: 600px 600px;
-  opacity: 0.5; /* prueba con 0.3 o 0.4 */
+  opacity: 0.5;
+  /* prueba con 0.3 o 0.4 */
   filter: brightness(1.3) contrast(0.8);
   animation: fogMove 60s linear infinite;
   z-index: 10;
@@ -258,6 +252,7 @@ function join() {
     transform: scale(0.95);
     filter: brightness(0.5);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -270,6 +265,7 @@ function join() {
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);

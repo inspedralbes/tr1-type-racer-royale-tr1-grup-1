@@ -7,7 +7,7 @@ import Toast from "vue-toastification";
 import "vue-toastification/dist/index.css";
 
 const toastOptions = {
-  position: "top-left",
+  position: "bottom-left",
   timeout: 4000,
   closeOnClick: true,
   pauseOnHover: true,
