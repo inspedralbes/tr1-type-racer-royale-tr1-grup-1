@@ -497,6 +497,19 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("endRace", (data) => {
+    const { room, nickname } = data;
+    console.log(` Carrera finalizada en sala ${room} por ${nickname}`);
+    io.to(room).emit("endRaceInRoom");
+  });
+
+  socket.on("requestRoomResults", (data) => {
+    const { roomName } = data;
+    socket.emit("roomResults", {
+      results: roomStatus[roomName]?.results || [],
+    });
+  });
+
   // Eliminar sala (solo el creador puede hacerlo)
   socket.on("deleteRoom", (data) => {
     const { roomName, nickname } = data;

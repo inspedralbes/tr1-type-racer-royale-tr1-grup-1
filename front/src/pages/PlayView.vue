@@ -1,7 +1,6 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
-  >
+    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
     <!-- FONDO EN CAPAS -->
     <div class="absolute inset-0 overflow-hidden">
       <div class="absolute inset-0 bg-layer-1 z-0"></div>
@@ -12,24 +11,15 @@
     </div>
 
     <!-- CONTENIDO -->
-    <main
-      class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn"
-    >
+    <main class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn">
       <!-- 1. TEXTOS Y ESTADÍSTICAS (HEADER MANTENIDO) -->
       <header
-        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
-      >
-        <h1
-          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest"
-        >
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
+        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
           Cambiar titulo
         </h1>
 
         <div class="flex flex-wrap gap-6 text-sm">
-          <div class="text-center">
-            <div class="text-lime-400 font-semibold">PPM</div>
-            <div class="text-2xl text-lime-300">{{ wpm }}</div>
-          </div>
           <div class="text-center">
             <div class="text-lime-400 font-semibold">Precisió</div>
             <div class="text-2xl text-lime-300">{{ accuracy }}%</div>
@@ -42,9 +32,7 @@
       </header>
 
       <!-- 2. LAYOUT PRINCIPAL: SIDEBAR IZQUIERDO + ÁREA DE TEXTO + PANEL DERECHO -->
-      <section
-        class="grid grid-cols-1 lg:grid-cols-6 gap-6 animate-fadeItem delay-[200ms]"
-      >
+      <section class="grid grid-cols-1 lg:grid-cols-6 gap-6 animate-fadeItem delay-[200ms]">
         <!-- SIDEBAR IZQUIERDO: INFO DE SALA Y POSICIONES -->
         <div class="lg:col-span-2 space-y-4">
           <!-- INFO DE LA SALA -->
@@ -63,11 +51,7 @@
           <div class="bg-black/40 border border-lime-400 rounded-lg p-4">
             <h3 class="text-lime-400 font-semibold text-lg mb-3">Posicions</h3>
             <div class="space-y-2">
-              <div
-                v-for="p in raceState"
-                :key="p.nickname"
-                class="flex justify-between text-sm"
-              >
+              <div v-for="p in raceState" :key="p.nickname" class="flex justify-between text-sm">
                 <span class="text-lime-300">{{ p.nickname }}</span>
                 <span class="text-gray-200">{{ p.position }}</span>
               </div>
@@ -78,10 +62,7 @@
         <!-- ÁREA CENTRAL: TEXTO Y TECLADO -->
         <div class="lg:col-span-3 space-y-4">
           <!-- ÁREA DE TEXTO A ESCRIBIR -->
-          <div
-            class="bg-black/70 border border-lime-400 rounded-lg p-4 shadow-lg"
-            @click="focusInput"
-          >
+          <div class="bg-black/70 border border-lime-400 rounded-lg p-4 shadow-lg" @click="focusInput">
             <div v-if="loading" class="text-center py-12 text-lime-400">
               Carregant text...
             </div>
@@ -90,25 +71,12 @@
             </div>
 
             <div v-else class="text-wrapper relative" ref="textWrapper">
-              <span
-                v-for="(ch, i) in targetChars"
-                :key="i"
-                :class="charClass(i)"
-                >{{ ch }}</span
-              >
+              <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{ ch }}</span>
               <span v-if="!finished" class="caret" :style="caretStyle"></span>
             </div>
 
-            <textarea
-              ref="hiddenInput"
-              v-model="userInput"
-              class="hidden-input"
-              @input="onInput"
-              @keydown="onKeydown"
-              @paste.prevent
-              :maxlength="target.length"
-              aria-label="Typing input"
-            ></textarea>
+            <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
+              @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
           </div>
 
           <!-- TECLADO -->
@@ -119,17 +87,12 @@
 
         <!-- PANEL DERECHO: ESPECTADOR / NOTIFICACIONES -->
         <div class="lg:col-span-1 relative z-40">
-          <div
-            id="notification-panel"
-            class="bg-black/40 border rounded-lg p-4 relative z-50"
-            :class="{
-              'border-purple-500': isPlayerDead,
-              'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
-              'border-gray-600/30':
-                !isPlayerDead && serverMessages.length === 0,
-            }"
-            style="pointer-events: auto"
-          >
+          <div id="notification-panel" class="bg-black/40 border rounded-lg p-4 relative z-50" :class="{
+            'border-purple-500': isPlayerDead,
+            'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
+            'border-gray-600/30':
+              !isPlayerDead && serverMessages.length === 0,
+          }" style="pointer-events: auto">
             <!-- MODO ESPECTADOR: Cuando el jugador ha muerto -->
             <div v-if="isPlayerDead">
               <h3 class="text-purple-400 font-semibold text-lg mb-3">
@@ -139,18 +102,14 @@
                 Vols continuar mirant la partida?
               </p>
               <div class="flex gap-2">
-                <button
-                  @click="continueAsSpectator"
+                <button @click="continueAsSpectator"
                   class="flex-1 px-2 py-2 border border-lime-600 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-600 hover:text-black transition text-xs cursor-pointer relative z-60"
-                  style="pointer-events: auto"
-                >
+                  style="pointer-events: auto">
                   Sí
                 </button>
-                <button
-                  @click="goToFinScreen"
+                <button @click="goToFinScreen"
                   class="flex-1 px-2 py-2 border border-purple-600 text-purple-400 rounded-md font-bold uppercase tracking-wider hover:bg-purple-600 hover:text-black transition text-xs cursor-pointer relative z-60"
-                  style="pointer-events: auto"
-                >
+                  style="pointer-events: auto">
                   No
                 </button>
               </div>
@@ -158,30 +117,21 @@
 
             <!-- MODO NOTIFICACIONES: Cuando el jugador está vivo -->
             <div v-else>
-              <h3
-                class="text-lime-400 font-semibold text-sm mb-3 tracking-wider"
-              >
+              <h3 class="text-lime-400 font-semibold text-sm mb-3 tracking-wider">
                 MISSATGES DEL SERVIDOR
               </h3>
 
               <!-- Lista de mensajes -->
-              <div
-                v-if="serverMessages.length > 0"
-                class="space-y-2 max-h-32 overflow-y-auto"
-              >
-                <div
-                  v-for="message in serverMessages"
-                  :key="message.id"
-                  class="text-xs p-2 rounded border-l-2 animate-fadeItem"
-                  :class="{
+              <div v-if="serverMessages.length > 0" class="space-y-2 max-h-32 overflow-y-auto">
+                <div v-for="message in serverMessages" :key="message.id"
+                  class="text-xs p-2 rounded border-l-2 animate-fadeItem" :class="{
                     'border-l-lime-400 bg-lime-400/10 text-lime-300':
                       message.type === 'info' || message.type === 'success',
                     'border-l-yellow-400 bg-yellow-400/10 text-yellow-300':
                       message.type === 'warning',
                     'border-l-purple-400 bg-purple-400/10 text-purple-300':
                       message.type === 'error',
-                  }"
-                >
+                  }">
                   {{ message.text }}
                 </div>
               </div>
@@ -199,38 +149,25 @@
       <div class="h-2"></div>
 
       <!-- 3. PROGRESO DE LA CARRERA (COMPACTO Y DINÁMICO) -->
-      <section
-        v-if="raceState.length"
-        class="bg-black/30 border border-lime-400/60 rounded-lg p-3 shadow-lg animate-fadeItem delay-[250ms] backdrop-blur-sm"
-      >
+      <section v-if="raceState.length"
+        class="bg-black/30 border border-lime-400/60 rounded-lg p-3 shadow-lg animate-fadeItem delay-[250ms] backdrop-blur-sm">
         <h3 class="text-lime-400 font-semibold text-sm mb-2 tracking-wider">
           PROGRÉS DE LA CARRERA
         </h3>
 
         <div class="space-y-2">
-          <div
-            v-for="p in raceState"
-            :key="p.nickname"
-            class="flex items-center gap-2"
-          >
-            <span
-              class="text-lime-300 font-medium text-xs min-w-[80px] truncate"
-            >
+          <div v-for="p in raceState" :key="p.nickname" class="flex items-center gap-2">
+            <span class="text-lime-300 font-medium text-xs min-w-[80px] truncate">
               {{ p.nickname }}
             </span>
 
-            <div
-              class="flex-1 bg-gray-800/70 rounded-full h-2 overflow-hidden border border-gray-600/50"
-            >
+            <div class="flex-1 bg-gray-800/70 rounded-full h-2 overflow-hidden border border-gray-600/50">
               <div
                 class="bar h-full bg-gradient-to-r from-lime-400 to-lime-300 rounded-full transition-all duration-300 shadow-sm"
-                :style="{ width: p.position * 1.5 + 'px' }"
-              ></div>
+                :style="{ width: p.position * 1.5 + 'px' }"></div>
             </div>
 
-            <small
-              class="text-gray-400 text-xs min-w-[30px] text-right font-mono"
-            >
+            <small class="text-gray-400 text-xs min-w-[30px] text-right font-mono">
               {{ p.position }}
             </small>
           </div>
@@ -278,6 +215,7 @@ const isTyping = ref(false);
 const backgroundSpeed = ref(0); // Velocidad actual del fondo (0 = parado, 1 = corriendo)
 const lastTypingTime = ref(0);
 const typingTimeout = ref(null);
+const isAlive = ref(true);
 
 // Función para actualizar la velocidad del fondo
 function updateBackgroundSpeed() {
@@ -383,9 +321,27 @@ const error = ref(null);
 const gameResults = ref([]);
 const participants = ref([]); // <-- nueva ref para participantes
 const targetChars = computed(() => Array.from(target.value));
+const currentTextId = ref(0);
+const textsIds = ref([]); // IDs de textos asignados al usuario
 
 // RACE STATE (from server)
 const raceState = ref([]);
+
+// Función para llenar participants con datos de jugadores
+function loadParticipants(roomData) {
+  if (roomData && roomData.players && Array.isArray(roomData.players)) {
+    participants.value = roomData.players.map((player) => ({
+      id: player.id,
+      nickname: player.nickname,
+      color: player.color,
+      wpm: player.wpm || 0,
+      accuracy: player.accuracy || 0,
+      isAlive: player.isAlive || true,
+      textsIds: player.textsIds || [],
+    }));
+    console.log("Participantes cargados:", participants.value);
+  }
+}
 socket.on("race:update", (snapshot) => {
   raceState.value = snapshot || [];
 });
@@ -435,10 +391,10 @@ const elapsedMs = computed(() => {
 });
 const elapsedSeconds = computed(() => Math.floor(elapsedMs.value / 1000));
 const minutes = computed(() => (elapsedMs.value || 1) / 60000);
-const wpm = computed(() => {
-  const words = correctChars.value / 5;
-  return Math.max(0, Math.round(words / minutes.value));
-});
+// const wpm = computed(() => {
+//   const words = correctChars.value / 5;
+//   return Math.max(0, Math.round(words / minutes.value));
+// });
 const accuracy = computed(() => {
   if (typedChars.value === 0) return 100;
   return Math.round((correctChars.value / typedChars.value) * 100);
@@ -546,20 +502,15 @@ function onInput() {
   emitProgressThrottled();
 
   if (finished.value && !endedAt.value) {
-    endedAt.value = Date.now();
-
-    // Enviar resultados al servidor
-    socket.emit("gameFinished", {
-      room: ROOM.value,
-      nickname: user.nickname,
-      wpm: wpm.value,
-      accuracy: accuracy.value,
-      errors: totalErrors.value,
-    });
-
-    setTimeout(() => {
-      nextText();
-    }, 300);
+    if (currentTextId.value === 4) {
+      console.log("Juego finalizado para el usuario:", user.nickname);
+      socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+    }
+    else {
+      setTimeout(() => {
+        nextText(currentTextId.value);
+      }, 300);
+    }
   }
 }
 
@@ -600,9 +551,41 @@ function simulatePlayerDeath() {
   isPlayerDead.value = true;
 }
 
-async function nextText() {
-  await pickRandomText();
-  reset();
+async function nextText(posicion) {
+  console.log("Cargando texto con ID:", textsIds.value[posicion]);
+
+  if (!textsIds.value || posicion >= textsIds.value.length) {
+    console.error("No hay más textos disponibles o textsIds está vacío");
+    error.value = "No hay más textos disponibles";
+    return;
+  }
+
+  try {
+    loading.value = true;
+    const data = await getText(textsIds.value[posicion]);
+    const text = data.text ?? data.TEXT_CONTENT ?? data.TEXT;
+    current.value = data;
+    target.value = text ?? "";
+    currentTextId.value++;
+    reset();
+    loading.value = false;
+  } catch (err) {
+    console.error("Error cargando texto:", err);
+    error.value = "Error al cargar el texto";
+    loading.value = false;
+  }
+}
+
+function getTextIds() {
+  for (let i = 0; i < participants.value.length; i++) {
+    if (participants.value[i].nickname === user.nickname) {
+      textsIds.value = participants.value[i].textsIds || [];
+      console.log("Text IDs del usuario:", textsIds.value);
+      return textsIds.value;
+    }
+  }
+  console.warn("No se encontraron textsIds para el usuario:", user.nickname);
+  return [];
 }
 
 // MOUNT
@@ -640,6 +623,12 @@ onMounted(async () => {
         )
     );
 
+    // Cargar los datos de los participantes
+    loadParticipants(userRoom);
+
+    // Obtener los textosIds del usuario
+    getTextIds();
+
     if (userRoom) {
       currentRoom.value = userRoom;
       console.log("Sala actual del usuario:", userRoom.name);
@@ -662,6 +651,26 @@ onMounted(async () => {
     console.log("Resultados actualizados:", results);
   });
 
+  // Carregar Final de la carrera
+  socket.on("endRaceInRoom", () => {
+    // Enviar resultados al servidor
+    socket.emit("gameFinished", {
+      room: ROOM.value,
+      nickname: user.nickname,
+      wpm: getWpm(),
+      accuracy: accuracy.value,
+      errors: totalErrors.value,
+      isAlive: !isPlayerDead.value,
+    });
+    console.log("La carrera ha terminado");
+    router.push({ name: "fin" });
+  });
+
+  function getWpm() {
+    const words = correctChars.value / 5;
+    return Math.max(0, Math.round(words / minutes.value));
+  }
+
   addServerMessage("Connectat al servidor", "success");
 
   socket.on("userPerformance", (data) => {
@@ -673,11 +682,40 @@ onMounted(async () => {
 
   // Escuchar lista de usuarios en la sala
   socket.on("updateUserList", (list) => {
-    participants.value = list || [];
-    console.log(" Lista de usuarios actualizada:", participants.value);
+    if (list && list.length > 0) {
+      // Si list es un array de salas, extraemos los jugadores de la sala actual
+      const room = list.find((r) => r.name === ROOM.value);
+      if (room) {
+        loadParticipants(room);
+        getTextIds(); // Actualizar textsIds cuando se actualiza la lista de usuarios
+      }
+    }
+    console.log("Sala actualizada:", roomList.value);
   });
 
-  await pickRandomText();
+  // Obtener textos inicialmente si ya tenemos participantes
+  if (participants.value.length > 0) {
+    getTextIds();
+  }
+
+  if (textsIds.value.length > 0) {
+    await nextText(currentTextId.value);
+  } else {
+    // Esperar a que se carguen los textsIds
+    let retries = 0;
+    const waitForTexts = setInterval(async () => {
+      retries++;
+      if (textsIds.value.length > 0) {
+        clearInterval(waitForTexts);
+        await nextText(currentTextId.value);
+      } else if (retries > 20) {
+        clearInterval(waitForTexts);
+        error.value = "No se pudieron cargar los textos asignados";
+        loading.value = false;
+      }
+    }, 200);
+  }
+
   await nextTick();
 
   if (target.value === "") {
@@ -738,6 +776,7 @@ function findResult(nick) {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: -100vw 0;
   }
@@ -747,6 +786,7 @@ function findResult(nick) {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: -200vw 0;
   }
@@ -756,6 +796,7 @@ function findResult(nick) {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: -300vw 0;
   }
@@ -869,12 +910,15 @@ function findResult(nick) {
 }
 
 .wrong {
-  color: #8f1de0; /* púrpura  */
+  color: #8f1de0;
+  /* púrpura  */
   background-color: rgba(190, 164, 231, 0.15);
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-shadow: 0 0 9px rgba(129, 30, 249, 0.6); /* leve glow sangriento */
+  text-shadow: 0 0 9px rgba(129, 30, 249, 0.6);
+  /* leve glow sangriento */
 }
+
 .current {
   color: #a3e635;
   background-color: rgba(101, 252, 241, 0.2);
@@ -893,6 +937,7 @@ function findResult(nick) {
 }
 
 @keyframes blink {
+
   0%,
   50% {
     opacity: 1;
