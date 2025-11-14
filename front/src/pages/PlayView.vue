@@ -105,7 +105,7 @@
               class="runner monster"
               :style="runnerStyle(monsterState.position)"
             >
-              <div class="runner-sprite monster-sprite">🧟‍♂️</div>
+              <div class="runner-sprite demon-sprite"></div>
             </div>
 
             <!-- Players -->
@@ -116,10 +116,10 @@
               :class="{ dead: p.alive === false, me: p.nickname === user.nickname }"
               :style="runnerStyle(p.position)"
             >
-              <div class="runner-sprite">
-                <span v-if="p.alive">🏃‍♂️</span>
-                <span v-else>💀</span>
-              </div>
+              <div
+                class="runner-sprite"
+                :class="p.alive ? 'cat-sprite-alive' : 'cat-sprite-dead'"
+              ></div>
               <div class="runner-name">
                 {{ p.nickname }}
               </div>
@@ -1048,21 +1048,64 @@ function runnerStyle(position) {
 }
 
 /* The avatar circle */
+/* Base avatar sprite box */
 .runner-sprite {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  background: #020617;
-  border: 2px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;      /* crisp pixels */
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  /* no circle now, let the sprite define the silhouette */
+  border-radius: 0;
 }
 
-/* Special monster skin */
-.monster-sprite {
-  background: #7f1d1d;
-  border-color: #fecaca;
+/* ====== PLAYER CATS ====== */
+
+/* Alive cat: black jumping sheet (13 frames of 32x32) */
+.cat-sprite-alive {
+  background-image: url("/src/assets/JumpCabt.png");
+  background-size: 416px 32px;           /* full row width × height */
+  animation: cat-run 0.9s steps(13) infinite;
+}
+
+/* Dead/ghost cat: red idle sheet (7 frames of 32x32) */
+.cat-sprite-dead {
+  background-image: url("/src/assets/IdleCatd.png");
+  background-size: 224px 32px;
+  animation: cat-dead 0.8s steps(7) infinite;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.9));
+}
+
+/* Run cycle across 13 frames (JumpCabt) */
+@keyframes cat-run {
+  from { background-position: 0 0; }
+  to   { background-position: -416px 0; }  /* -frameWidth * frameCount */
+}
+
+/* Idle float / twitch for dead cat */
+@keyframes cat-dead {
+  from { background-position: 0 0; }
+  to   { background-position: -224px 0; }  /* 7 frames */
+}
+
+/* ====== MONSTER (Cacodaemon) ====== */
+
+.demon-sprite {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;                      /* nudge up a bit */
+  background-image: url("/src/assets/CacodaemonSprite.png");
+  background-size: 512px 256px;            /* full sheet */
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  animation: demon-fly 0.8s steps(8) infinite;
+  filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.85));
+}
+
+/* Animate across the FIRST ROW: 8 frames × 64px = 512px */
+@keyframes demon-fly {
+  from { background-position: 0 0; }
+  to   { background-position: -512px 0; }
 }
 
 /* name label under avatar */
