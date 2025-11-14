@@ -28,7 +28,7 @@
         v-if="route.query.needNick"
         class="bg-red-900/40 border border-red-500 text-red-300 p-3 rounded-md text-sm text-center font-dogica animate-fadeItem delay-[100ms]"
       >
-        Si us plau, introdueix un nom d'usuari abans d'unirte a una sala.
+        Si us plau, introdueix un nom d'usuari abans d'unirte a un panteó.
       </p>
 
       <!-- INPUT NICKNAME -->
@@ -60,12 +60,12 @@
         <h2
           class="text-xl font-bold text-lime-400 mb-2 flex items-center gap-2 uppercase tracking-wider"
         >
-          Sales disponibles
+          Panteons
         </h2>
 
         <!-- Sin salas -->
         <div v-if="rooms.length === 0" class="text-gray-400 italic">
-          No hi ha sales disponibles.
+          No hi ha panteons disponibles.
         </div>
 
         <!-- Con salas -->
@@ -117,8 +117,8 @@
       >
         {{
           !nick?.trim()
-            ? "Introdueix un nom d'usuari per crear una sala"
-            : "Crear Nova Sala"
+            ? "Introdueix un nom d'usuari per crear un panteó"
+            : "Crear Nou Panteo"
         }}
       </button>
 
@@ -183,7 +183,7 @@ socket.on("errorJoin", () => {
   Swal.fire({
     icon: "error",
     title: "Error",
-    text: "No s'ha pogut unir a la sala. La sala no existeix o no està disponible.",
+    text: "No s'ha pogut unir al panteó. El panteó no existeix o no està disponible.",
   });
 });
 

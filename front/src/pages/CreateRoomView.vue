@@ -19,7 +19,7 @@
       <h2
         class="text-3xl text-center text-lime-400 tracking-widest drop-shadow-[0_0_15px_#66FCF1]"
       >
-        Crear Nova Sala
+        Crear Nou Panteó
       </h2>
 
       <!-- Formulario -->
@@ -27,14 +27,14 @@
         <!-- Nombre sala -->
         <div class="animate-fadeItem delay-[100ms]">
           <label class="text-lime-300 text-sm uppercase tracking-wider"
-            >Nom de la sala</label
+            >Nom del panteó</label
           >
           <input
             id="roomName"
             v-model="roomName"
             type="text"
             required
-            placeholder="Ex: Sala de Velocistes"
+            placeholder="Ex: Panteó Perdut"
             class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400"
           />
         </div>
@@ -100,7 +100,7 @@
             {{
               userStore.hasNick
                 ? "Pots canviar el teu nom si vols"
-                : "Aquest serà el teu nom a la sala"
+                : "Aquest serà el teu nom al panteó"
             }}
           </small>
         </div>
@@ -117,7 +117,7 @@
                 : 'bg-lime-400 hover:bg-lime-300'
             "
           >
-            {{ sending ? "Creant..." : "Crear Sala" }}
+            {{ sending ? "Creant..." : "Crear Panteó" }}
           </button>
         </div>
 
@@ -235,7 +235,7 @@ function onSubmit() {
 
   socket.once("roomCreated", (data) => {
     console.log("Room creada con éxito:", data);
-    success.value = `Sala "${payload.roomName}" creada amb èxit`;
+    success.value = `Panteó "${payload.roomName}" creat amb èxit`;
 
     // Navegar al lobby
     setTimeout(() => {
@@ -247,8 +247,8 @@ function onSubmit() {
     console.log("Error al crear room:", data);
     error.value =
       data.message === "Existent ROOM"
-        ? "Ja existeix una sala amb aquest nom"
-        : "Error al crear la sala";
+        ? "Ja existeix un panteó amb aquest nom"
+        : "Error al crear el panteó";
     sending.value = false;
   });
 

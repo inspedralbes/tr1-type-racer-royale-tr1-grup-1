@@ -118,7 +118,7 @@
         class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[400ms]"
       >
         <h3 class="text-lime-400 font-semibold text-lg mb-4">
-          Jugadors a la sala:
+          Jugadors al panteó:
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div
@@ -143,7 +143,7 @@
         class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg animate-fadeItem delay-[500ms]"
       >
         <h3 class="text-lime-400 font-semibold text-lg mb-4">
-          Resultats de la sala:
+          Resultats del panteó:
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div

@@ -20,7 +20,7 @@
       <h2
         class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
       >
-        Sala d'espera
+        Panteó d'espera
       </h2>
       <p class="text-center text-gray-300 animate-fadeItem delay-[100ms]">
         Benvingut, <span class="text-lime-400">{{ user.nickname }}</span>
@@ -32,7 +32,7 @@
         class="bg-black/40 border border-lime-400 rounded-lg p-4 text-sm text-gray-300 space-y-2 animate-fadeItem delay-[200ms]"
       >
         <h3 class="text-lime-400 font-semibold text-lg">
-          Sala: {{ roomInfo.roomName }}
+          Panteó: {{ roomInfo.roomName }}
         </h3>
         <div class="flex flex-wrap gap-4 text-xs md:text-sm text-gray-400">
           <span
@@ -149,7 +149,7 @@
           :disabled="deleting"
           class="border border-purple-600 text-purple-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-purple-600 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ deleting ? "Eliminant..." : "Eliminar Sala" }}
+          {{ deleting ? "Eliminant..." : "Eliminar panteó" }}
         </button>
 
         <!-- Salir -->
@@ -157,7 +157,7 @@
           @click="logout"
           class="border border-lime-400 text-lime-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-lime-400 hover:text-black transition"
         >
-          Sortir de la sala
+          Sortir del panteó
         </button>
       </div>
     </main>
@@ -347,7 +347,7 @@ function deleteRoom() {
   if (!roomInfo.value) return;
 
   const confirmDelete = confirm(
-    `Estàs segur que vols eliminar la sala "${roomInfo.value.roomName}"? Aquesta acció no es pot desfer.`
+    `Estàs segur que vols eliminar el panteó "${roomInfo.value.roomName}"? Aquesta acció no es pot desfer.`
   );
 
   if (confirmDelete) {
