@@ -135,7 +135,7 @@
         <!-- Mensajes -->
         <p
           v-if="error"
-          class="text-red-500 text-center text-sm font-semibold animate-fadeItem delay-[700ms]"
+          class="text-purple-400 text-center text-sm font-semibold animate-fadeItem delay-[700ms]"
         >
           {{ error }}
         </p>
