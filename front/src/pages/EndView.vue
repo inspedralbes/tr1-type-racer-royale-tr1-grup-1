@@ -170,12 +170,10 @@ onMounted(() => {
     }));
   });
 
-  // Hacer una solicitud inicial si no hay resultados
-  if (rows.value.length === 0) {
-    setTimeout(() => {
-      socket.emit("requestRoomResults", { roomName: user.roomName });
-    }, 500);
-  }
+  // Hacer una solicitud inicial con delay de 2 segundos para que todos terminen
+  setTimeout(() => {
+    socket.emit("requestRoomResults", { roomName: user.roomName });
+  }, 2000);
 });
 
 const filtered = computed(() => {

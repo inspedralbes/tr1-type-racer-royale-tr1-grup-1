@@ -555,7 +555,7 @@ io.on("connection", (socket) => {
     console.log(` Carrera finalizada en sala ${room} por ${nickname}`);
 
     // NO cambiar estado de la sala aquí - dejar que los jugadores envíen sus resultados
-    // Esperar 3 segundos para que TODOS envíen gameFinished antes de marcar como finished
+    // Esperar 3.5 segundos para que TODOS envíen gameFinished antes de marcar como finished
     setTimeout(() => {
       if (rooms[room]) {
         rooms[room].status = "finished";
@@ -564,7 +564,7 @@ io.on("connection", (socket) => {
           roomStatus[room]?.results
         );
       }
-    }, 3000);
+    }, 3500);
 
     // Enviar a todos los clientes que la carrera terminó (para que vayan a End View)
     io.to(room).emit("endRaceInRoom");
