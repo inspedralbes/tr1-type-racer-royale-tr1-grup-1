@@ -37,6 +37,8 @@ const rooms = {}; // { roomId: { id, players: [], status, results: [] } }
 const timers = {}; // Temporizadores activos
 const roomStatus = {}; // Almacenará los resultados de cada sala
 const roomTimers = {}; // Almacenará los timers de cada sala
+const autoKillIntervals = {}; // Almacenará los intervalos de auto-kill para cada sala
+const lastKilledInRoom = {}; // Almacena el último jugador eliminado en cada sala
 
 // RACE STATE (server-authoritative)
 const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wmp, accuracy, speed, position})
@@ -173,6 +175,10 @@ function startRoomTimer(roomName) {
             rooms[roomName].players
           );
           rooms[roomName].status = "inGame";
+
+          // Iniciar auto-kill cuando comienza el juego automáticamente
+          startAutoKillInterval(roomName);
+
           io.to(roomName).emit("gameStart", { roomName });
           io.emit("roomList", { rooms });
           console.log(`Juego iniciado en la sala ${roomName}`);
@@ -194,6 +200,120 @@ function stopRoomTimer(roomName) {
       seconds: 0,
       isActive: false,
     });
+  }
+}
+
+// Función para iniciar el auto-kill en una sala (mata al jugador con menor posición cada 30s)
+function startAutoKillInterval(roomName) {
+  // Si ya hay un intervalo activo, no crear otro
+  if (autoKillIntervals[roomName]) {
+    console.log(`Auto-kill ya activo para sala ${roomName}`);
+    return;
+  }
+
+  console.log(
+    `[INICIANDO AUTO-KILL] Sala: ${roomName} - El auto-kill comenzará en 30 segundos`
+  );
+  lastKilledInRoom[roomName] = null; // Reiniciar el último jugador eliminado
+
+  autoKillIntervals[roomName] = setInterval(() => {
+    const game = rooms[roomName];
+
+    console.log(
+      `[AUTO-KILL CHECK] Sala: ${roomName}, Status: ${
+        game?.status
+      }, Game existe: ${!!game}`
+    );
+
+    if (!game || game.status !== "inGame") {
+      console.log(
+        `[AUTO-KILL SKIP] Game no existe o status != inGame. Status actual: ${game?.status}`
+      );
+      return;
+    }
+
+    // Asegurar que game.positions está inicializado
+    if (!game.positions) {
+      console.log(`[AUTO-KILL] Inicializando game.positions`);
+      game.positions = {};
+      for (const player of game.players) {
+        game.positions[player.nickname] = 0;
+      }
+    }
+
+    // Obtener todos los jugadores vivos
+    const alivePlayers = game.players.filter((p) => p.isAlive !== false);
+    console.log(
+      `[AUTO-KILL] Jugadores vivos: ${alivePlayers.length} de ${game.players.length}`
+    );
+
+    if (alivePlayers.length <= 1) {
+      // Si solo queda 1 jugador vivo, no matar a nadie
+      console.log(`[AUTO-KILL] Solo queda 1 jugador vivo, cancelando kill`);
+      return;
+    }
+
+    // Obtener posiciones desde racePlayers
+    const map = racePlayers.get(roomName);
+    console.log(`[AUTO-KILL] Map existe: ${!!map}, Tamaño: ${map?.size || 0}`);
+
+    // Encontrar el jugador vivo con la posición más baja
+    let victimNickname = null;
+    let minPosition = Infinity;
+
+    for (const player of alivePlayers) {
+      // Buscar la posición en game.positions (que se actualiza en tiempo real)
+      const position = (game.positions && game.positions[player.nickname]) || 0;
+
+      if (
+        position < minPosition &&
+        player.nickname !== lastKilledInRoom[roomName]
+      ) {
+        minPosition = position;
+        victimNickname = player.nickname;
+      }
+    }
+
+    console.log(
+      `[AUTO-KILL] Víctima seleccionada: ${
+        victimNickname || "NINGUNA"
+      } (posición: ${minPosition})`
+    );
+
+    // Si no encontramos una víctima nueva, buscar la primera viva (incluso si fue la del ciclo anterior)
+    if (!victimNickname && alivePlayers.length > 0) {
+      const firstAlive = alivePlayers[0];
+      if (firstAlive.nickname !== lastKilledInRoom[roomName]) {
+        victimNickname = firstAlive.nickname;
+      }
+    }
+
+    if (victimNickname) {
+      console.log(
+        `Auto-kill en sala ${roomName}: matando a ${victimNickname} (posición: ${minPosition})`
+      );
+
+      // Marcar como muerto
+      const player = game.players.find((p) => p.nickname === victimNickname);
+      if (player) {
+        player.isAlive = false;
+        lastKilledInRoom[roomName] = victimNickname;
+
+        // Notificar a todos en la sala
+        io.to(roomName).emit("player:dead", { nickname: victimNickname });
+        io.to(roomName).emit("updateUserList", game.players);
+      }
+    }
+  }, 30000); // Cada 30 segundos
+}
+
+// Función para detener el auto-kill en una sala
+function stopAutoKillInterval(roomName) {
+  if (autoKillIntervals[roomName]) {
+    clearInterval(autoKillIntervals[roomName]);
+    delete autoKillIntervals[roomName];
+    delete lastKilledInRoom[roomName];
+    console.log(`Auto-kill detenido para sala ${roomName}`);
   }
 }
 
@@ -476,6 +596,10 @@ io.on("connection", (socket) => {
         rooms[roomName].players
       );
       rooms[roomName].status = "inGame";
+
+      // Iniciar auto-kill cuando comienza el juego
+      startAutoKillInterval(roomName);
+
       io.to(roomName).emit("gameStarted", { roomInfo: rooms[roomName] });
       io.emit("roomList", { rooms });
       console.log(`Juego iniciado en la sala ${roomName}`);
@@ -554,8 +678,11 @@ io.on("connection", (socket) => {
     const { room, nickname } = data;
     console.log(` Carrera finalizada en sala ${room} por ${nickname}`);
 
+    // Detener el auto-kill cuando termina la carrera
+    stopAutoKillInterval(room);
+
     // NO cambiar estado de la sala aquí - dejar que los jugadores envíen sus resultados
-    // Esperar 3 segundos para que TODOS envíen gameFinished antes de marcar como finished
+    // Esperar 3.5 segundos para que TODOS envíen gameFinished antes de marcar como finished
     setTimeout(() => {
       if (rooms[room]) {
         rooms[room].status = "finished";
@@ -564,7 +691,7 @@ io.on("connection", (socket) => {
           roomStatus[room]?.results
         );
       }
-    }, 3000);
+    }, 3500);
 
     // Enviar a todos los clientes que la carrera terminó (para que vayan a End View)
     io.to(room).emit("endRaceInRoom");

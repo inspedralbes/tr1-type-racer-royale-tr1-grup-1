@@ -738,47 +738,6 @@ onMounted(async () => {
     getTextIds(); // Actualizar textsIds cuando se actualiza la lista de usuarios
   });
 
-  // Matar jugador
-  // Auto-kill every 15s: encuentra al jugador con menor posición y avisa al servidor
-  let lastKilledNickname = null; // Track the last killed player to avoid killing the same player multiple times
-
-  const autoKillInterval = setInterval(() => {
-    if (!raceState.value || raceState.value.length === 0) return;
-
-    // Filtrar solo jugadores vivos
-    const alivePlayers = raceState.value.filter(
-      (p) => typeof p.isAlive === "undefined" ? true : p.isAlive
-    );
-
-    if (alivePlayers.length === 0) return;
-
-    // Calcular la posición mínima entre los vivos
-    const minPos = Math.min(...alivePlayers.map((p) => p.position));
-
-    // Elegir el primer jugador con esa posición mínima que aún esté vivo
-    // y que no sea el que fue eliminado en la ronda anterior
-    const victim = alivePlayers.find(
-      (p) => p.position === minPos && p.nickname !== lastKilledNickname
-    );
-
-    if (victim) {
-      console.log(
-        "Auto-kill: matando a",
-        victim.nickname,
-        "con posición",
-        minPos,
-        "en sala",
-        ROOM.value
-      );
-
-      lastKilledNickname = victim.nickname;
-
-      socket.emit("player:isDeath", {
-        roomName: ROOM.value,
-        nickname: victim.nickname,
-      });
-    }
-  }, 30000);
 
   socket.on("player:dead", (data) => {
     console.log("Jugador muerto recibido:", data);
