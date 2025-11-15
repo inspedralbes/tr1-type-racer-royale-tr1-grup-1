@@ -1,6 +1,7 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
+    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
+  >
     <!-- FONDO EN CAPAS -->
     <div class="absolute inset-0 overflow-hidden">
       <div class="absolute inset-0 bg-layer-1 z-0"></div>
@@ -11,12 +12,17 @@
     </div>
 
     <!-- CONTENIDO -->
-    <main class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn">
+    <main
+      class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn"
+    >
       <!-- 1. TEXTOS Y ESTADÍSTICAS (HEADER MANTENIDO) -->
       <header
-        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
-        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
-          Cambiar titulo
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
+      >
+        <h1
+          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest"
+        >
+          Cursa Zombie
         </h1>
 
         <div class="flex flex-wrap gap-6 text-sm">
@@ -32,45 +38,55 @@
       </header>
 
       <!-- 2. LAYOUT PRINCIPAL: SIDEBAR IZQUIERDO + ÁREA DE TEXTO + PANEL DERECHO -->
-      <section class="grid grid-cols-1 lg:grid-cols-6 gap-6 animate-fadeItem delay-[200ms]">
+      <section
+        class="grid grid-cols-1 lg:grid-cols-8 gap-6 animate-fadeItem delay-[200ms]"
+      >
         <!-- SIDEBAR IZQUIERDO: INFO DE SALA Y POSICIONES -->
         <div class="lg:col-span-2 space-y-4">
           <!-- INFO DE LA SALA -->
-          <div class="bg-black/40 border border-lime-400 rounded-lg p-4">
-            <h3 class="text-lime-400 font-semibold text-lg mb-3">
+          <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
+            <h3 class="text-lime-300 font-semibold text-sm mb-2">
               Informació del panteó
             </h3>
-            <p class="text-gray-300 text-sm">Panteó: {{ ROOM }}</p>
-            <p class="text-gray-300 text-sm">Jugador: {{ user.nickname }}</p>
-            <p class="text-gray-300 text-sm">
-              Jugadors: {{ participants.length }}
+            <p class="text-gray-300 text-xs">Panteó: {{ ROOM }}</p>
+            <p class="text-gray-300 text-xs">Usuari: {{ user.nickname }}</p>
+            <p class="text-gray-300 text-xs">
+              Nº jugadors: {{ participants.length }}
             </p>
           </div>
 
           <!-- POSICIONES EN TIEMPO REAL -->
-          <div class="bg-black/40 border border-lime-400 rounded-lg p-4">
-            <h3 class="text-lime-400 font-semibold text-lg mb-3">Posicions</h3>
-            <div class="space-y-2">
-              <div v-for="p in [...raceState].sort((a, b) => b.position - a.position)" :key="p.nickname"
-                class="flex justify-between text-sm">
+          <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
+            <h3 class="text-lime-300 font-semibold text-sm mb-2">Posicions</h3>
+            <div class="space-y-1">
+              <div
+                v-for="p in [...raceState].sort(
+                  (a, b) => b.position - a.position
+                )"
+                :key="p.nickname"
+                class="flex justify-between text-xs"
+              >
                 <template v-if="p.nickname === user.nickname">
-                  <span class="text-lime-300">{{ user.nickname }}</span>
-                  <span class="text-gray-200">{{ p.position }}</span>
+                  <span class="text-purple-600">{{ user.nickname }} (Tú)</span>
+                  <span class="text-purple-600">{{ p.position }}</span>
                 </template>
                 <template v-else>
                   <span class="text-gray-300">{{ p.nickname }}</span>
                   <span class="text-gray-400">{{ p.position }}</span>
                 </template>
               </div>
-
             </div>
           </div>
         </div>
 
         <!-- ÁREA CENTRAL: TEXTO Y TECLADO -->
-        <div class="lg:col-span-3 space-y-4">
+        <div class="lg:col-span-5 space-y-4">
           <!-- ÁREA DE TEXTO A ESCRIBIR -->
-          <div class="bg-black/70 border border-lime-400 rounded-lg p-4 shadow-lg" @click="focusInput">
+          <div
+            class="bg-black/70 border border-lime-400 rounded-lg p-3 shadow-lg transition-opacity duration-500"
+            :class="{ 'opacity-30 pointer-events-none': isPlayerDead }"
+            @click="focusInput"
+          >
             <div v-if="loading" class="text-center py-12 text-lime-400">
               Carregant text...
             </div>
@@ -79,73 +95,100 @@
             </div>
 
             <div v-else class="text-wrapper relative" ref="textWrapper">
-              <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{ ch }}</span>
-              <span v-if="!finished" class="caret" :style="caretStyle"></span>
+              <span
+                v-for="(ch, i) in targetChars"
+                :key="i"
+                :class="charClass(i)"
+                >{{ ch }}</span
+              >
+              <span
+                v-if="!finished && !isPlayerDead"
+                class="caret"
+                :style="caretStyle"
+              ></span>
             </div>
 
-            <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
-              @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
+            <textarea
+              ref="hiddenInput"
+              v-model="userInput"
+              class="hidden-input"
+              @input="onInput"
+              @keydown="onKeydown"
+              @paste.prevent
+              :maxlength="target.length"
+              aria-label="Typing input"
+            ></textarea>
           </div>
 
           <!-- TECLADO -->
-          <div class="relative z-20 w-full">
+          <div
+            class="relative z-20 w-full transition-opacity duration-500"
+            :class="{ 'opacity-50': isPlayerDead }"
+          >
             <Keyboard :nickname="user.nickname" :room="ROOM" />
           </div>
         </div>
 
         <!-- PANEL DERECHO: ESPECTADOR / NOTIFICACIONES -->
         <div class="lg:col-span-1 relative z-40">
-          <div id="notification-panel" class="bg-black/40 border rounded-lg p-4 relative z-50" :class="{
-            'border-purple-500': isPlayerDead,
-            'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
-            'border-gray-600/30':
-              !isPlayerDead && serverMessages.length === 0,
-          }" style="pointer-events: auto">
+          <div
+            id="notification-panel"
+            class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0"
+            :class="{
+              'border-purple-500': isPlayerDead,
+              'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
+              'border-gray-600/30':
+                !isPlayerDead && serverMessages.length === 0,
+            }"
+            style="pointer-events: auto"
+          >
             <!-- MODO ESPECTADOR: Cuando el jugador ha muerto -->
             <div v-if="isPlayerDead">
-              <h3 class="text-purple-400 font-semibold text-lg mb-3">
-                Has mort
+              <h3 class="text-purple-400 font-semibold text-sm mb-2">
+                Has mort!
               </h3>
-              <p class="text-gray-300 mb-4">
-                Vols continuar mirant la partida?
-              </p>
-              <div class="flex gap-2">
-                <button @click="continueAsSpectator"
-                  class="flex-1 px-2 py-2 border border-lime-600 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-600 hover:text-black transition text-xs cursor-pointer relative z-60"
-                  style="pointer-events: auto">
-                  Sí
-                </button>
-                <button @click="goToFinScreen"
-                  class="flex-1 px-2 py-2 border border-purple-600 text-purple-400 rounded-md font-bold uppercase tracking-wider hover:bg-purple-600 hover:text-black transition text-xs cursor-pointer relative z-60"
-                  style="pointer-events: auto">
-                  No
-                </button>
+              <p class="text-gray-300 text-xs mb-2">Mode espectador activat</p>
+              <div class="text-xs text-purple-300 italic">
+                Continua mirant la partida...
               </div>
             </div>
 
             <!-- MODO NOTIFICACIONES: Cuando el jugador está vivo -->
             <div v-else>
-              <h3 class="text-lime-400 font-semibold text-sm mb-3 tracking-wider">
-                MISSATGES DEL SERVIDOR
+              <h3
+                class="text-lime-400 font-semibold text-xs mb-2 tracking-wider"
+              >
+                VEUS DEL PANTEÓ
               </h3>
 
               <!-- Lista de mensajes -->
-              <div v-if="serverMessages.length > 0" class="space-y-2 max-h-32 overflow-y-auto">
-                <div v-for="message in serverMessages" :key="message.id"
-                  class="text-xs p-2 rounded border-l-2 animate-fadeItem" :class="{
+              <div
+                v-if="serverMessages.length > 0"
+                class="space-y-1 max-h-24 overflow-y-auto"
+              >
+                <div
+                  v-for="message in serverMessages"
+                  :key="message.id"
+                  class="text-xs p-1 rounded border-l-2 animate-fadeItem"
+                  :class="{
                     'border-l-lime-400 bg-lime-400/10 text-lime-300':
                       message.type === 'info' || message.type === 'success',
                     'border-l-yellow-400 bg-yellow-400/10 text-yellow-300':
                       message.type === 'warning',
                     'border-l-purple-400 bg-purple-400/10 text-purple-300':
                       message.type === 'error',
-                  }">
+                  }"
+                >
                   {{ message.text }}
                 </div>
               </div>
 
               <!-- Mensaje cuando no hay notificaciones -->
-              <div v-else class="text-center text-gray-500 text-xs italic">
+              <div
+                v-else
+                class="text-center text-gray-500 italic leading-tight px-1"
+                style="font-size: 0.55rem"
+              >
                 Esperant missatges...
               </div>
             </div>
@@ -154,43 +197,55 @@
       </section>
 
       <!-- ESPACIADO REDUCIDO -->
-      <div class="h-2"></div>
+      <div class="h-1"></div>
 
       <!-- 3. PROGRESO DE LA CARRERA -->
-      <section v-if="raceState.length"
-        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-
-        <h3 class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2">
+      <section
+        v-if="raceState.length"
+        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm"
+      >
+        <h3
+          class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2"
+        >
           Progrés de la carrera
         </h3>
 
         <div class="space-y-4">
-          <div v-for="(p, i) in raceState" :key="p.nickname"
-            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20">
+          <div
+            v-for="(p, i) in raceState"
+            :key="p.nickname"
+            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20"
+          >
             <!-- Nombre -->
             <span class="text-lime-300 font-semibold text-xs w-24 truncate">
               {{ p.nickname }}
             </span>
 
             <!-- Pista -->
-            <div class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden">
-
+            <div
+              class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden"
+            >
               <!-- Línea de meta -->
-              <div class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse">
-              </div>
+              <div
+                class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse"
+              ></div>
 
               <!-- ZOMBIE PIXEL ART ANIMADO -->
-              <div class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
-                :style="{ left: (p.position * 1.3) + 'px' }"></div>
+              <div
+                class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+                :style="{ left: p.position * 1.3 + 'px' }"
+              ></div>
             </div>
 
             <!-- Indica el último (va a morir) -->
-            <span :class="[
-              'text-xs font-mono px-2 py-0.5 rounded-md',
-              p.position === Math.min(...raceState.map(r => r.position))
-                ? 'bg-red-600/40 text-red-200 animate-pulse'
-                : 'text-gray-300'
-            ]">
+            <span
+              :class="[
+                'text-xs font-mono px-2 py-0.5 rounded-md',
+                p.position === Math.min(...raceState.map((r) => r.position))
+                  ? 'bg-red-600/40 text-red-200 animate-pulse'
+                  : 'text-gray-300',
+              ]"
+            >
               {{ p.position }}
             </span>
           </div>
@@ -233,6 +288,10 @@ const currentRoom = ref(null);
 // Variable global para controlar el panel de notificaciones/espectador
 const isPlayerDead = ref(false);
 const serverMessages = ref([]);
+const deathAlertShown = ref(false); // Bandera para controlar que el alert de muerte solo se muestre una vez
+
+// Variable para forzar la actualización del tiempo
+const currentTime = ref(Date.now());
 
 // Variables para el control dinámico del fondo
 const isTyping = ref(false);
@@ -374,7 +433,7 @@ watch(
   () => raceState.value,
   (newState) => {
     if (newState && newState.length > 0) {
-      const maxPosition = Math.max(...newState.map(p => p.position));
+      const maxPosition = Math.max(...newState.map((p) => p.position));
       if (maxPosition >= 700) {
         console.log("¡Alguien llegó a 700! Enviando endRaceInRoom al servidor");
         socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
@@ -424,7 +483,8 @@ const correctChars = computed(() => {
 
 const elapsedMs = computed(() => {
   if (!startedAt.value) return 0;
-  const end = endedAt.value ?? Date.now();
+  // Usar currentTime.value para hacer reactivo el tiempo
+  const end = endedAt.value ?? currentTime.value;
   return Math.max(0, end - startedAt.value);
 });
 const elapsedSeconds = computed(() => Math.floor(elapsedMs.value / 1000));
@@ -541,10 +601,11 @@ function onInput() {
 
   if (finished.value && !endedAt.value) {
     if (currentTextId.value === 4) {
+      // Solo detener el tiempo cuando termine todos los textos
+      endedAt.value = Date.now();
       console.log("Juego finalizado para el usuario:", user.nickname);
       socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
-    }
-    else {
+    } else {
       setTimeout(() => {
         nextText(currentTextId.value);
       }, 300);
@@ -563,26 +624,13 @@ function focusInput() {
 
 function reset() {
   userInput.value = "";
-  startedAt.value = null;
-  endedAt.value = null;
-  totalErrors.value = 0; // 🔹 resetear errores
+  // NO reiniciar startedAt ni endedAt entre textos
+  // startedAt.value = null;
+  // endedAt.value = null;
+  totalErrors.value = 0; // resetear errores
   lastTypedLength.value = 0;
   focusInput();
 }
-
-// function continueAsSpectator() {
-//   console.log("Continuando como espectador...");
-//   addServerMessage("Mode espectador activat", "success");
-//   // Aquí puedes agregar lógica adicional para el modo espectador
-//   // Por ejemplo, deshabilitar el input de texto, cambiar el estado, etc.
-// }
-
-// function goToFinScreen() {
-//   console.log("Yendo a la pantalla de fin...");
-//   addServerMessage("Dirigint a resultats finals", "info");
-//   // Navegar a la pantalla de fin
-//   router.push({ name: "fin" });
-// }
 
 // Función para simular muerte del jugador (para testing)
 function simulatePlayerDeath() {
@@ -631,9 +679,15 @@ onMounted(async () => {
   // Inicializar el sistema de fondo dinámico con actualización suave y frecuente para máxima fluidez
   const backgroundUpdateInterval = setInterval(updateBackgroundSpeed, 50);
 
+  // Intervalo para actualizar el tiempo cada segundo
+  const timeUpdateInterval = setInterval(() => {
+    currentTime.value = Date.now();
+  }, 1000);
+
   // Limpiar el intervalo cuando el componente se desmonte
   onBeforeUnmount(() => {
     clearInterval(backgroundUpdateInterval);
+    clearInterval(timeUpdateInterval);
     if (typingTimeout.value) {
       clearTimeout(typingTimeout.value);
     }
@@ -692,7 +746,9 @@ onMounted(async () => {
   // Carregar Final de la carrera
   socket.on("endRaceInRoom", () => {
     // Obtener la posición del jugador actual
-    const currentPlayer = participants.value.find(p => p.nickname === user.nickname);
+    const currentPlayer = participants.value.find(
+      (p) => p.nickname === user.nickname
+    );
     const currentPosition = currentPlayer ? currentPlayer.position : 0;
 
     // Enviar resultados al servidor
@@ -743,12 +799,21 @@ onMounted(async () => {
     // Calcular la posición mínima
     const minPos = Math.min(...raceState.value.map((p) => p.position));
     // Elegir el primer jugador con esa posición mínima que aún esté vivo (si hay isAlive)
-    const victim = raceState.value.find((p) =>
-      (p.position === minPos) && (typeof p.isAlive === "undefined" ? true : p.isAlive)
+    const victim = raceState.value.find(
+      (p) =>
+        p.position === minPos &&
+        (typeof p.isAlive === "undefined" ? true : p.isAlive)
     );
 
     if (victim) {
-      console.log("Auto-kill: matando a", victim.nickname, "con posición", minPos, "ss", user.roomName);
+      console.log(
+        "Auto-kill: matando a",
+        victim.nickname,
+        "con posición",
+        minPos,
+        "ss",
+        user.roomName
+      );
       socket.emit("player:isDeath", {
         roomName: user.roomName,
         nickname: victim.nickname,
@@ -762,21 +827,24 @@ onMounted(async () => {
       isPlayerDead.value = true;
       addServerMessage("Has mort!", "error");
 
-      Swal.fire({
-        title: "Has mort!",
-        text: "Estarà en mode espectador.",
-        icon: "error",
-        showConfirmButton: false,
-        timer: 5000,
-      });
+      // Solo mostrar el SweetAlert una vez
+      if (!deathAlertShown.value) {
+        deathAlertShown.value = true;
+        Swal.fire({
+          title: "Has mort!",
+          text: "Estarà en mode espectador.",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 5000,
+        });
+      }
 
       // Deshabilitar el input oculto para que no pueda seguir escribiendo
       if (hiddenInput.value) {
         hiddenInput.value.disabled = true;
         hiddenInput.value.blur();
       }
-    }
-    else {
+    } else {
       addServerMessage(`${data.nickname} ha mort!`, "warning");
     }
   });
@@ -976,8 +1044,8 @@ function findResult(nick) {
   white-space: pre-wrap;
   word-wrap: break-word;
   line-height: 1.6;
-  font-size: 0.9rem;
-  min-height: 80px;
+  font-size: 1rem;
+  min-height: 60px;
   cursor: text;
   user-select: none;
 }
@@ -1025,7 +1093,6 @@ function findResult(nick) {
 }
 
 @keyframes blink {
-
   0%,
   50% {
     opacity: 1;
@@ -1078,14 +1145,13 @@ function findResult(nick) {
 .zombie-sprite {
   width: 48px;
   height: 48px;
-  background-image: url('../assets/zombie_run.png');
+  background-image: url("../assets/zombie_run.png");
   background-repeat: no-repeat;
   /* background-size = total width / total height para encajar todo en un frame visible */
   background-size: calc(48px * 3) calc(48px * 2);
   /* 3 columnas × 2 filas, escalado a 48px cada frame */
   animation: zombie-run 0.6s steps(2) infinite;
 }
-
 
 @keyframes zombie-run {
   from {

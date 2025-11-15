@@ -118,57 +118,65 @@ function getStyleKeyboard(lletra) {
 }
 
 .keyboard-key {
-  min-width: 40px;
-  height: 40px;
+  min-width: 35px;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   font-weight: bold;
-  font-size: 0.9rem;
-  cursor: pointer;
+  font-size: 0.75rem;
+  cursor: default;
   transition: all 0.2s ease;
   border: 1px solid;
   user-select: none;
+  pointer-events: none;
 }
 
 .key-normal {
-  background-color: rgba(75, 85, 99, 0.8); /* gray-600 with transparency */
-  color: #d1d5db; /* gray-300 */
-  border-color: #6b7280; /* gray-500 */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.key-normal:hover {
-  background-color: rgba(107, 114, 128, 0.9); /* gray-500 with transparency */
-  color: #e5e7eb; /* gray-200 */
-  border-color: #9ca3af; /* gray-400 */
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(
+    145deg,
+    rgba(31, 40, 51, 0.7) 0%,
+    rgba(11, 12, 16, 0.8) 100%
+  );
+  color: rgba(197, 198, 199, 0.9);
+  border-color: rgba(69, 162, 158, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 3px rgba(69, 162, 158, 0.08);
+  text-shadow: 0 0 2px rgba(197, 198, 199, 0.2);
 }
 
 .key-pressed {
-  background-color: #a3e635; /* lime-400 */
-  color: #0f172a; /* slate-900 */
-  border-color: #84cc16; /* lime-500 */
-  box-shadow: 0 0 15px rgba(163, 230, 53, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px);
-  animation: keyPulse 0.3s ease-out;
+  background: radial-gradient(
+    circle,
+    rgba(102, 252, 241, 0.8) 0%,
+    rgba(69, 162, 158, 0.7) 50%,
+    rgba(31, 40, 51, 0.6) 100%
+  );
+  color: #000000;
+  border-color: rgba(102, 252, 241, 0.8);
+  box-shadow: 0 0 10px rgba(102, 252, 241, 0.3),
+    inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(69, 162, 158, 0.15);
+  text-shadow: 0 0 4px rgba(11, 12, 16, 0.5);
+  transform: translateY(-1px) scale(1.02);
+  animation: zombieGlow 0.4s ease-in-out;
 }
 
 /* Animación para teclas presionadas */
-@keyframes keyPulse {
+@keyframes zombieGlow {
   0% {
-    box-shadow: 0 0 5px rgba(163, 230, 53, 0.3);
-    transform: translateY(0);
+    box-shadow: 0 0 3px rgba(102, 252, 241, 0.15),
+      0 0 5px rgba(69, 162, 158, 0.08);
+    transform: translateY(0) scale(1);
   }
   50% {
-    box-shadow: 0 0 20px rgba(163, 230, 53, 0.8);
-    transform: translateY(-3px);
+    box-shadow: 0 0 12px rgba(102, 252, 241, 0.4),
+      0 0 15px rgba(69, 162, 158, 0.25), inset 0 0 8px rgba(11, 12, 16, 0.3);
+    transform: translateY(-1.5px) scale(1.03);
   }
   100% {
-    box-shadow: 0 0 15px rgba(163, 230, 53, 0.6);
-    transform: translateY(-2px);
+    box-shadow: 0 0 10px rgba(102, 252, 241, 0.3),
+      inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(69, 162, 158, 0.15);
+    transform: translateY(-1px) scale(1.02);
   }
 }
 

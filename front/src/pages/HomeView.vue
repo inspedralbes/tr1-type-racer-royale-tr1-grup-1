@@ -1,41 +1,65 @@
 <template>
   <section
-    class="relative flex flex-col items-center min-h-screen text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden font-dogica">
+    class="relative flex flex-col items-center min-h-screen text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden font-dogica"
+  >
     <!-- Fondo con imagen -->
-    <img src="/src/assets/opt2_img1.png" alt="Zombie sky background"
-      class="absolute inset-0 object-cover w-full h-full opacity-80" />
+    <img
+      src="/src/assets/opt2_img1.png"
+      alt="Zombie sky background"
+      class="absolute inset-0 object-cover w-full h-full opacity-80"
+    />
     <div class="absolute inset-0 bg-black/30"></div>
     <!-- capa de niebla animada -->
     <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
 
     <!-- Contenido principal -->
-    <main class="relative z-20 w-full max-w-xl px-6 py-10 space-y-8 animate-fadeIn">
+    <main
+      class="relative z-20 w-full max-w-xl px-6 py-10 space-y-8 animate-fadeIn"
+    >
       <!-- TÍTULO -->
-      <h1 class="text-3xl md:text-4xl text-lime-400 text-center drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
-        The Last Word
+      <h1
+        class="text-3xl md:text-4xl text-lime-400 text-center drop-shadow-[0_0_15px_#66FCF1] tracking-widest"
+      >
+        The Lost Word
       </h1>
 
       <!-- MENSAJE DE ERROR (si falta nick) -->
-      <p v-if="route.query.needNick"
-        class="bg-red-900/40 border border-red-500 text-red-300 p-3 rounded-md text-sm text-center font-dogica animate-fadeItem delay-[100ms]">
+      <p
+        v-if="route.query.needNick"
+        class="bg-red-900/40 border border-red-500 text-red-300 p-3 rounded-md text-sm text-center font-dogica animate-fadeItem delay-[100ms]"
+      >
         Si us plau, introdueix un nom d'usuari abans d'unirte a un panteó.
       </p>
 
       <!-- INPUT NICKNAME -->
-      <div class="bg-black/40 border border-lime-400 rounded-lg p-4 space-y-2 shadow-lg animate-fadeItem delay-[200ms]">
-        <label class="block text-lime-300 font-semibold text-sm uppercase tracking-widest">
+      <div
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 space-y-2 shadow-lg animate-fadeItem delay-[200ms]"
+      >
+        <label
+          class="block text-lime-300 font-semibold text-sm uppercase tracking-widest"
+        >
           Nom d'usuari
         </label>
-        <input v-model.trim="nick" type="text" placeholder="El teu nom" @keyup.enter="join" autofocus
-          class="w-full bg-gray-900/60 text-lime-200 border border-lime-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400 placeholder-gray-500" />
+        <input
+          v-model.trim="nick"
+          type="text"
+          placeholder="El teu nom"
+          @keyup.enter="join"
+          autofocus
+          class="w-full bg-gray-900/60 text-lime-200 border border-lime-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400 placeholder-gray-500"
+        />
         <small v-if="user.hasNick" class="text-emerald-400 text-xs block mt-1">
           ✓ Identificat com: {{ user.nickname }}
         </small>
       </div>
 
       <!-- LISTA DE SALAS -->
-      <div class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg space-y-3 animate-fadeItem delay-[300ms]">
-        <h2 class="text-xl font-bold text-lime-400 mb-2 flex items-center gap-2 uppercase tracking-wider">
+      <div
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg space-y-3 animate-fadeItem delay-[300ms]"
+      >
+        <h2
+          class="text-xl font-bold text-lime-400 mb-2 flex items-center gap-2 uppercase tracking-wider"
+        >
           Panteons
         </h2>
 
@@ -46,8 +70,11 @@
 
         <!-- Con salas -->
         <ul v-else class="space-y-3">
-          <li v-for="room in rooms" :key="room.name"
-            class="p-3 bg-gray-800/50 border border-gray-700 rounded-md flex flex-col gap-2 hover:bg-gray-700/40 transition">
+          <li
+            v-for="room in rooms"
+            :key="room.name"
+            class="p-3 bg-gray-800/50 border border-gray-700 rounded-md flex flex-col gap-2 hover:bg-gray-700/40 transition"
+          >
             <div class="flex justify-between items-center">
               <div>
                 <div class="font-semibold text-lime-300 text-sm">
@@ -66,13 +93,15 @@
 
               <button
                 class="px-3 py-1 bg-lime-400 text-black rounded-md font-bold text-xs hover:bg-lime-300 transition disabled:opacity-50"
-                :disabled="!nick?.trim() || nicknameExists(room)" @click="
+                :disabled="!nick?.trim() || nicknameExists(room)"
+                @click="
                   user.setNickname(nick);
-                socket.emit('joinRoom', {
-                  roomName: room.name,
-                  nickname: user.nickname,
-                });
-                ">
+                  socket.emit('joinRoom', {
+                    roomName: room.name,
+                    nickname: user.nickname,
+                  });
+                "
+              >
                 {{ nicknameExists(room) ? "Nom ja en ús" : "Unir-se" }}
               </button>
             </div>
@@ -81,8 +110,11 @@
       </div>
 
       <!-- BOTÓN CREAR SALA -->
-      <button @click="goToCreateRoom" :disabled="!nick?.trim()"
-        class="w-full py-2 rounded-md border border-lime-400 text-lime-400 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed animate-fadeItem delay-[400ms]">
+      <button
+        @click="goToCreateRoom"
+        :disabled="!nick?.trim()"
+        class="w-full py-2 rounded-md border border-lime-400 text-lime-400 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed animate-fadeItem delay-[400ms]"
+      >
         {{
           !nick?.trim()
             ? "Introdueix un nom d'usuari per crear un panteó"
@@ -92,7 +124,8 @@
 
       <!-- FRASE FINAL -->
       <footer
-        class="text-center text-xs text-lime-300 italic mt-6 tracking-widest animate-fadeItem delay-[500ms] drop-shadow-lg">
+        class="text-center text-xs text-lime-300 italic mt-6 tracking-widest animate-fadeItem delay-[500ms] drop-shadow-lg"
+      >
         "Només els més precisos sobreviuran fins a l'alba..."
       </footer>
     </main>
