@@ -22,7 +22,7 @@
 
 - Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
 
-- URL de producció: [https://thelastword.daw.inspedralbes.cat](https://thelastword.daw.inspedralbes.cat)
+- URL de producció: [http://thelostword.daw.inspedralbes.cat](http://thelostword.daw.inspedralbes.cat)
 
 ## DOC
 
