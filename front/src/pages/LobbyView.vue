@@ -203,7 +203,6 @@ onMounted(() => {
 
   // Escuchar actualizaciones del timer sincronizado desde el servidor
   socket.on("timerUpdate", (data) => {
-    console.log("Timer actualizado desde servidor:", data);
     seconds.value = data.seconds;
     isTimerActive.value = data.isActive;
   });
