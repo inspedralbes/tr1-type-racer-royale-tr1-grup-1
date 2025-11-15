@@ -16,7 +16,7 @@
       <header
         class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
         <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
-          Cursa Zombie
+          Escapa dels atacants!
         </h1>
 
         <div class="flex flex-wrap gap-6 text-sm">
@@ -43,7 +43,7 @@
             <p class="text-gray-300 text-xs">Panteó: {{ ROOM }}</p>
             <p class="text-gray-300 text-xs">Usuari: {{ user.nickname }}</p>
             <p class="text-gray-300 text-xs">
-              Nº jugadors: {{ participants.length }}
+              Nº zombies: {{ participants.length }}
             </p>
           </div>
 
@@ -153,7 +153,7 @@
       <section v-if="raceState.length"
         class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm">
         <h3 class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2">
-          Progrés de la carrera
+          Sé l'últim zombie en morir!
         </h3>
 
         <div class="space-y-4">

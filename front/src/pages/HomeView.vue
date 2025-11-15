@@ -25,9 +25,9 @@
       <div class="bg-black/40 border border-lime-400 rounded-lg p-4 space-y-2 shadow-lg animate-fadeItem delay-[200ms]">
         <label class="block text-lime-300 font-semibold text-sm uppercase tracking-widest">
           Nom d'usuari
+          <input v-model.trim="nick" type="text" placeholder="El teu nom" @keyup.enter="join" autofocus
+            class="w-full bg-gray-900/60 text-lime-200 border border-lime-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400 placeholder-gray-500" />
         </label>
-        <input v-model.trim="nick" type="text" placeholder="El teu nom" @keyup.enter="join" autofocus
-          class="w-full bg-gray-900/60 text-lime-200 border border-lime-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400 placeholder-gray-500" />
       </div>
 
       <!-- LISTA DE SALAS -->

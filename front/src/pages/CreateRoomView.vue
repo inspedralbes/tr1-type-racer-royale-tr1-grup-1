@@ -19,55 +19,59 @@
       <form @submit.prevent="onSubmit" class="space-y-4">
         <!-- Nombre sala -->
         <div class="animate-fadeItem delay-[100ms]">
-          <label class="text-lime-300 text-sm uppercase tracking-wider">Nom del panteó</label>
-          <input id="roomName" v-model="roomName" type="text" required placeholder="Ex: Panteó Perdut"
-            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400" />
+          <label class="text-lime-300 text-sm uppercase tracking-wider">Nom del panteó
+            <input id="roomName" v-model="roomName" type="text" required placeholder="Ex: Panteó Perdut"
+              class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400" />
+          </label>
         </div>
 
         <!-- Idioma -->
         <div class="animate-fadeItem delay-[200ms]">
-          <label class="text-lime-300 text-sm uppercase tracking-wider">Idioma</label>
-          <select id="language" v-model="language" required
-            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
-            <option disabled value="">Selecciona...</option>
-            <option v-for="lang in languages" :key="lang" :value="lang">
-              {{
-                lang === "es" ? "Espanyol" : lang === "ca" ? "Català" : "Anglès"
-              }}
-            </option>
-          </select>
+          <label class="text-lime-300 text-sm uppercase tracking-wider">Idioma
+            <select id="language" v-model="language" required
+              class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
+              <option disabled value="">Selecciona...</option>
+              <option v-for="lang in languages" :key="lang" :value="lang">
+                {{
+                  lang === "es" ? "Espanyol" : lang === "ca" ? "Català" : "Anglès"
+                }}
+              </option>
+            </select>
+          </label>
         </div>
 
         <!-- Dificultad -->
         <div class="animate-fadeItem delay-[300ms]">
-          <label class="text-lime-300 text-sm uppercase tracking-wider">Dificultat</label>
-          <select id="difficulty" v-model="difficulty" required
-            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
-            <option disabled value="">Selecciona...</option>
-            <option v-for="d in difficulties" :key="d" :value="d">
-              {{
-                d === "facil"
-                  ? "Fàcil"
-                  : d === "intermig"
-                    ? "Intermedi"
-                    : "Difícil"
-              }}
-            </option>
-          </select>
+          <label class="text-lime-300 text-sm uppercase tracking-wider">Dificultat
+            <select id="difficulty" v-model="difficulty" required
+              class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
+              <option disabled value="">Selecciona...</option>
+              <option v-for="d in difficulties" :key="d" :value="d">
+                {{
+                  d === "facil"
+                    ? "Fàcil"
+                    : d === "intermig"
+                      ? "Intermedi"
+                      : "Difícil"
+                }}
+              </option>
+            </select>
+          </label>
         </div>
 
         <!-- Tu nombre -->
         <div class="animate-fadeItem delay-[400ms]">
-          <label class="text-lime-300 text-sm uppercase tracking-wider">El teu nom</label>
-          <input id="userName" v-model="userName" type="text" required placeholder="Introdueix el teu nom"
-            class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400" />
-          <small class="text-gray-400 text-xs block mt-1">
-            {{
-              userStore.hasNick
-                ? "Pots canviar el teu nom si vols"
-                : "Aquest serà el teu nom al panteó"
-            }}
-          </small>
+          <label class="text-lime-300 text-sm uppercase tracking-wider">El teu nom
+            <input id="userName" v-model="userName" type="text" required placeholder="Introdueix el teu nom"
+              class="w-full bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400" />
+            <small class="text-gray-400 text-xs block mt-1">
+              {{
+                userStore.hasNick
+                  ? "Pots canviar el teu nom si vols"
+                  : "Aquest serà el teu nom al panteó"
+              }}
+            </small>
+          </label>
         </div>
 
         <!-- Botón crear -->
@@ -75,8 +79,8 @@
           <button type="submit" :disabled="!isValid || sending"
             class="w-full mt-4 py-2 rounded-md text-black font-bold uppercase tracking-widest transition disabled:opacity-40 disabled:cursor-not-allowed"
             :class="!isValid || sending
-                ? 'bg-gray-500'
-                : 'bg-lime-400 hover:bg-lime-300'
+              ? 'bg-gray-500'
+              : 'bg-lime-400 hover:bg-lime-300'
               ">
             {{ sending ? "Creant..." : "Crear Panteó" }}
           </button>
