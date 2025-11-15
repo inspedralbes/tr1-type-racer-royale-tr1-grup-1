@@ -31,6 +31,7 @@
 
 - Arreglar bugs
 
+
 <!-- ## Documentació bàsica MÍNIMA
 
 - Objectius
