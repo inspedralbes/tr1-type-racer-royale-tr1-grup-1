@@ -20,8 +20,6 @@
 
 - Adreça del gestor de tasques [https://tree.taiga.io/project/a20valzavvas-projecte1_grupo1/timeline](https://tree.taiga.io/project/a20valzavvas-projecte1_grupo1/timeline)
 
-- Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
-
 - URL de producció: [http://thelostword.daw.inspedralbes.cat](http://thelostword.daw.inspedralbes.cat)
 
 ## DOC
