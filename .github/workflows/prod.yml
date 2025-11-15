@@ -1,0 +1,103 @@
+name: Deploy Docker Environments
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update_code:
+    name: Update code on remote server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update project with git pull
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            git pull
+
+  create_root_env:
+    name: Create root .env file
+    runs-on: ubuntu-latest
+    needs: update_code
+    steps:
+      - name: Create .env file
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" > .env
+
+  create_backend_env:
+    name: Create backend .env file
+    runs-on: ubuntu-latest
+    needs: create_root_env
+    steps:
+      - name: Create backend .env
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1/back
+            echo -e "PORT=3000\nHOST=tr1g1-mysql\nUSER=${{ secrets.USER_SERVER }}\nPASSWORD=${{ secrets.DB_PASSWORD }}" > .env.PROD
+
+  create_frontend_env:
+    name: Create frontend .env file
+    runs-on: ubuntu-latest
+    needs: create_backend_env
+    steps:
+      - name: Create frontend .env
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1/front
+            echo -e "VITE_URL_BACK=http://${{ secrets.IP_SERVER }}:3000" > .env.PROD
+
+  copy_shared:
+    name: Copy shared folder to front and back
+    runs-on: ubuntu-latest
+    needs: create_frontend_env
+    steps:
+      - name: Copy shared folder
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            cp -r shared ./front/
+            cp -r shared ./back/
+
+  deploy_containers:
+    name: Build and deploy containers
+    runs-on: ubuntu-latest
+    needs: copy_shared
+    steps:
+      - name: Docker Compose build & up
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.IP_SERVER }}
+          username: ${{ secrets.USER_SERVER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /tr1-type-racer-royale-tr1-grup-1
+            docker compose -f docker-compose.prod.yml up --build -d

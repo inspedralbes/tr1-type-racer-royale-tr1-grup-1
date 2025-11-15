@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "title": "Beginner Practice",
+    "language": "english",
+    "difficulty": "easy",
+    "text": "Typing is a useful skill that improves with practice. Keep your eyes on the screen and your fingers on the home row."
+  },
+  {
+    "id": 2,
+    "title": "Intermediate Challenge",
+    "language": "english",
+    "difficulty": "medium",
+    "text": "In a world driven by technology, typing speed and accuracy can make a significant difference in productivity and communication."
+  },
+  {
+    "id": 3,
+    "title": "Pro Racer",
+    "language": "english",
+    "difficulty": "hard",
+    "text": "Mastering the art of typing requires not only speed but rhythm and consistency. Each keystroke should feel effortless yet precise."
+  },
+  {
+    "id": 4,
+    "title": "Code Snippet Practice",
+    "language": "javascript",
+    "difficulty": "medium",
+    "text": "function greet(name) { return `Hello, ${name}!`; } console.log(greet('World'));"
+  },
+  {
+    "id": 5,
+    "title": "Random Words",
+    "language": "english",
+    "difficulty": "easy",
+    "text": "apple banana chair window cloud dream fire guitar ocean planet quick river stone tree umbrella violet wind yellow zebra"
+  }
+]
+
