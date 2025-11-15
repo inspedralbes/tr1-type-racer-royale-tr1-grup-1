@@ -1,87 +1,207 @@
 <template>
-  <main class="typing-page">
-    <header class="topbar">
-      <h1>Typing Test</h1>
-      <div class="stats">
-        <div><strong>WPM:</strong> {{ wpm }}</div>
-        <div><strong>Accuracy:</strong> {{ accuracy }}%</div>
-        <div><strong>Time:</strong> {{ elapsedSeconds }}s</div>
-      </div>
-    </header>
+  <section
+    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
+    <!-- FONDO EN CAPAS -->
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="absolute inset-0 bg-layer-1 z-0"></div>
+      <div class="bg-fog absolute inset-0 z-7 pointer-events-none"></div>
+      <div class="absolute inset-0 bg-layer-2 z-5"></div>
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="absolute inset-0 bg-layer-3 z-10"></div>
+    </div>
 
-    <section class="text-area" @click="focusInput">
-      <!-- Estados de carga y error -->
-      <div v-if="loading" class="status-message loading">Cargando texto...</div>
-      <div v-else-if="error" class="status-message error">{{ error }}</div>
+    <!-- CONTENIDO -->
+    <main class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn">
+      <!-- 1. TEXTOS Y ESTADÍSTICAS (HEADER MANTENIDO) -->
+      <header
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
+        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
+          Escapa dels atacants!
+        </h1>
 
-      <!-- Contenido del texto -->
-      <div v-else class="text-wrapper" ref="textWrapper">
-        <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{
-          ch
-        }}</span>
-        <!-- blinking caret positioned dynamically -->
-        <span v-if="!finished" class="caret" :style="caretStyle"></span>
-      </div>
-
-      <!-- hidden input to capture keyboard, mobile-friendly -->
-      <textarea
-        ref="hiddenInput"
-        v-model="userInput"
-        class="hidden-input"
-        @input="onInput"
-        @keydown="onKeydown"
-        @paste.prevent
-        :maxlength="target.length"
-        aria-label="Typing input"
-      ></textarea>
-    </section>
-
-    <!-- Mostrar jugadores de la sala -->
-    <section v-if="participants.length > 0" class="participants-section">
-      <h3>Jugadores en la sala:</h3>
-      <div class="results-grid">
-        <div v-for="nick in participants" :key="nick" class="result-card">
-          <strong>{{ nick }}</strong>
-          <div>WPM: {{ findResult(nick)?.wpm ?? "-" }}</div>
-          <div>Precisión: {{ findResult(nick)?.accuracy ?? "-" }}%</div>
+        <div class="flex flex-wrap gap-6 text-sm">
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">Precisió</div>
+            <div class="text-2xl text-lime-300">{{ accuracy }}%</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lime-400 font-semibold">Temps</div>
+            <div class="text-2xl text-lime-300">{{ elapsedSeconds }}s</div>
+          </div>
         </div>
-      </div>
-    </section>
+      </header>
 
-    <!-- Mostrar resultados si hay -->
-    <section v-if="gameResults.length > 0" class="results-section">
-      <h3>Resultados de la sala:</h3>
-      <div class="results-grid">
-        <div
-          v-for="result in gameResults"
-          :key="result.timestamp"
-          class="result-card"
-        >
-          <strong>{{ result.nickname }}</strong>
-          <div>WPM: {{ result.wpm }}</div>
-          <div>Precisión: {{ result.accuracy }}%</div>
+      <!-- 2. LAYOUT PRINCIPAL: SIDEBAR IZQUIERDO + ÁREA DE TEXTO + PANEL DERECHO -->
+      <section class="grid grid-cols-1 lg:grid-cols-8 gap-6 animate-fadeItem delay-[200ms]">
+        <!-- SIDEBAR IZQUIERDO: INFO DE SALA Y POSICIONES -->
+        <div class="lg:col-span-2 space-y-4">
+          <!-- INFO DE LA SALA -->
+          <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
+            <h3 class="text-lime-300 font-semibold text-sm mb-2">
+              Informació del panteó
+            </h3>
+            <p class="text-gray-300 text-xs">Panteó: {{ ROOM }}</p>
+            <p class="text-gray-300 text-xs">Usuari: {{ user.nickname }}</p>
+            <p class="text-gray-300 text-xs">
+              Nº zombies: {{ participants.length }}
+            </p>
+          </div>
+
+          <!-- POSICIONES EN TIEMPO REAL -->
+          <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
+            <h3 class="text-lime-300 font-semibold text-sm mb-2">Posicions</h3>
+            <div class="space-y-1">
+              <div v-for="p in [...raceState].sort(
+                (a, b) => b.position - a.position
+              )" :key="p.nickname" class="flex justify-between text-xs" :class="{
+                'opacity-40': p.isAlive === false
+              }">
+                <template v-if="p.nickname === user.nickname">
+                  <span class="text-purple-600" :class="{ 'line-through': p.isAlive === false }">{{ user.nickname }}
+                    (Tú)</span>
+                  <span class="text-purple-600">{{ p.position }}</span>
+                </template>
+                <template v-else>
+                  <span class="text-gray-300" :class="{ 'line-through': p.isAlive === false }">{{ p.nickname }}</span>
+                  <span class="text-gray-400">{{ p.position }}</span>
+                </template>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Race progress (server-authoritative) -->
-    <section v-if="raceState.length" class="race-progress">
-      <h3>Race progress</h3>
-      <div v-for="p in raceState" :key="p.nickname" class="progress-row">
-        <span>{{ p.nickname }}</span>
-        <div class="bar-container">
-          <div class="bar" :style="{ width: p.position + '%' }"></div>
+        <!-- ÁREA CENTRAL: TEXTO Y TECLADO -->
+        <div class="lg:col-span-5 space-y-4">
+          <!-- ÁREA DE TEXTO A ESCRIBIR -->
+          <div class="bg-black/70 border border-lime-400 rounded-lg p-3 shadow-lg transition-opacity duration-500"
+            :class="{ 'opacity-30 pointer-events-none': isPlayerDead }" @click="focusInput">
+            <div v-if="loading" class="text-center py-12 text-lime-400">
+              Carregant text...
+            </div>
+            <div v-else-if="error" class="text-center py-12 text-red-400">
+              {{ error }}
+            </div>
+
+            <div v-else class="text-wrapper relative" ref="textWrapper">
+              <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{ ch }}</span>
+              <span v-if="!finished && !isPlayerDead" class="caret" :style="caretStyle"></span>
+            </div>
+
+            <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
+              @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
+          </div>
+
+          <!-- TECLADO -->
+          <div class="relative z-20 w-full transition-opacity duration-500" :class="{ 'opacity-50': isPlayerDead }">
+            <Keyboard :nickname="user.nickname" :room="ROOM" />
+          </div>
         </div>
-        <small>{{ p.position.toFixed(0) }}%</small>
-      </div>
-    </section>
 
-    <footer class="actions">
-      <button class="btn" @click="reset">Reset</button>
-      <button class="btn" @click="nextText">Next Text</button>
-    </footer>
-    <Keyboard :nickname="user.nickname" :room="ROOM" />
-  </main>
+        <!-- PANEL DERECHO: ESPECTADOR / NOTIFICACIONES -->
+        <div class="lg:col-span-1 relative z-40">
+          <div id="notification-panel" class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0" :class="{
+            'border-purple-500': isPlayerDead,
+            'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
+            'border-gray-600/30':
+              !isPlayerDead && serverMessages.length === 0,
+          }" style="pointer-events: auto">
+            <!-- MODO ESPECTADOR: Cuando el jugador ha muerto -->
+            <div v-if="isPlayerDead">
+              <h3 class="text-purple-400 font-semibold text-sm mb-2">
+                Has mort!
+              </h3>
+              <p class="text-gray-300 text-xs mb-2">Mode espectador activat</p>
+              <div class="text-xs text-purple-300 italic">
+                Continua mirant la partida...
+              </div>
+            </div>
+
+            <!-- MODO NOTIFICACIONES: Cuando el jugador está vivo -->
+            <div v-else>
+              <h3 class="text-lime-400 font-semibold text-xs mb-2 tracking-wider">
+                VEUS DEL PANTEÓ
+              </h3>
+
+              <!-- Lista de mensajes -->
+              <div v-if="serverMessages.length > 0" class="space-y-1 max-h-24 overflow-y-auto">
+                <div v-for="message in serverMessages" :key="message.id"
+                  class="text-xs p-1 rounded border-l-2 animate-fadeItem" :class="{
+                    'border-l-lime-400 bg-lime-400/10 text-lime-300':
+                      message.type === 'info' || message.type === 'success',
+                    'border-l-yellow-400 bg-yellow-400/10 text-yellow-300':
+                      message.type === 'warning',
+                    'border-l-purple-400 bg-purple-400/10 text-purple-300':
+                      message.type === 'error',
+                  }">
+                  {{ message.text }}
+                </div>
+              </div>
+
+              <!-- Mensaje cuando no hay notificaciones -->
+              <div v-else class="text-center text-gray-500 italic leading-tight px-1" style="font-size: 0.55rem">
+                Esperant missatges...
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ESPACIADO REDUCIDO -->
+      <div class="h-1"></div>
+
+      <!-- 3. PROGRESO DE LA CARRERA -->
+      <section v-if="raceState.length"
+        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+        <h3 class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2">
+          Sé l'últim zombie en morir!
+        </h3>
+
+        <div class="space-y-4">
+          <div v-for="(p, i) in raceState" :key="p.nickname"
+            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20 transition-opacity duration-300" :class="{
+              'opacity-30': p.isAlive === false
+            }">
+            <!-- Nombre -->
+            <span class="text-lime-300 font-semibold text-xs w-24 truncate" :class="{
+              'line-through text-red-400': p.isAlive === false
+            }">
+              {{ p.nickname }}
+            </span>
+
+            <!-- Pista -->
+            <div class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden">
+              <!-- Línea de meta -->
+              <div class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse">
+              </div>
+
+              <!-- ZOMBIE PIXEL ART ANIMADO -->
+              <div class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out" :class="{
+                'grayscale opacity-50': p.isAlive === false
+              }" :style="{ left: p.position * 1.3 + 'px' }"></div>
+            </div>
+
+            <!-- Indica el último (va a morir) -->
+            <span :class="[
+              'text-xs font-mono px-2 py-0.5 rounded-md transition-colors duration-300',
+              p.position === Math.min(...raceState.map((r) => r.position)) && p.isAlive !== false
+                ? 'bg-red-600/40 text-red-200 animate-pulse'
+                : 'text-gray-300',
+              p.isAlive === false ? 'line-through' : ''
+            ]">
+              {{ p.position }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER DE FRASE -->
+      <!-- <footer
+        class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[400ms]"
+      >
+        "Cada paraula conta... La supervivència depèn de la velocitat."
+      </footer> -->
+    </main>
+  </section>
 </template>
 
 <script setup>
@@ -95,19 +215,110 @@ import {
 } from "vue";
 import { getText } from "@/services/communicationManager.js";
 import { socket } from "@/services/socket";
-import { useToast } from "vue-toastification";
 
 import { useUserStore } from "@/stores/user";
 import { useRouter } from "vue-router";
-import { calcPlayerSpeed } from "@/../shared/speed.js";
 import Keyboard from "@/components/Keyboard.vue";
+import Swal from "sweetalert2";
 const router = useRouter();
 const user = useUserStore();
-const toast = useToast();
 
 // Variables para la sala dinámica
 const roomList = ref([]);
 const currentRoom = ref(null);
+
+// Variable global para controlar el panel de notificaciones/espectador
+const isPlayerDead = ref(false);
+const serverMessages = ref([]);
+const deathAlertShown = ref(false); // Bandera para controlar que el alert de muerte solo se muestre una vez
+
+// Variable para forzar la actualización del tiempo
+const currentTime = ref(Date.now());
+
+// Variables para el control dinámico del fondo
+const isTyping = ref(false);
+const backgroundSpeed = ref(0); // Velocidad actual del fondo (0 = parado, 1 = corriendo)
+const lastTypingTime = ref(0);
+const typingTimeout = ref(null);
+
+// Set para rastrear jugadores ya procesados como muertos
+const processedDeaths = ref(new Set());
+
+// Función para actualizar la velocidad del fondo
+function updateBackgroundSpeed() {
+  const now = Date.now();
+  const timeSinceLastTyping = now - lastTypingTime.value;
+
+  // Sistema binario simple: parado o corriendo
+  if (isTyping.value) {
+    backgroundSpeed.value = 1; // Corriendo
+  } else if (timeSinceLastTyping > 2000) {
+    backgroundSpeed.value = 0; // Parado
+  }
+
+  // Aplicar la velocidad al fondo
+  updateBackgroundAnimations(backgroundSpeed.value);
+}
+
+// Función para aplicar la velocidad a las animaciones
+function updateBackgroundAnimations(speed = backgroundSpeed.value) {
+  const layers = document.querySelectorAll(
+    ".bg-layer-1, .bg-layer-2, .bg-layer-3, .bg-fog"
+  );
+
+  for (const layer of layers) {
+    if (speed === 0) {
+      layer.style.animationPlayState = "paused";
+    } else {
+      layer.style.animationPlayState = "running";
+      // No cambiar animation-duration para evitar ralentizaciones
+    }
+  }
+}
+
+// Función para obtener la duración base de una capa
+// Función para detectar actividad de escritura
+function onTypingActivity() {
+  isTyping.value = true;
+  lastTypingTime.value = Date.now();
+
+  // Limpiar timeout anterior
+  if (typingTimeout.value) {
+    clearTimeout(typingTimeout.value);
+  }
+
+  // Establecer que dejó de escribir después de 500ms de inactividad
+  typingTimeout.value = setTimeout(() => {
+    isTyping.value = false;
+  }, 500);
+}
+
+// Función para agregar mensajes del servidor
+function addServerMessage(message, type = "info") {
+  const newMessage = {
+    id: Date.now(),
+    text: message,
+    type: type, // info, warning, error, success
+    timestamp: new Date(),
+  };
+
+  serverMessages.value.unshift(newMessage);
+
+  // Mantener solo los últimos 3 mensajes
+  if (serverMessages.value.length > 3) {
+    serverMessages.value = serverMessages.value.slice(0, 3);
+  }
+
+  // Auto-eliminar mensaje después de 5 segundos
+  setTimeout(() => {
+    const index = serverMessages.value.findIndex(
+      (msg) => msg.id === newMessage.id
+    );
+    if (index > -1) {
+      serverMessages.value.splice(index, 1);
+    }
+  }, 5000);
+}
 
 // Computed para obtener el nombre de la sala actual
 const ROOM = computed(() => {
@@ -137,12 +348,45 @@ const error = ref(null);
 const gameResults = ref([]);
 const participants = ref([]); // <-- nueva ref para participantes
 const targetChars = computed(() => Array.from(target.value));
+const currentTextId = ref(0);
+const textsIds = ref([]); // IDs de textos asignados al usuario
 
 // RACE STATE (from server)
 const raceState = ref([]);
+
+// Función para llenar participants con datos de jugadores
+function loadParticipants(playersList) {
+  if (playersList && Array.isArray(playersList)) {
+    participants.value = playersList.map((player) => ({
+      id: player.id,
+      nickname: player.nickname,
+      color: player.color,
+      wpm: player.wpm || 0,
+      accuracy: player.accuracy || 0,
+      isAlive: player.isAlive !== false, // Asegurar que isAlive se sincronice (default true)
+      textsIds: player.textsIds || [],
+    }));
+    console.log("✓ Participantes sincronizados:", participants.value);
+  }
+}
 socket.on("race:update", (snapshot) => {
   raceState.value = snapshot || [];
 });
+
+// Detectar si alguien llega a 700 de posición para terminar la carrera
+watch(
+  () => raceState.value,
+  (newState) => {
+    if (newState && newState.length > 0) {
+      const maxPosition = Math.max(...newState.map((p) => p.position));
+      if (maxPosition >= 700) {
+        console.log("¡Alguien llegó a 700! Enviando endRaceInRoom al servidor");
+        socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+      }
+    }
+  },
+  { deep: true }
+);
 
 const totalErrors = ref(0);
 const lastTypedLength = ref(0);
@@ -184,15 +428,16 @@ const correctChars = computed(() => {
 
 const elapsedMs = computed(() => {
   if (!startedAt.value) return 0;
-  const end = endedAt.value ?? Date.now();
+  // Usar currentTime.value para hacer reactivo el tiempo
+  const end = endedAt.value ?? currentTime.value;
   return Math.max(0, end - startedAt.value);
 });
 const elapsedSeconds = computed(() => Math.floor(elapsedMs.value / 1000));
 const minutes = computed(() => (elapsedMs.value || 1) / 60000);
-const wpm = computed(() => {
-  const words = correctChars.value / 5;
-  return Math.max(0, Math.round(words / minutes.value));
-});
+// const wpm = computed(() => {
+//   const words = correctChars.value / 5;
+//   return Math.max(0, Math.round(words / minutes.value));
+// });
 const accuracy = computed(() => {
   if (typedChars.value === 0) return 100;
   return Math.round((correctChars.value / typedChars.value) * 100);
@@ -231,25 +476,36 @@ function charClass(i) {
   return "char untouched";
 }
 
-// --- RACE: emit progress (throttled) ---
+// --- RACE: emit progress (simplificado a +1/-1) ---
 let lastEmit = 0;
-const EMIT_MS = 250;
+const EMIT_MS = 100; // más sensible, puedes subir a 250ms
+
 function emitProgressThrottled() {
   const now = performance.now();
   if (now - lastEmit < EMIT_MS) return;
   lastEmit = now;
-  const speed = calcPlayerSpeed(wpm.value);
+
+  if (userInput.value.length === 0) return;
+
+  const pos = userInput.value.length - 1;
+  const correct = target.value[pos] === userInput.value[pos];
+  const delta = correct ? 1 : -1;
+
   socket.emit("typing:progress", {
     room: ROOM.value,
     nickname: user.nickname,
-    wpm: wpm.value,
-    accuracy: accuracy.value,
-    speed,
+    delta,
   });
 }
 
+// Track previous input length to detect backspace
+let previousInputLength = 0;
+
 // INPUT HANDLERS
 function onInput() {
+  // Detectar actividad de escritura para el fondo dinámico
+  onTypingActivity();
+
   if (!startedAt.value && userInput.value.length > 0) {
     startedAt.value = Date.now();
   }
@@ -267,7 +523,6 @@ function onInput() {
     for (let i = lastTypedLength.value; i < len; i++) {
       if (userInput.value[i] !== target.value[i]) {
         totalErrors.value++;
-        console.log("Nuevo error acumulado:", totalErrors.value);
       }
     }
   }
@@ -284,46 +539,29 @@ function onInput() {
       room: ROOM.value,
       nickname: user.nickname,
       status: "bad",
-      message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
+      message: `${user.nickname} .`,
     });
   }
 
-  // // Si mejora su precisión y baja de 3 errores → enviar mejora
-  // if (errorCount.value === 2) {
-  //   socket.emit("userPerformance", {
-  //     room: "main-room",
-  //     nickname: user.nickname,
-  //     status: "recovered",
-  //     message: `${user.nickname} se ha recuperado y está escribiendo mejor.`,
-  //   });
-  // }
+  // Solo emitir progreso si se escribieron caracteres nuevos (NO en backspace)
+  if (userInput.value.length > previousInputLength) {
+    emitProgressThrottled();
+  }
 
-  // // ---  NUEVO: detección de velocidad alta
-  // if (wpm.value >= 80 && wpm.value !== lastWpmEmit.value) {
-  //   lastWpmEmit.value = wpm.value;
-  //   socket.emit("userPerformance", {
-  //     room: "main-room",
-  //     nickname: user.nickname,
-  //     status: "fast",
-  //     message: `${user.nickname} está escribiendo muy rápido (${wpm.value} WPM)!`,
-  //   });
-  // }
-
-  // Finalización
-
-  emitProgressThrottled();
+  // Actualizar la longitud anterior para detectar backspace
+  previousInputLength = userInput.value.length;
 
   if (finished.value && !endedAt.value) {
-    endedAt.value = Date.now();
-
-    // Enviar resultados al servidor
-    socket.emit("gameFinished", {
-      room: ROOM.value,
-      nickname: user.nickname,
-      wpm: wpm.value,
-      accuracy: accuracy.value,
-      errors: totalErrors.value,
-    });
+    if (currentTextId.value === 4) {
+      // Solo detener el tiempo cuando termine todos los textos
+      endedAt.value = Date.now();
+      console.log("Juego finalizado para el usuario:", user.nickname);
+      socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+    } else {
+      setTimeout(() => {
+        nextText(currentTextId.value);
+      }, 300);
+    }
   }
 }
 
@@ -338,20 +576,78 @@ function focusInput() {
 
 function reset() {
   userInput.value = "";
-  startedAt.value = null;
-  endedAt.value = null;
-  totalErrors.value = 0; // 🔹 resetear errores
+  // NO reiniciar startedAt ni endedAt entre textos
+  // startedAt.value = null;
+  // endedAt.value = null;
+  totalErrors.value = 0; // resetear errores
   lastTypedLength.value = 0;
   focusInput();
 }
 
-async function nextText() {
-  await pickRandomText();
-  reset();
+// Función para simular muerte del jugador (para testing)
+function simulatePlayerDeath() {
+  isPlayerDead.value = true;
+}
+
+async function nextText(posicion) {
+  console.log("Cargando texto con ID:", textsIds.value[posicion]);
+
+  if (!textsIds.value || posicion >= textsIds.value.length) {
+    console.error("No hay más textos disponibles o textsIds está vacío");
+    error.value = "No hay más textos disponibles";
+    return;
+  }
+
+  try {
+    loading.value = true;
+    const data = await getText(textsIds.value[posicion]);
+    const text = data.text ?? data.TEXT_CONTENT ?? data.TEXT;
+    current.value = data;
+    target.value = text ?? "";
+    currentTextId.value++;
+    reset();
+    loading.value = false;
+  } catch (err) {
+    console.error("Error cargando texto:", err);
+    error.value = "Error al cargar el texto";
+    loading.value = false;
+  }
+}
+
+function getTextIds() {
+  for (let i = 0; i < participants.value.length; i++) {
+    if (participants.value[i].nickname === user.nickname) {
+      textsIds.value = participants.value[i].textsIds || [];
+      console.log("Text IDs del usuario:", textsIds.value);
+      return textsIds.value;
+    }
+  }
+  console.warn("No se encontraron textsIds para el usuario:", user.nickname);
+  return [];
 }
 
 // MOUNT
 onMounted(async () => {
+  // Inicializar el sistema de fondo dinámico con actualización suave y frecuente para máxima fluidez
+  const backgroundUpdateInterval = setInterval(updateBackgroundSpeed, 50);
+
+  // Intervalo para actualizar el tiempo cada segundo
+  const timeUpdateInterval = setInterval(() => {
+    currentTime.value = Date.now();
+  }, 1000);
+
+  // Limpiar el intervalo cuando el componente se desmonte
+  onBeforeUnmount(() => {
+    clearInterval(backgroundUpdateInterval);
+    clearInterval(timeUpdateInterval);
+    if (typingTimeout.value) {
+      clearTimeout(typingTimeout.value);
+    }
+  });
+
+  // Inicializar fondo parado
+  updateBackgroundAnimations();
+
   // Solicitar lista de salas primero
   socket.emit("requestRoomList");
 
@@ -370,6 +666,12 @@ onMounted(async () => {
             : player.nickname === user.nickname
         )
     );
+
+    // Cargar los datos de los participantes (pasar solo el array de players)
+    if (userRoom && userRoom.players) {
+      loadParticipants(userRoom.players);
+      getTextIds(); // Obtener los textosIds del usuario
+    }
 
     if (userRoom) {
       currentRoom.value = userRoom;
@@ -393,25 +695,197 @@ onMounted(async () => {
     console.log("Resultados actualizados:", results);
   });
 
-  toast.info("Conectado al servidor de notificaciones.");
+  // Carregar Final de la carrera
+  socket.on("endRaceInRoom", () => {
+    // Calcular WPM correctamente
+    const wpmValue = getWpm();
+
+    // Obtener la posición actual del jugador
+    const playerPosition = raceState.value.find(
+      (p) => p.nickname === user.nickname
+    )?.position || 0;
+
+    // Enviar resultados al servidor con todos los datos
+    socket.emit("gameFinished", {
+      room: ROOM.value,
+      nickname: user.nickname,
+      wpm: wpmValue,
+      accuracy: accuracy.value,
+      errors: totalErrors.value,
+      position: playerPosition,
+    });
+    console.log("La carrera ha terminado");
+    router.push({ name: "fin" });
+  });
+
+  function getWpm() {
+    const words = correctChars.value / 5;
+    return Math.max(0, Math.round(words / minutes.value));
+  }
+
+  addServerMessage("Connectat al servidor", "success");
 
   socket.on("userPerformance", (data) => {
     console.log("Notificación de rendimiento:", data);
     if (data.nickname !== user.nickname) {
-      toast.info(data.message, { timeout: 2500 });
+      addServerMessage(data.message, "warning");
     }
   });
 
   // Escuchar lista de usuarios en la sala
   socket.on("updateUserList", (list) => {
-    participants.value = list || [];
-    console.log(" Lista de usuarios actualizada:", participants.value);
+    loadParticipants(list);
+    getTextIds(); // Actualizar textsIds cuando se actualiza la lista de usuarios
   });
 
-  await pickRandomText();
+  // Matar jugador
+  // Auto-kill every 15s: encuentra al jugador con menor posición y avisa al servidor
+  let lastKilledNickname = null; // Track the last killed player to avoid killing the same player multiple times
+
+  const autoKillInterval = setInterval(() => {
+    if (!raceState.value || raceState.value.length === 0) return;
+
+    // Filtrar solo jugadores vivos
+    const alivePlayers = raceState.value.filter(
+      (p) => typeof p.isAlive === "undefined" ? true : p.isAlive
+    );
+
+    if (alivePlayers.length === 0) return;
+
+    // Calcular la posición mínima entre los vivos
+    const minPos = Math.min(...alivePlayers.map((p) => p.position));
+
+    // Elegir el primer jugador con esa posición mínima que aún esté vivo
+    // y que no sea el que fue eliminado en la ronda anterior
+    const victim = alivePlayers.find(
+      (p) => p.position === minPos && p.nickname !== lastKilledNickname
+    );
+
+    if (victim) {
+      console.log(
+        "Auto-kill: matando a",
+        victim.nickname,
+        "con posición",
+        minPos,
+        "en sala",
+        ROOM.value
+      );
+
+      lastKilledNickname = victim.nickname;
+
+      socket.emit("player:isDeath", {
+        roomName: ROOM.value,
+        nickname: victim.nickname,
+      });
+    }
+  }, 30000);
+
+  socket.on("player:dead", (data) => {
+    console.log("Jugador muerto recibido:", data);
+    const roomName = data.roomName || ROOM.value;
+
+    // Evitar procesar el mismo jugador múltiples veces
+    if (processedDeaths.value.has(data.nickname)) {
+      console.log(`Muerte de ${data.nickname} ya fue procesada, ignorando duplicado`);
+      return;
+    }
+
+    // Marcar este jugador como ya procesado
+    processedDeaths.value.add(data.nickname);
+
+    // Reproducir sonido de muerte
+    const deathSound = new Audio("/src/assets/shoot.mp3");
+    deathSound.volume = 0.7;
+    deathSound.play().catch((err) => console.log("Error reproduciendo sonido:", err));
+
+    if (data.nickname === user.nickname) {
+      // Marcar al jugador actual como muerto (UI local)
+      isPlayerDead.value = true;
+
+      addServerMessage("Has mort!", "error");
+
+      // Solo mostrar el SweetAlert una vez
+      if (!deathAlertShown.value) {
+        deathAlertShown.value = true;
+        Swal.fire({
+          title: "Has mort!",
+          text: "Estarà en mode espectador.",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 5000,
+        });
+      }
+
+      // Deshabilitar el input oculto para que no pueda seguir escribiendo
+      if (hiddenInput.value) {
+        hiddenInput.value.disabled = true;
+        hiddenInput.value.blur();
+      }
+    } else {
+      addServerMessage(`${data.nickname} ha mort!`, "warning");
+    }
+
+    // Verificar después de 2 segundos usando participants.value (que está sincronizado con updateUserList)
+    setTimeout(() => {
+      if (participants.value && participants.value.length > 0) {
+        // Contar cuántos jugadores están vivos según participants.value
+        const playersAlive = participants.value.filter((p) => p.isAlive !== false).length;
+
+        console.log(
+          `Jugadores vivos en sala ${roomName}: ${playersAlive} de ${participants.value.length}`
+        );
+
+        // Si solo queda una persona viva, terminar la partida
+        if (playersAlive === 1) {
+          console.log("¡Solo queda un jugador vivo! Terminando la partida.");
+
+          const lastPlayer = participants.value.find((p) => p.isAlive !== false);
+
+          if (lastPlayer && lastPlayer.nickname === user.nickname) {
+            // Si el último jugador vivo es el usuario actual, mostrar alerta de victoria
+            Swal.fire({
+              title: "Felicitats!",
+              text: "Has escapat!",
+              icon: "success",
+              showConfirmButton: false,
+              timer: 5000,
+            }).then(() => {
+              socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+            });
+          }
+        }
+      } else {
+        console.warn("No hay participantes para verificar jugadores vivos");
+      }
+    }, 2000);
+  });
+
+  // Obtener textos inicialmente si ya tenemos participantes
+  if (participants.value.length > 0) {
+    getTextIds();
+  }
+
+  if (textsIds.value.length > 0) {
+    await nextText(currentTextId.value);
+  } else {
+    // Esperar a que se carguen los textsIds
+    let retries = 0;
+    const waitForTexts = setInterval(async () => {
+      retries++;
+      if (textsIds.value.length > 0) {
+        clearInterval(waitForTexts);
+        await nextText(currentTextId.value);
+      } else if (retries > 20) {
+        clearInterval(waitForTexts);
+        error.value = "No se pudieron cargar los textos asignados";
+        loading.value = false;
+      }
+    }, 200);
+  }
+
   await nextTick();
 
-  if (!target) {
+  if (target.value === "") {
     const interval = setInterval(() => {
       if (target.value) {
         clearInterval(interval);
@@ -430,6 +904,9 @@ onBeforeUnmount(() => {
   socket.off("race:update");
   socket.off("connect");
   socket.off("roomList");
+  socket.off("player:dead");
+  socket.off("updateUserList");
+  socket.off("endRaceInRoom");
 });
 
 // When target changes (Next Text), reset everything
@@ -455,137 +932,194 @@ function findResult(nick) {
 </script>
 
 <style scoped>
-/* Race bars */
-.race-progress {
-  margin-top: 1.5rem;
+@keyframes fogMove {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
 }
 
-.progress-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
+@keyframes backgroundMoveSlow {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: -100vw 0;
+  }
 }
 
-.bar-container {
-  flex: 1;
-  background: #e5e7eb;
-  border-radius: 4px;
-  height: 10px;
-  overflow: hidden;
+@keyframes backgroundMoveMedium {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: -200vw 0;
+  }
 }
 
-.bar {
-  height: 100%;
-  transition: width 0.1s linear;
-  background: #2563eb;
+@keyframes backgroundMoveFast {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: -300vw 0;
+  }
 }
 
-/* Page layout */
-.typing-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.topbar h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-.stats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.95rem;
+.bg-fog {
+  background: url("/src/assets/nice-snow.png");
+  background-repeat: repeat;
+  background-size: 600px 600px;
+  opacity: 0.3;
+  filter: brightness(1.3) contrast(0.8);
+  animation: fogMove 60s linear infinite paused;
+  z-index: 7;
+  pointer-events: none;
 }
 
-/* Text area */
-.text-area {
-  position: relative;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  min-height: 180px;
-  line-height: 1.6;
-  font-size: 1.05rem;
-  background: #0f172a0d;
-  cursor: text;
-  user-select: none;
+/* Capa 1: Fondo lejano (más lento) */
+.bg-layer-1 {
+  background-image: url("/src/assets/opt2_img1.png");
+  background-repeat: repeat-x;
+  background-size: width 1500px;
+  background-position: 0 0;
+  opacity: 0.8;
+  animation: backgroundMoveSlow 60s linear infinite paused;
 }
 
+/* Capa 2: Fondo medio (velocidad media) */
+.bg-layer-2 {
+  background-image: url("/src/assets/opt1_img2.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 0.6;
+  animation: backgroundMoveMedium 25s linear infinite paused;
+}
+
+/* Capa 3: Primer plano (más rápido, más cercano) */
+.bg-layer-3 {
+  background-image: url("/src/assets/opt1_img3.png");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: 0 0;
+  opacity: 1;
+  animation: backgroundMoveFast 15s linear infinite paused;
+}
+
+/* Animaciones del panel y contenido */
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+    filter: brightness(0.5);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes fadeItem {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-fadeItem {
+  animation: fadeItem 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+/* Área de texto principal */
 .text-wrapper {
   position: relative;
-  color: #6b7280;
+  color: #9ca3af;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
+  line-height: 1.6;
+  font-size: 1rem;
+  min-height: 60px;
+  cursor: text;
+  user-select: none;
 }
 
-/* Status */
-.status-message {
-  text-align: center;
-  padding: 2rem;
-  font-size: 1.1rem;
-}
-
-.loading {
-  color: #2563eb;
-}
-
-.error {
-  color: #dc2626;
-}
-
-/* characters */
+/* Characters styling */
 .char {
   position: relative;
 }
 
 .untouched {
-  opacity: 0.65;
+  opacity: 0.6;
+  color: #6b7280;
 }
 
 .correct {
-  color: #10b981;
+  color: #a3e635;
+  /* background-color: rgba(16, 185, 129, 0.1); */
 }
 
-/* emerald */
 .wrong {
-  color: #e81c1c;
+  color: #8f1de0;
+  /* púrpura  */
+  background-color: rgba(190, 164, 231, 0.15);
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+  text-shadow: 0 0 9px rgba(129, 30, 249, 0.6);
+  /* leve glow sangriento */
 }
 
 .current {
-  color: #111827;
-  /* brighten current slot slightly */
+  color: #a3e635;
+  background-color: rgba(101, 252, 241, 0.2);
 }
 
-/* blinking caret positioned dynamically */
+/* Caret animado */
 .caret {
   display: inline-block;
   width: 2px;
-  height: 1.2em;
-  background: #111827;
+  height: 1.4em;
+  background: #a3e635;
   position: absolute;
   z-index: 1;
-  animation: blink 0.5s steps(2, start) infinite;
+  animation: blink 1s ease-in-out infinite;
+  box-shadow: 0 0 5px #a3e635;
 }
 
 @keyframes blink {
+
+  0%,
   50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
     opacity: 0;
   }
 }
 
-/* hidden input overlay */
+/* Hidden input overlay */
 .hidden-input {
   position: absolute;
   inset: 0;
@@ -595,64 +1129,54 @@ function findResult(nick) {
   border: none;
   resize: none;
   cursor: text;
-  caret-color: #111827;
-  /* so the native caret still exists for accessibility */
+  caret-color: transparent;
   font: inherit;
   line-height: inherit;
   letter-spacing: inherit;
-  padding: 16px;
+  padding: inherit;
   outline: none;
+  z-index: 5;
 }
 
-/* Buttons */
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+/* Scrollbar personalizado */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
 }
 
-.btn {
-  padding: 0.5rem 0.9rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: white;
-  cursor: pointer;
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
 }
 
-.btn:hover {
-  background: #f3f4f6;
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #a3e635;
+  border-radius: 4px;
 }
 
-.results-section {
-  margin: 2rem 0;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #45a29e;
 }
 
-/* Reuso la misma grid para participantes */
-.participants-section {
-  margin: 1.5rem 0;
-  padding: 0.5rem 0;
+.zombie-sprite {
+  width: 48px;
+  height: 48px;
+  background-image: url("../assets/zombie_run.png");
+  background-repeat: no-repeat;
+  /* background-size = total width / total height para encajar todo en un frame visible */
+  background-size: calc(48px * 3) calc(48px * 2);
+  /* 3 columnas × 2 filas, escalado a 48px cada frame */
+  animation: zombie-run 0.6s steps(2) infinite;
 }
 
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
+@keyframes zombie-run {
+  from {
+    background-position: 0 0;
+  }
 
-.result-card {
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  background: white;
-}
+  to {
+    background-position: -96px 0;
+  }
 
-.result-card strong {
-  color: #2563eb;
-  display: block;
-  margin-bottom: 0.5rem;
+  /* 48 * 2 = 96px (solo los 2 primeros frames que se ven bien) */
 }
 </style>

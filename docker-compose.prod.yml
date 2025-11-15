@@ -30,7 +30,7 @@ services:
       - ./back/data/create_db.sql:/docker-entrypoint-initdb.d/create.sql
       - ./back/data/insert_db.sql:/docker-entrypoint-initdb.d/inserts.sql
 
-  adminer:
+  tr1g1-adminer:
     image: adminer
     restart: always
     ports:
@@ -40,7 +40,7 @@ services:
     depends_on:
       - tr1g1-mysql
 
-  portainer:
+  tr1g1-portainer:
     container_name: portainer
     image: portainer/portainer-ce:lts
     restart: always

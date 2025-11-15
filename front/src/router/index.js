@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "@/pages/HomeView.vue";
 import LobbyView from "@/pages/LobbyView.vue";
 import PlayView from "@/pages/PlayView.vue";
-import FinView from "@/pages/FinView.vue";
+import EndView from "@/pages/EndView.vue";
 import { useUserStore } from "@/stores/user";
 import CreateRoomView from "@/pages/CreateRoomView.vue";
 
@@ -19,19 +19,19 @@ const router = createRouter({
       path: "/play",
       name: "play",
       component: PlayView,
-      meta: { requiresNick: true },
+      meta: { requiresRoom: true },
     },
     {
       path: "/lobby",
       name: "lobby",
       component: LobbyView,
-      meta: { requiresNick: true },
+      meta: { requiresRoom: true },
     },
     {
       path: "/fin",
       name: "fin",
-      component: FinView,
-      meta: { requiresNick: true },
+      component: EndView,
+      meta: { requiresRoom: true },
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],

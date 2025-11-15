@@ -4,9 +4,9 @@ import { Server } from "socket.io";
 import { con } from "./db.js";
 import dotenv from "dotenv";
 import cors from "cors";
+import { v4 as uuidv4 } from "uuid";
 
 // Shared speed helpers for race velocity
-import { calcPlayerSpeed, integratePosition } from "./shared/speed.js";
 
 dotenv.config();
 
@@ -39,9 +39,10 @@ const roomStatus = {}; // Almacenará los resultados de cada sala
 const roomTimers = {}; // Almacenará los timers de cada sala
 
 // RACE STATE (server-authoritative)
-const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wpm, accuracy, speed, position})
-const TRACK_LEN = 100; // “distance” in %
+const racePlayers = new Map(); // roomId -> Map(socketId -> {nickname, wmp, accuracy, speed, position})
+const TRACK_LEN = 100; // "distance" in %
 const TICK_MS = 100; // 10 updates per second
+const COUNTDOWN_TIME = 20; // 20 segundos de countdown - duración global del timer
 
 // --------------------------------
 // FUNCIONES DE MANEJO DE SALAS
@@ -58,13 +59,13 @@ function createRoom(roomId) {
   console.log(`Sala creada: ${roomId}`);
 }
 
-function addPlayerToRoom(roomId, nickname, socketId) {
+function addPlayerToRoom(roomId, nickname, playerId) {
   if (!rooms[roomId]) createRoom(roomId);
 
-  const exists = rooms[roomId].players.find((p) => p.nickname === nickname);
+  const exists = rooms[roomId].players.find((p) => p.id === playerId);
   if (!exists) {
     rooms[roomId].players.push({
-      id: socketId,
+      id: playerId,
       nickname,
       wpm: 0,
       accuracy: 0,
@@ -73,16 +74,15 @@ function addPlayerToRoom(roomId, nickname, socketId) {
     });
   }
 
-  // add also to race state
   let map = racePlayers.get(roomId);
   if (!map) {
     map = new Map();
     racePlayers.set(roomId, map);
   }
 
-  if (!map.has(socketId)) {
-    map.set(socketId, {
-      id: socketId,
+  if (!map.has(playerId)) {
+    map.set(playerId, {
+      id: playerId,
       nickname,
       wpm: 0,
       accuracy: 100,
@@ -91,7 +91,7 @@ function addPlayerToRoom(roomId, nickname, socketId) {
     });
   }
 
-  console.log(`${nickname} se ha unido a la sala ${roomId}`);
+  console.log(`${nickname} (${playerId}) se ha unido a la sala ${roomId}`);
 }
 
 // Función: generar color aleatorio
@@ -100,11 +100,11 @@ function getRandomColor() {
 }
 
 // Función: eliminar jugador al desconectarse
-function removePlayer(socketId) {
+function removePlayer(playerId) {
   for (const [roomId, room] of Object.entries(rooms)) {
-    room.players = room.players.filter((p) => p.id !== socketId);
+    room.players = room.players.filter((p) => p.id !== playerId);
     const map = racePlayers.get(roomId);
-    if (map && map.has(socketId)) map.delete(socketId);
+    if (map && map.has(playerId)) map.delete(playerId);
 
     if (room.players.length === 0) {
       delete rooms[roomId];
@@ -112,7 +112,7 @@ function removePlayer(socketId) {
       console.log(`Sala ${roomId} eliminada (vacía)`);
     }
   }
-  console.log(`Jugador desconectado eliminado: ${socketId}`);
+  console.log(`Jugador desconectado eliminado: ${playerId}`);
 }
 
 function addGameResult(roomId, nickname, wpm, accuracy) {
@@ -136,8 +136,6 @@ function startRoomTimer(roomName) {
   if (roomTimers[roomName]) {
     clearInterval(roomTimers[roomName].interval);
   }
-
-  const COUNTDOWN_TIME = 30; // 30 segundos de countdown
 
   roomTimers[roomName] = {
     seconds: COUNTDOWN_TIME,
@@ -163,10 +161,6 @@ function startRoomTimer(roomName) {
       seconds: roomTimers[roomName].seconds,
       isActive: true,
     });
-
-    console.log(
-      `Timer sala ${roomName}: ${roomTimers[roomName].seconds} segundos`
-    );
 
     if (roomTimers[roomName].seconds <= 0) {
       clearInterval(roomTimers[roomName].interval);
@@ -231,30 +225,57 @@ function handleRoomPlayerCount(roomName) {
 // -------------------------------------
 
 function roomSnapshot(roomId) {
+  const game = rooms[roomId];
   const map = racePlayers.get(roomId);
   if (!map) return [];
-  return Array.from(map.values()).map((p) => ({
-    nickname: p.nickname,
-    wpm: Math.round(p.wpm || 0),
-    accuracy: Math.round(p.accuracy || 0),
-    speed: Number((p.speed || 0).toFixed(2)),
-    position: Number((p.position || 0).toFixed(1)),
-  }));
+
+  return Array.from(map.values()).map((p) => {
+    // Buscar el jugador en game.players para obtener isAlive
+    const player =
+      game && game.players
+        ? game.players.find((pl) => pl.nickname === p.nickname)
+        : null;
+    return {
+      nickname: p.nickname,
+      wpm: Math.round(p.wpm || 0),
+      accuracy: Math.round(p.accuracy || 0),
+      speed: Number((p.speed || 0).toFixed(2)),
+      position: Number((p.position || 0).toFixed(1)),
+      isAlive: player ? player.isAlive : true,
+      color: player ? player.color : "#FFFFFF",
+    };
+  });
 }
 
-// Update loop
+// Update loop: Enviar estado de carrera a todos los jugadores cada TICK_MS
 setInterval(() => {
-  for (const [roomId, map] of racePlayers.entries()) {
-    for (const p of map.values()) {
-      p.speed = calcPlayerSpeed(p.wpm);
-      p.position = integratePosition(
-        p.position,
-        p.speed,
-        TICK_MS / 1000,
-        TRACK_LEN
+  for (const [roomName, game] of Object.entries(rooms)) {
+    // Solo enviar actualizaciones si el juego está en progreso
+    if (game.status === "inGame" && game.positions) {
+      // Asegurar que todos los jugadores tienen una posición inicializada
+      if (!game.positions) game.positions = {};
+      for (const player of game.players) {
+        if (!(player.nickname in game.positions)) {
+          game.positions[player.nickname] = 0;
+        }
+      }
+
+      const raceState = Object.entries(game.positions).map(
+        ([nick, position]) => {
+          const player = game.players.find((p) => p.nickname === nick);
+          return {
+            nickname: nick,
+            position,
+            isAlive: player ? player.isAlive : true,
+            color: player ? player.color : "#FFFFFF",
+          };
+        }
       );
+
+      if (raceState.length > 0) {
+        io.to(roomName).emit("race:update", raceState);
+      }
     }
-    io.to(roomId).emit("race:update", roomSnapshot(roomId));
   }
 }, TICK_MS);
 
@@ -300,6 +321,11 @@ io.on("connection", (socket) => {
     console.log(" Lista de salas enviada a", socket.id, ":", roomList);
   });
 
+  // Evento para solicitar la configuración del timer
+  socket.on("requestTimerConfig", () => {
+    socket.emit("timerConfig", { duration: COUNTDOWN_TIME });
+  });
+
   // 1) Cliente solicita crear sala
   // 2) Cliente confirma creación de sala
   socket.on("createRoom", (data) => {
@@ -336,7 +362,13 @@ io.on("connection", (socket) => {
     };
 
     socket.join(data.roomName);
-    addPlayerToRoom(data.roomName, data.userName, socket.id);
+
+    const playerId = uuidv4();
+    // Guardar el id propio en el socket para usarlo en disconnect / gameFinished / leaveRoom
+    socket.playerId = playerId;
+    socket.currentRoom = data.roomName;
+
+    addPlayerToRoom(data.roomName, data.userName, playerId);
     socket.nickname = data.userName; // Establecer nickname para disconnect
 
     // Inicializamos el estado del juego de la sala si no existe
@@ -345,7 +377,6 @@ io.on("connection", (socket) => {
         results: [],
       };
     }
-    console.log(rooms[data.roomName]);
 
     // Emitimos al cliente que ya está en la sala (y devolvemos info)
     socket.emit("roomCreated", { room: data.roomName });
@@ -361,36 +392,48 @@ io.on("connection", (socket) => {
 
     // Manejar timer basado en número de jugadores
     handleRoomPlayerCount(data.roomName);
+
+    // Inicializar posiciones de todos los jugadores en la sala
+    const game = rooms[data.roomName];
+    if (game && !game.positions) {
+      game.positions = {};
+      for (const player of game.players) {
+        game.positions[player.nickname] = 0; // Todos empiezan en posición 0
+      }
+    }
+
+    // Enviar snapshot inicial de carrera
+    io.to(data.roomName).emit("race:update", roomSnapshot(data.roomName));
   });
 
   socket.on("joinRoom", (data) => {
-    const roomName = data.roomName;
-    const nickname = data.nickname;
+    const { roomName, nickname } = data;
 
-    console.log(roomName, nickname);
-
-    // Verificar que la sala existe y está esperando
     if (!rooms[roomName] || rooms[roomName].status !== "waiting") {
       socket.emit("errorJoin");
       return;
     }
 
     socket.join(roomName);
-    socket.nickname = nickname; // Muy importante para disconnect
+    socket.nickname = nickname;
     socket.currentRoom = roomName;
 
+    const playerId = uuidv4();
+    // Guardar el id propio en el socket
+    socket.playerId = playerId;
+
     // Añadir jugador usando la función existente
-    addPlayerToRoom(roomName, nickname, socket.id);
+    addPlayerToRoom(roomName, nickname, playerId);
 
     console.log(
       `Cliente ${nickname} (${socket.id}) se ha unido a la sala ${roomName}`
     );
 
     // Notificamos a todos los clientes de la sala
-    io.to(roomName).emit("userJoined", { id: socket.id, roomName, nickname });
+    io.to(roomName).emit("userJoined", { playerId, roomName, nickname });
 
     // Confirmamos específicamente al usuario que se está uniendo
-    socket.emit("joinedRoom", { roomName, nickname });
+    socket.emit("joinedRoom", { roomName, nickname, playerId });
 
     // Enviamos la lista actualizada a todos los clientes en esa sala
     io.to(roomName).emit("updateUserList", rooms[roomName].players);
@@ -439,35 +482,65 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("typing:progress", ({ room, wpm, accuracy }) => {
-    const map = racePlayers.get(room);
-    if (!map) return;
-    const p = map.get(socket.id);
-    if (!p) return;
-    p.wpm = Number(wpm) || 0;
-    p.accuracy = Number(accuracy) || 0;
+  socket.on("typing:progress", ({ room, nickname, delta }) => {
+    const game = rooms[room];
+    if (!game) return;
+
+    if (!game.positions) game.positions = {};
+    game.positions[nickname] = (game.positions[nickname] || 0) + delta;
+
+    if (game.positions[nickname] < 0) game.positions[nickname] = 0;
+
+    // Construir el estado de carrera usando isAlive de game.players
+    const raceState = Object.entries(game.positions).map(([nick, position]) => {
+      const player = game.players.find((p) => p.nickname === nick);
+      return {
+        nickname: nick,
+        position,
+        isAlive: player ? player.isAlive : true,
+        color: player ? player.color : "#FFFFFF",
+      };
+    });
+
+    io.to(room).emit("race:update", raceState);
   });
 
   /// Finalización del juego
   socket.on("gameFinished", (data) => {
-    const { room, nickname, wpm, accuracy } = data;
+    const { room, nickname, wpm, accuracy, errors } = data;
+    const game = rooms[room];
     const map = racePlayers.get(room);
+
     if (map) {
-      const p = map.get(socket.id);
+      const p = map.get(socket.playerId);
       if (p) {
         p.wpm = Number(wpm) || 0;
         p.accuracy = Number(accuracy) || 0;
-        p.position = TRACK_LEN;
       }
     }
 
     if (roomStatus[room]) {
-      // Añadir el resultado a la sala
+      // Usar la posición del servidor (game.positions) como fuente de verdad
+      // En caso de que el cliente no tenga actualizado el dato (ej: jugador muerto)
+      const serverPosition =
+        game && game.positions && game.positions[nickname]
+          ? game.positions[nickname]
+          : 0;
+
+      // Usar la posición del servidor si es mayor, si no usar la del cliente
+      const finalPosition = Math.max(
+        Number(serverPosition) || 0,
+        Number(data.position) || 0
+      );
+
+      // Añadir el resultado a la sala con información completa
       roomStatus[room].results.push({
         nickname,
-        wpm,
-        accuracy,
+        wpm: Number(wpm) || 0,
+        accuracy: Number(accuracy) || 0,
+        errors: Number(errors) || 0,
         timestamp: Date.now(),
+        position: finalPosition,
       });
 
       // Enviar los resultados actualizados a todos en la sala
@@ -475,6 +548,56 @@ io.on("connection", (socket) => {
       io.to(room).emit("race:update", roomSnapshot(room));
       console.log(` Nuevos resultados en ${room}:`, roomStatus[room].results);
     }
+  });
+
+  socket.on("endRace", (data) => {
+    const { room, nickname } = data;
+    console.log(` Carrera finalizada en sala ${room} por ${nickname}`);
+
+    // NO cambiar estado de la sala aquí - dejar que los jugadores envíen sus resultados
+    // Esperar 3 segundos para que TODOS envíen gameFinished antes de marcar como finished
+    setTimeout(() => {
+      if (rooms[room]) {
+        rooms[room].status = "finished";
+        console.log(
+          ` Resultados finales en ${room}:`,
+          roomStatus[room]?.results
+        );
+      }
+    }, 3000);
+
+    // Enviar a todos los clientes que la carrera terminó (para que vayan a End View)
+    io.to(room).emit("endRaceInRoom");
+
+    // Enviar el nuevo estado a todos los clientes después de 3 segundos
+    setTimeout(() => {
+      io.emit("roomList", {
+        rooms: Object.values(rooms).map((room) => ({
+          name: room.roomName,
+          players: room.players,
+          playerCount: room.players.length,
+          status: room.status,
+          language: room.language,
+          difficulty: room.difficulty,
+          createdBy: room.createdBy,
+        })),
+      });
+    }, 3000);
+  });
+
+  socket.on("requestRoomResults", (data) => {
+    const { roomName } = data;
+
+    // Ordenar resultados por WPM descendente
+    const sortedResults = roomStatus[roomName]?.results
+      ? [...roomStatus[roomName].results].sort(
+          (a, b) => Number(b.wpm) - Number(a.wpm)
+        )
+      : [];
+
+    socket.emit("roomResults", {
+      results: sortedResults,
+    });
   });
 
   // Eliminar sala (solo el creador puede hacerlo)
@@ -502,7 +625,7 @@ io.on("connection", (socket) => {
     // Notificar a todos los usuarios en la sala antes de eliminarla
     io.to(roomName).emit("roomDeleted", {
       roomName: roomName,
-      message: "La sala ha sido eliminada por el creador",
+      message: "La sala ha sigut eliminada pel creador",
     });
 
     // Detener timer si existe
@@ -525,6 +648,50 @@ io.on("connection", (socket) => {
     });
 
     console.log(` Sala ${roomName} eliminada exitosamente`);
+  });
+
+  // Matar a un jugador
+  socket.on("player:isDeath", (data) => {
+    const { roomName, nickname } = data;
+    const room = rooms[roomName];
+
+    // NO procesar si la sala no existe
+    if (!room) {
+      console.log(
+        `Intento de matar a ${nickname} en sala ${roomName}, pero la sala no existe. Se ignora.`
+      );
+      return;
+    }
+
+    // NO procesar si la sala ya está terminada
+    if (room.status === "finished") {
+      console.log(
+        `Intento de matar a ${nickname} en sala ${roomName}, pero la sala ya está FINISHED. Se ignora.`
+      );
+      return;
+    }
+
+    // Verificar si el jugador ya está muerto
+    if (room && room.players) {
+      const player = room.players.find((p) => p.nickname === nickname);
+      if (player && player.isAlive === false) {
+        console.log(
+          `Intento de matar a ${nickname} en sala ${roomName}, pero ya estaba muerto. Se ignora.`
+        );
+        return;
+      }
+    }
+
+    console.log(`Matando a ${nickname} en la sala ${roomName}`);
+    if (room && room.players) {
+      const player = room.players.find((p) => p.nickname === nickname);
+      if (player) {
+        player.isAlive = false;
+        console.log(` ${nickname} marcado como muerto (isAlive = false)`);
+      }
+    }
+    io.to(roomName).emit("player:dead", { nickname });
+    io.to(roomName).emit("updateUserList", room.players);
   });
 
   // Salir de una sala específica (sin desconectar del servidor)
@@ -683,9 +850,10 @@ io.on("connection", (socket) => {
     const color = player ? player.color : null;
     if (!player) {
       console.log(`No se encontró jugador ${nickname} en la sala ${room}`);
-    } else {
-      console.log(`Color de ${nickname} en ${room}: ${color}`);
     }
+    // else {
+    //   console.log(`Color de ${nickname} en ${room}: ${color}`);
+    // }
 
     // Emitir junto con la tecla el color (null si no se encontró)
     io.to(room).emit("userKey", {
@@ -705,10 +873,10 @@ io.on("connection", (socket) => {
       const userList = roomObj.players;
       const initialLength = userList.length;
 
-      // Buscar y remover por socket.id (más confiable)
+      // Buscar y remover por playerId (id generado por uuid)
       const index = userList.findIndex(
         (p) =>
-          (typeof p === "object" && p.id === socket.id) ||
+          (typeof p === "object" && p.id === socket.playerId) ||
           (typeof p === "string" && p === socket.nickname)
       );
 
@@ -722,8 +890,8 @@ io.on("connection", (socket) => {
 
         // Limpiar de racePlayers
         const raceMap = racePlayers.get(roomName);
-        if (raceMap && raceMap.has(socket.id)) {
-          raceMap.delete(socket.id);
+        if (raceMap && raceMap.has(socket.playerId)) {
+          raceMap.delete(socket.playerId);
         }
 
         // Notificar a los usuarios restantes en la sala
@@ -784,11 +952,6 @@ function getTexts(roomName) {
             player.textsIds.push(results[randomIndex].ID);
           }
         }
-
-        console.log(
-          "Textos asignados a los jugadores de la sala",
-          rooms[roomName].players
-        );
         resolve();
       }
     );
