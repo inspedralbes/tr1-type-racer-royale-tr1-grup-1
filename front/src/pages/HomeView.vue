@@ -1,38 +1,62 @@
 <template>
   <section
-    class="relative flex flex-col items-center min-h-screen text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden font-dogica">
+    class="relative flex flex-col items-center min-h-screen text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden font-dogica"
+  >
     <!-- Fondo con imagen -->
-    <img src="/src/assets/opt2_img1.png" alt="Zombie sky background"
-      class="absolute inset-0 object-cover w-full h-full opacity-80" />
+    <img
+      src="/src/assets/opt2_img1.png"
+      alt="Zombie sky background"
+      class="absolute inset-0 object-cover w-full h-full opacity-80"
+    />
     <div class="absolute inset-0 bg-black/30"></div>
     <!-- capa de niebla animada -->
     <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
 
     <!-- Contenido principal -->
-    <main class="relative z-20 w-full max-w-xl px-6 py-10 space-y-8 animate-fadeIn">
+    <main
+      class="relative z-20 w-full max-w-xl px-6 py-10 space-y-8 animate-fadeIn"
+    >
       <!-- TÍTULO -->
-      <h1 class="text-3xl md:text-4xl text-lime-400 text-center drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
+      <h1
+        class="text-3xl md:text-4xl text-lime-400 text-center drop-shadow-[0_0_15px_#66FCF1] tracking-widest"
+      >
         The Lost Word
       </h1>
 
       <!-- MENSAJE DE ERROR (si falta nick) -->
-      <p v-if="route.query.needNick"
-        class="bg-red-900/40 border border-red-500 text-red-300 p-3 rounded-md text-sm text-center font-dogica animate-fadeItem delay-[100ms]">
+      <p
+        v-if="route.query.needNick"
+        class="bg-red-900/40 border border-red-500 text-red-300 p-3 rounded-md text-sm text-center font-dogica animate-fadeItem delay-[100ms]"
+      >
         Si us plau, introdueix un nom d'usuari abans d'unirte a un panteó.
       </p>
 
       <!-- INPUT NICKNAME -->
-      <div class="bg-black/40 border border-lime-400 rounded-lg p-4 space-y-2 shadow-lg animate-fadeItem delay-[200ms]">
-        <label class="block text-lime-300 font-semibold text-sm uppercase tracking-widest">
+      <div
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 space-y-2 shadow-lg animate-fadeItem delay-[200ms]"
+      >
+        <label
+          class="block text-lime-300 font-semibold text-sm uppercase tracking-widest"
+        >
           Nom d'usuari
-          <input v-model.trim="nick" type="text" placeholder="El teu nom" @keyup.enter="join" autofocus
-            class="w-full bg-gray-900/60 text-lime-200 border border-lime-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400 placeholder-gray-500" />
+          <input
+            v-model.trim="nick"
+            type="text"
+            placeholder="El teu nom"
+            @keyup.enter="join"
+            autofocus
+            class="w-full bg-gray-900/60 text-lime-200 border border-lime-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400 placeholder-gray-500"
+          />
         </label>
       </div>
 
       <!-- LISTA DE SALAS -->
-      <div class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg space-y-3 animate-fadeItem delay-[300ms]">
-        <h2 class="text-xl font-bold text-lime-400 mb-2 flex items-center gap-2 uppercase tracking-wider">
+      <div
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg space-y-3 animate-fadeItem delay-[300ms]"
+      >
+        <h2
+          class="text-xl font-bold text-lime-400 mb-2 flex items-center gap-2 uppercase tracking-wider"
+        >
           Panteons
         </h2>
 
@@ -43,34 +67,72 @@
 
         <!-- Con salas -->
         <ul v-else class="space-y-3">
-          <li v-for="room in rooms" :key="room.name"
-            class="p-3 bg-gray-800/50 border border-gray-700 rounded-md flex flex-col gap-2 hover:bg-gray-700/40 transition">
-            <div class="flex justify-between items-center">
-              <div>
-                <div class="font-semibold text-lime-300 text-sm">
-                  {{ room.name }}
+          <li
+            v-for="room in rooms"
+            :key="room.name"
+            class="p-3 bg-gray-800/50 border border-gray-700 rounded-md flex flex-col gap-2 hover:bg-gray-700/40 transition"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-lime-300 text-base mb-2">
+                {{ room.name }}
+              </div>
+
+              <!-- Grid de información -->
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <div>
+                  <span class="text-lime-300 font-semibold">Jugadors:</span>
+                  <span class="text-gray-300 ml-1">{{ room.playerCount }}</span>
                 </div>
-                <div class="text-xs text-gray-400 leading-snug">
-                  Jugadors: {{ room.playerCount }} · Estat:
-                  {{ room.status || "waiting" }}<br />
-                  Idioma: {{ room.language }} · Dificultat:
-                  {{ room.difficulty }}
-                  <span v-if="room.createdBy">
-                    · Creada per: {{ room.createdBy }}
-                  </span>
+                <div>
+                  <span class="text-lime-300 font-semibold">Estat:</span>
+                  <span class="text-gray-300 ml-1">{{
+                    translateStatus(room.status || "waiting")
+                  }}</span>
                 </div>
+                <div>
+                  <span class="text-lime-300 font-semibold">Idioma:</span>
+                  <span class="text-gray-300 ml-1">{{ room.language }}</span>
+                </div>
+                <div>
+                  <span class="text-lime-300 font-semibold">Dificultat:</span>
+                  <span class="text-gray-300 ml-1">{{
+                    translateDifficulty(room.difficulty)
+                  }}</span>
+                </div>
+                <div v-if="room.createdBy" class="col-span-2">
+                  <span class="text-lime-300 font-semibold">Creada per:</span>
+                  <span class="text-gray-300 ml-1">{{ room.createdBy }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botón movido debajo -->
+            <div class="flex flex-col items-center mt-2 gap-1">
+              <!-- Mensaje de error o espacio reservado -->
+              <div
+                class="text-red-400 text-xs font-semibold h-4 flex items-center"
+              >
+                <span v-if="nicknameExists(room) && nick?.trim()">
+                  Nom ja en ús
+                </span>
               </div>
 
               <button
-                class="px-3 py-1 bg-lime-400 text-black rounded-md font-bold text-xs hover:bg-lime-300 transition disabled:opacity-50"
-                :disabled="!nick?.trim() || nicknameExists(room) || room.status !== 'waiting'" @click="
+                class="px-4 py-2 bg-lime-400 text-black rounded-md font-bold text-xs hover:bg-lime-300 transition disabled:opacity-50"
+                :disabled="
+                  !nick?.trim() ||
+                  nicknameExists(room) ||
+                  room.status !== 'waiting'
+                "
+                @click="
                   user.setNickname(nick);
-                socket.emit('joinRoom', {
-                  roomName: room.name,
-                  nickname: user.nickname,
-                });
-                ">
-                {{ nicknameExists(room) ? "Nom ja en ús" : "Unir-se" }}
+                  socket.emit('joinRoom', {
+                    roomName: room.name,
+                    nickname: user.nickname,
+                  });
+                "
+              >
+                Unir-se
               </button>
             </div>
           </li>
@@ -78,8 +140,11 @@
       </div>
 
       <!-- BOTÓN CREAR SALA -->
-      <button @click="goToCreateRoom" :disabled="!nick?.trim()"
-        class="w-full py-2 rounded-md border border-lime-400 text-lime-400 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed animate-fadeItem delay-[400ms]">
+      <button
+        @click="goToCreateRoom"
+        :disabled="!nick?.trim()"
+        class="w-full py-2 rounded-md border border-lime-400 text-lime-400 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed animate-fadeItem delay-[400ms]"
+      >
         {{
           !nick?.trim()
             ? "Introdueix un nom d'usuari per crear un panteó"
@@ -89,7 +154,8 @@
 
       <!-- FRASE FINAL -->
       <footer
-        class="text-center text-xs text-lime-300 italic mt-6 tracking-widest animate-fadeItem delay-[500ms] drop-shadow-lg">
+        class="text-center text-xs text-lime-300 italic mt-6 tracking-widest animate-fadeItem delay-[500ms] drop-shadow-lg"
+      >
         "Només els més precisos sobreviuran fins a l'alba..."
       </footer>
     </main>
@@ -161,6 +227,29 @@ function nicknameExists(room) {
   return room.players?.some(
     (p) => p.nickname.toLowerCase() === nick.value.trim().toLowerCase()
   );
+}
+
+function translateStatus(status) {
+  const translations = {
+    waiting: "esperant",
+    inGame: "jugant",
+    finished: "finalitzada",
+  };
+  return translations[status] || status;
+}
+
+function translateDifficulty(difficulty) {
+  if (typeof difficulty === "number") {
+    if (difficulty === 1) return "fàcil";
+    if (difficulty === 2) return "intermig";
+    if (difficulty === 3) return "difícil";
+  }
+  if (typeof difficulty === "string") {
+    if (difficulty === "facil") return "fàcil";
+    if (difficulty === "intermig") return "intermig";
+    if (difficulty === "dificil") return "difícil";
+  }
+  return "N/A";
 }
 
 function joinRoom(roomName) {

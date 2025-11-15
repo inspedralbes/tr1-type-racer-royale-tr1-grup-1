@@ -317,7 +317,7 @@ io.on("connection", (socket) => {
       playerCount: room.players.length,
       status: room.status,
       language: room.language,
-      difficulty: room.difficultyValue,
+      difficulty: room.difficulty,
       createdBy: room.createdBy, // Incluir información del creador
     }));
 
