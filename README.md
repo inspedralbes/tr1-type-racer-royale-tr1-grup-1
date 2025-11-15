@@ -1,34 +1,31 @@
 # transversals
-Esquema mínim de carpetes pels projectes transversals
 
-És obligatori seguir aquesta estructura tot i que la podeu ampliar.
+- Nom dels integrants
+  -Llorenç Carnice
 
-## Atenció
-Un cop comenceu heu de canviar aquesta explicació amb la corresponent al vostre projecte (utilitzant markdown)
+  -Roman Novytsky
 
-# Aquest fitxer ha de contenir com a mínim:
- * Nom dels integrants
-    -Llorenç Carnice
-   
-    -Roman Novytsky
-   
-    -Valeria Nicoll Zavaleta Vásquez
-   
-    -Climent Fernández Andújar
-   
-    -IKer mata Garcia
+  -Valeria Nicoll Zavaleta Vásquez
 
- * Nom del projecte
+  -Climent Fernández Andújar
 
-    tr1-type-racer-royale-tr1-grup-1
+  -IKer mata Garcia
 
- * Petita descripció
-    El projecte Type Racer Royale és un joc de mecanografia on els jugadors competeixen escrivint el més ràpid possible per fugir d’un monstre que els persegueix. Si el monstre atrapa un jugador, aquest queda eliminat de la partida. L’objectiu és ser l’últim supervivent, demostrant la millor velocitat i precisió al teclat.
+- Nom del projecte
 
- * Adreça del gestor de tasques (taiga, jira, trello...)
+  tr1-type-racer-royale-tr1-grup-1
 
- * Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
+- Petita descripció
+  El projecte Type Racer Royale és un joc de mecanografia on els jugadors competeixen escrivint el més ràpid possible per fugir d'un atac. L’objectiu és ser l’últim supervivent, demostrant la millor velocitat i precisió al teclat.
 
- * URL de producció (quan la tingueu)
+- Adreça del gestor de tasques [https://tree.taiga.io/project/a20valzavvas-projecte1_grupo1/timeline](https://tree.taiga.io/project/a20valzavvas-projecte1_grupo1/timeline)
 
- * Estat: (explicació d'en quin punt està)
+- Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
+
+- URL de producció: [https://thelastword.daw.inspedralbes.cat](https://thelastword.daw.inspedralbes.cat)
+
+## DOC
+
+DEEPWIKI URL: https://deepwiki.com/inspedralbes/tr1-type-racer-royale-tr1-grup-1
+
+Documentació per a Producció: [README](./doc/prod/README.md)

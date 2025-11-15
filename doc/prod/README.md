@@ -2,9 +2,10 @@
 
 ## Sobre el Projecte
 
-Aquest projecte està pensat per oferir una estructura moderna i eficient de desplegament utilitzant **Docker Compose**, amb dos entorns clarament diferenciats:  
-- **Desenvolupament (Dev)** → per a proves i canvis actius.  
-- **Producció (Prod)** → per a execució estable i segura.  
+Aquest projecte està pensat per oferir una estructura moderna i eficient de desplegament utilitzant **Docker Compose**, amb dos entorns clarament diferenciats:
+
+- **Desenvolupament (Dev)** → per a proves i canvis actius.
+- **Producció (Prod)** → per a execució estable i segura.
 
 L’objectiu és facilitar el procés de desplegament, mantenir la coherència entre entorns i promoure bones pràctiques de desenvolupament col·laboratiu.
 
@@ -14,8 +15,8 @@ L’objectiu és facilitar el procés de desplegament, mantenir la coherència e
 
 Abans de començar, assegura’t de tenir instal·lats els següents programes:
 
-- [Git] 
-- [Docker] i Docker Compose  
+- [Git]
+- [Docker] i Docker Compose
 
 ---
 
@@ -44,6 +45,7 @@ Frontend:
   - frontend/.env.DEV
   - frontend/.env.PROD
 ```
+
 Cada fitxer ha de contenir les variables adequades segons l’entorn i el servei.
 
 ---
@@ -51,6 +53,7 @@ Cada fitxer ha de contenir les variables adequades segons l’entorn i el servei
 ## Backend
 
 backend/.env.DEV
+
 ```bash
 PORT=3000
 HOST=tr1g1-mysql
@@ -59,6 +62,7 @@ PASSWORD=root
 ```
 
 backend/.env.PROD
+
 ```bash
 # Exemple de configuració per a producció
 PORT=3000
@@ -71,12 +75,14 @@ PASSWORD=root
 # JWT_SECRET=clau_secreta_segura
 # NODE_ENV=production
 ```
+
 El fitxer .env.PROD pot estar buit si el contenidor ja obté aquestes variables
 des del fitxer docker-compose.prod.yml.
 
 ## Frontend
 
 frontend/.env.DEV
+
 ```bash
 VITE_URL_BACK=http://localhost:3000
 ```
@@ -86,7 +92,9 @@ frontend/.env.PROD
 ```bash
 VITE_URL_BACK=http://IP:3000
 ```
+
 ---
+
 ## Desplegament en Entorn de PRODUCCIÓ (PROD)
 
 S'utilitza el fitxer de configuració docker-compose.prod.yml.
@@ -107,6 +115,7 @@ Per veure els logs en temps real:
 docker compose -f docker-compose.prod.yml logs -f
 
 ```
+
 ---
 
 ## Desplegament en Entorn de DESENVOLUPAMENT (DEV)
@@ -128,17 +137,18 @@ Per veure els logs en temps real:
 ```bash
 docker compose -f docker-compose.dev.yml logs -f
 ```
+
 ---
 
 ## Accés a l'Aplicació
 
 Un cop els contenidors estiguin aixecats (docker ps), pots accedir a l'aplicació:
 
-Entorn	URL d'Accés
+Entorn URL d'Accés
 
-Desenvolupament	http://IP:5173
+Desenvolupament: [http://IP:5173](http://IP:5173)
 
-Producció	http://IP:80
+Producció [http://IP:80](http://IP:80)
 
 ---
 
@@ -146,12 +156,16 @@ Producció	http://IP:80
 
 Per aturar i eliminar els contenidors i xarxes de l'entorn en ús:
 
-## Entorn	Comanda per Aturar
-Producció	
+## Entorn Comanda per Aturar
+
+Producció
+
 ```bash
 docker compose -f docker-compose.prod.yml down
 ```
-Desenvolupament	
+
+Desenvolupament
+
 ```bash
 docker compose -f docker-compose.dev.yml down
 ```
