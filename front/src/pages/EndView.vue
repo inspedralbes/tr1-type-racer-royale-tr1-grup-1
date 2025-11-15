@@ -77,7 +77,9 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-700">
-              <tr v-for="(row, i) in pagedRows" :key="row.id || i" class="hover:bg-gray-800/30 transition">
+              <tr v-for="(row, i) in pagedRows" :key="row.id || i"
+                :class="{ 'current-player-row': row.nickname === user.nickname, 'hover:bg-gray-800/30': row.nickname !== user.nickname }"
+                class="transition">
                 <td class="px-4 py-3 text-gray-300">
                   {{ startIndex + i + 1 }}
                 </td>
@@ -151,46 +153,6 @@ const sortDir = ref("desc");
 const page = ref(1);
 const pageSize = 10;
 
-// Estado para el ranking por WPM
-const currentPlayerResult = computed(() => {
-  const userNick = (user.nickname || "").trim();
-  console.log("Looking for player:", userNick, "in rows:", rows.value);
-  const result = rows.value.find((r) => {
-    const rowNick = (r.nickname || "").trim();
-    const matches = rowNick === userNick;
-    if (!matches) {
-      console.log("Comparing:", rowNick, "with", userNick, "=>", matches);
-    }
-    return matches;
-  });
-  console.log("Found result:", result);
-  return result;
-});
-
-const sortedByWPM = computed(() => {
-  return [...rows.value].sort((a, b) => {
-    const wpmA = Number(a.wpm) || 0;
-    const wpmB = Number(b.wpm) || 0;
-    return wpmB - wpmA;
-  });
-});
-
-const currentPlayerPosition = computed(() => {
-  const position = sortedByWPM.value.findIndex(
-    (r) => r.nickname === user.nickname
-  );
-  return position !== -1 ? position + 1 : null;
-});
-
-const isWinner = computed(() => currentPlayerPosition.value === 1);
-
-function getMedalIcon(position) {
-  if (position === 1) return "🥇";
-  if (position === 2) return "🥈";
-  if (position === 3) return "🥉";
-  return "📍";
-}
-
 onMounted(() => {
   socket.emit("requestRoomResults", { roomName: user.roomName });
 
@@ -206,10 +168,6 @@ onMounted(() => {
       errors: Number(result.errors) !== undefined ? Number(result.errors) : (100 - Number(result.accuracy || 0)),
       timestamp: result.timestamp || Date.now(),
     }));
-
-    console.log("PROCESSED RESULTS:", rows.value);
-    console.log("Current player result:", currentPlayerResult.value);
-    console.log("Is winner:", isWinner.value);
   });
 
   // Hacer una solicitud inicial si no hay resultados
@@ -540,5 +498,16 @@ function relativeTime(dt) {
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #45a29e;
+}
+
+/* Jugador actual */
+.current-player-row {
+  background: rgba(163, 230, 53, 0.1) !important;
+  border-left: 3px solid #a3e635;
+}
+
+.current-player-row td {
+  color: #a3e635;
+  font-weight: 600;
 }
 </style>

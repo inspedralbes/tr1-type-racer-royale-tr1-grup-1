@@ -75,8 +75,8 @@
           <div v-if="isTimerActive"
             class="mx-auto w-[75px] h-[75px] flex items-center justify-center rounded-full border-[6px] font-bold text-xl transition-all duration-300"
             :class="seconds <= 10
-                ? 'border-purple-600 text-purple-400'
-                : 'border-lime-400 text-lime-400'
+              ? 'border-purple-600 text-purple-400'
+              : 'border-lime-400 text-lime-400'
               ">
             {{ seconds }}
           </div>

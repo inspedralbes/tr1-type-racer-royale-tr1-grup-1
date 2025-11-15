@@ -523,7 +523,6 @@ function onInput() {
     for (let i = lastTypedLength.value; i < len; i++) {
       if (userInput.value[i] !== target.value[i]) {
         totalErrors.value++;
-        console.log("Nuevo error acumulado:", totalErrors.value);
       }
     }
   }
@@ -846,7 +845,7 @@ onMounted(async () => {
             // Si el último jugador vivo es el usuario actual, mostrar alerta de victoria
             Swal.fire({
               title: "Felicitats!",
-              text: "Has guanyat!",
+              text: "Has escapat!",
               icon: "success",
               showConfirmButton: false,
               timer: 5000,

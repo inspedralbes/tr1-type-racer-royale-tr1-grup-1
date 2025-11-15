@@ -44,7 +44,6 @@ onMounted(() => {
 
   // escuchar eventos del servidor
   socket.on("userKey", ({ key, color, nickname }) => {
-    console.log("Received userKey event:", { key, color, nickname });
     // si el evento viene de otro usuario, no de mí mismo
     if (nickname !== props.nickname && key) {
       const K = String(key).toUpperCase();

@@ -162,10 +162,6 @@ function startRoomTimer(roomName) {
       isActive: true,
     });
 
-    console.log(
-      `Timer sala ${roomName}: ${roomTimers[roomName].seconds} segundos`
-    );
-
     if (roomTimers[roomName].seconds <= 0) {
       clearInterval(roomTimers[roomName].interval);
       roomTimers[roomName].isActive = false;
@@ -381,7 +377,6 @@ io.on("connection", (socket) => {
         results: [],
       };
     }
-    console.log(rooms[data.roomName]);
 
     // Emitimos al cliente que ya está en la sala (y devolvemos info)
     socket.emit("roomCreated", { room: data.roomName });
@@ -564,7 +559,6 @@ io.on("connection", (socket) => {
     setTimeout(() => {
       if (rooms[room]) {
         rooms[room].status = "finished";
-        console.log(` Estado de sala ${room} actualizado a: finished`);
         console.log(
           ` Resultados finales en ${room}:`,
           roomStatus[room]?.results
@@ -593,10 +587,6 @@ io.on("connection", (socket) => {
 
   socket.on("requestRoomResults", (data) => {
     const { roomName } = data;
-    console.log(
-      ` Resultados solicitados para sala ${roomName}: `,
-      roomStatus[roomName]
-    );
 
     // Ordenar resultados por WPM descendente
     const sortedResults = roomStatus[roomName]?.results
@@ -604,10 +594,6 @@ io.on("connection", (socket) => {
           (a, b) => Number(b.wpm) - Number(a.wpm)
         )
       : [];
-
-    console.log(
-      ` Enviando ${sortedResults.length} resultados a cliente de sala ${roomName}`
-    );
 
     socket.emit("roomResults", {
       results: sortedResults,
@@ -966,11 +952,6 @@ function getTexts(roomName) {
             player.textsIds.push(results[randomIndex].ID);
           }
         }
-
-        console.log(
-          "Textos asignados a los jugadores de la sala",
-          rooms[roomName].players
-        );
         resolve();
       }
     );
