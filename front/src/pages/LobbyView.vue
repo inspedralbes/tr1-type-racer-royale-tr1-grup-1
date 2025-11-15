@@ -1,25 +1,16 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
-  >
+    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
     <!-- Fondo e iluminación -->
-    <img
-      src="/src/assets/opt2_img1.png"
-      alt="Zombie sky background"
-      class="absolute inset-0 w-full h-full object-cover opacity-80"
-    />
+    <img src="/src/assets/opt2_img1.png" alt="Zombie sky background"
+      class="absolute inset-0 w-full h-full object-cover opacity-80" />
     <div class="absolute inset-0 bg-black/40"></div>
-    <div
-      class="absolute inset-0 z-10 pointer-events-none transition-all duration-700 ease-out"
-      :class="{ 'fog-animated': isTimerActive }"
-      :style="fogStyle"
-    ></div>
+    <div class="absolute inset-0 z-10 pointer-events-none transition-all duration-700 ease-out"
+      :class="{ 'fog-animated': isTimerActive }" :style="fogStyle"></div>
     <!-- Contenido principal -->
     <main class="relative z-20 w-full max-w-xl space-y-6 animate-fadeIn">
       <!-- Header -->
-      <h2
-        class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
-      >
+      <h2 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest">
         Panteó d'espera
       </h2>
       <p class="text-center text-gray-300 animate-fadeItem delay-[100ms]">
@@ -27,22 +18,19 @@
       </p>
 
       <!-- Información de la sala -->
-      <div
-        v-if="roomInfo"
-        class="bg-black/40 border border-lime-400 rounded-lg p-4 text-sm text-gray-300 space-y-2 animate-fadeItem delay-[200ms]"
-      >
+      <div v-if="roomInfo"
+        class="bg-black/40 border border-lime-400 rounded-lg p-4 text-sm text-gray-300 space-y-2 animate-fadeItem delay-[200ms]">
         <h3 class="text-lime-400 font-semibold text-lg">
           Panteó: {{ roomInfo.roomName }}
         </h3>
         <div class="flex flex-wrap gap-4 text-xs md:text-sm text-gray-400">
-          <span
-            >Idioma:
+          <span>Idioma:
             {{
               roomInfo.language === "es"
                 ? "Espanyol"
                 : roomInfo.language === "ca"
-                ? "Català"
-                : "Anglès"
+                  ? "Català"
+                  : "Anglès"
             }}
           </span>
           <span>
@@ -52,13 +40,13 @@
                 ? roomInfo.difficulty === 1
                   ? "Fàcil"
                   : roomInfo.difficulty === 2
-                  ? "Intermedi"
-                  : "Difícil"
+                    ? "Intermedi"
+                    : "Difícil"
                 : roomInfo.difficulty === "facil"
-                ? "Fàcil"
-                : roomInfo.difficulty === "intermig"
-                ? "Intermedi"
-                : "Difícil"
+                  ? "Fàcil"
+                  : roomInfo.difficulty === "intermig"
+                    ? "Intermedi"
+                    : "Difícil"
             }}
           </span>
           <span>Jugadors: {{ players.length }}</span>
@@ -66,9 +54,7 @@
       </div>
 
       <!-- Jugadores conectados -->
-      <div
-        class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg space-y-4 animate-fadeItem delay-[300ms]"
-      >
+      <div class="bg-black/40 border border-lime-400 rounded-lg p-4 shadow-lg space-y-4 animate-fadeItem delay-[300ms]">
         <h3 class="text-lime-400 text-lg font-semibold flex items-center gap-2">
           Jugadors connectats
           <span class="text-gray-400 text-sm">({{ players.length }})</span>
@@ -76,34 +62,22 @@
 
         <!-- Si hay jugadores -->
         <div v-if="players.length > 1" class="space-y-4">
-          <ul
-            class="bg-gray-900/40 border border-gray-700 rounded-md p-2 divide-y divide-gray-700"
-          >
-            <li
-              v-for="player in players"
-              :key="player.id"
-              class="flex justify-between items-center py-2 text-sm"
-            >
+          <ul class="bg-gray-900/40 border border-gray-700 rounded-md p-2 divide-y divide-gray-700">
+            <li v-for="player in players" :key="player.id" class="flex justify-between items-center py-2 text-sm">
               <span>{{ player.name }}</span>
-              <span
-                v-if="player.name === user.nickname"
-                class="text-lime-400 text-xs ml-2"
-              >
+              <span v-if="player.name === user.nickname" class="text-lime-400 text-xs ml-2">
                 (Tu)
               </span>
             </li>
           </ul>
 
           <!-- Timer -->
-          <div
-            v-if="isTimerActive"
+          <div v-if="isTimerActive"
             class="mx-auto w-[75px] h-[75px] flex items-center justify-center rounded-full border-[6px] font-bold text-xl transition-all duration-300"
-            :class="
-              seconds <= 10
+            :class="seconds <= 10
                 ? 'border-purple-600 text-purple-400'
                 : 'border-lime-400 text-lime-400'
-            "
-          >
+              ">
             {{ seconds }}
           </div>
 
@@ -114,12 +88,8 @@
             </p>
 
             <!-- Botón para el creador -->
-            <button
-              v-if="isRoomCreator"
-              @click="startTimer"
-              :disabled="startingTimer"
-              class="mt-3 px-4 py-2 rounded-md font-bold uppercase tracking-widest transition bg-lime-400 text-black hover:bg-lime-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <button v-if="isRoomCreator" @click="startTimer" :disabled="startingTimer"
+              class="mt-3 px-4 py-2 rounded-md font-bold uppercase tracking-widest transition bg-lime-400 text-black hover:bg-lime-300 disabled:opacity-50 disabled:cursor-not-allowed">
               {{ startingTimer ? "Iniciant..." : "Iniciar Temporitzador" }}
             </button>
 
@@ -139,24 +109,16 @@
       </div>
 
       <!-- Botones de acción -->
-      <div
-        class="flex flex-wrap justify-center gap-3 mt-4 animate-fadeItem delay-[400ms]"
-      >
+      <div class="flex flex-wrap justify-center gap-3 mt-4 animate-fadeItem delay-[400ms]">
         <!-- Eliminar sala -->
-        <button
-          v-if="isRoomCreator"
-          @click="deleteRoom"
-          :disabled="deleting"
-          class="border border-purple-600 text-purple-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-purple-600 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button v-if="isRoomCreator" @click="deleteRoom" :disabled="deleting"
+          class="border border-purple-600 text-purple-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-purple-600 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed">
           {{ deleting ? "Eliminant..." : "Eliminar panteó" }}
         </button>
 
         <!-- Salir -->
-        <button
-          @click="logout"
-          class="border border-lime-400 text-lime-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-lime-400 hover:text-black transition"
-        >
+        <button @click="logout"
+          class="border border-lime-400 text-lime-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-lime-400 hover:text-black transition">
           Sortir del panteó
         </button>
       </div>
@@ -164,8 +126,7 @@
 
     <!-- Footer -->
     <footer
-      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[500ms]"
-    >
+      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[500ms]">
       "La boira s'engruixeix... el final és a prop."
     </footer>
   </section>
@@ -343,14 +304,20 @@ onUnmounted(() => {
   cleanupSocketListeners();
 });
 
-function deleteRoom() {
+async function deleteRoom() {
   if (!roomInfo.value) return;
 
-  const confirmDelete = confirm(
-    `Estàs segur que vols eliminar el panteó "${roomInfo.value.roomName}"? Aquesta acció no es pot desfer.`
-  );
+  const result = await Swal.fire({
+    title: "Eliminar panteó",
+    text: `Estàs segur que vols eliminar el panteó "${roomInfo.value.roomName}"? Aquesta acció no es pot desfer.`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Eliminar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+  });
 
-  if (confirmDelete) {
+  if (result.isConfirmed) {
     deleting.value = true;
     socket.emit("deleteRoom", {
       roomName: roomInfo.value.roomName,
@@ -419,6 +386,7 @@ function cleanupSocketListeners() {
   0% {
     background-position: 0 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -435,6 +403,7 @@ function cleanupSocketListeners() {
     transform: scale(0.95);
     filter: brightness(0.5);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -447,6 +416,7 @@ function cleanupSocketListeners() {
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);

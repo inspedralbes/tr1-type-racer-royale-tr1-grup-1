@@ -1,7 +1,6 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
-  >
+    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
     <!-- FONDO EN CAPAS -->
     <div class="absolute inset-0 overflow-hidden">
       <div class="absolute inset-0 bg-layer-1 z-0"></div>
@@ -12,16 +11,11 @@
     </div>
 
     <!-- CONTENIDO -->
-    <main
-      class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn"
-    >
+    <main class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn">
       <!-- 1. TEXTOS Y ESTADÍSTICAS (HEADER MANTENIDO) -->
       <header
-        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
-      >
-        <h1
-          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest"
-        >
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
+        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
           Cursa Zombie
         </h1>
 
@@ -38,9 +32,7 @@
       </header>
 
       <!-- 2. LAYOUT PRINCIPAL: SIDEBAR IZQUIERDO + ÁREA DE TEXTO + PANEL DERECHO -->
-      <section
-        class="grid grid-cols-1 lg:grid-cols-8 gap-6 animate-fadeItem delay-[200ms]"
-      >
+      <section class="grid grid-cols-1 lg:grid-cols-8 gap-6 animate-fadeItem delay-[200ms]">
         <!-- SIDEBAR IZQUIERDO: INFO DE SALA Y POSICIONES -->
         <div class="lg:col-span-2 space-y-4">
           <!-- INFO DE LA SALA -->
@@ -59,19 +51,18 @@
           <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
             <h3 class="text-lime-300 font-semibold text-sm mb-2">Posicions</h3>
             <div class="space-y-1">
-              <div
-                v-for="p in [...raceState].sort(
-                  (a, b) => b.position - a.position
-                )"
-                :key="p.nickname"
-                class="flex justify-between text-xs"
-              >
+              <div v-for="p in [...raceState].sort(
+                (a, b) => b.position - a.position
+              )" :key="p.nickname" class="flex justify-between text-xs" :class="{
+                'opacity-40': p.isAlive === false
+              }">
                 <template v-if="p.nickname === user.nickname">
-                  <span class="text-purple-600">{{ user.nickname }} (Tú)</span>
+                  <span class="text-purple-600" :class="{ 'line-through': p.isAlive === false }">{{ user.nickname }}
+                    (Tú)</span>
                   <span class="text-purple-600">{{ p.position }}</span>
                 </template>
                 <template v-else>
-                  <span class="text-gray-300">{{ p.nickname }}</span>
+                  <span class="text-gray-300" :class="{ 'line-through': p.isAlive === false }">{{ p.nickname }}</span>
                   <span class="text-gray-400">{{ p.position }}</span>
                 </template>
               </div>
@@ -82,11 +73,8 @@
         <!-- ÁREA CENTRAL: TEXTO Y TECLADO -->
         <div class="lg:col-span-5 space-y-4">
           <!-- ÁREA DE TEXTO A ESCRIBIR -->
-          <div
-            class="bg-black/70 border border-lime-400 rounded-lg p-3 shadow-lg transition-opacity duration-500"
-            :class="{ 'opacity-30 pointer-events-none': isPlayerDead }"
-            @click="focusInput"
-          >
+          <div class="bg-black/70 border border-lime-400 rounded-lg p-3 shadow-lg transition-opacity duration-500"
+            :class="{ 'opacity-30 pointer-events-none': isPlayerDead }" @click="focusInput">
             <div v-if="loading" class="text-center py-12 text-lime-400">
               Carregant text...
             </div>
@@ -95,53 +83,28 @@
             </div>
 
             <div v-else class="text-wrapper relative" ref="textWrapper">
-              <span
-                v-for="(ch, i) in targetChars"
-                :key="i"
-                :class="charClass(i)"
-                >{{ ch }}</span
-              >
-              <span
-                v-if="!finished && !isPlayerDead"
-                class="caret"
-                :style="caretStyle"
-              ></span>
+              <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{ ch }}</span>
+              <span v-if="!finished && !isPlayerDead" class="caret" :style="caretStyle"></span>
             </div>
 
-            <textarea
-              ref="hiddenInput"
-              v-model="userInput"
-              class="hidden-input"
-              @input="onInput"
-              @keydown="onKeydown"
-              @paste.prevent
-              :maxlength="target.length"
-              aria-label="Typing input"
-            ></textarea>
+            <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
+              @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
           </div>
 
           <!-- TECLADO -->
-          <div
-            class="relative z-20 w-full transition-opacity duration-500"
-            :class="{ 'opacity-50': isPlayerDead }"
-          >
+          <div class="relative z-20 w-full transition-opacity duration-500" :class="{ 'opacity-50': isPlayerDead }">
             <Keyboard :nickname="user.nickname" :room="ROOM" />
           </div>
         </div>
 
         <!-- PANEL DERECHO: ESPECTADOR / NOTIFICACIONES -->
         <div class="lg:col-span-1 relative z-40">
-          <div
-            id="notification-panel"
-            class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0"
-            :class="{
-              'border-purple-500': isPlayerDead,
-              'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
-              'border-gray-600/30':
-                !isPlayerDead && serverMessages.length === 0,
-            }"
-            style="pointer-events: auto"
-          >
+          <div id="notification-panel" class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0" :class="{
+            'border-purple-500': isPlayerDead,
+            'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
+            'border-gray-600/30':
+              !isPlayerDead && serverMessages.length === 0,
+          }" style="pointer-events: auto">
             <!-- MODO ESPECTADOR: Cuando el jugador ha muerto -->
             <div v-if="isPlayerDead">
               <h3 class="text-purple-400 font-semibold text-sm mb-2">
@@ -155,40 +118,27 @@
 
             <!-- MODO NOTIFICACIONES: Cuando el jugador está vivo -->
             <div v-else>
-              <h3
-                class="text-lime-400 font-semibold text-xs mb-2 tracking-wider"
-              >
+              <h3 class="text-lime-400 font-semibold text-xs mb-2 tracking-wider">
                 VEUS DEL PANTEÓ
               </h3>
 
               <!-- Lista de mensajes -->
-              <div
-                v-if="serverMessages.length > 0"
-                class="space-y-1 max-h-24 overflow-y-auto"
-              >
-                <div
-                  v-for="message in serverMessages"
-                  :key="message.id"
-                  class="text-xs p-1 rounded border-l-2 animate-fadeItem"
-                  :class="{
+              <div v-if="serverMessages.length > 0" class="space-y-1 max-h-24 overflow-y-auto">
+                <div v-for="message in serverMessages" :key="message.id"
+                  class="text-xs p-1 rounded border-l-2 animate-fadeItem" :class="{
                     'border-l-lime-400 bg-lime-400/10 text-lime-300':
                       message.type === 'info' || message.type === 'success',
                     'border-l-yellow-400 bg-yellow-400/10 text-yellow-300':
                       message.type === 'warning',
                     'border-l-purple-400 bg-purple-400/10 text-purple-300':
                       message.type === 'error',
-                  }"
-                >
+                  }">
                   {{ message.text }}
                 </div>
               </div>
 
               <!-- Mensaje cuando no hay notificaciones -->
-              <div
-                v-else
-                class="text-center text-gray-500 italic leading-tight px-1"
-                style="font-size: 0.55rem"
-              >
+              <div v-else class="text-center text-gray-500 italic leading-tight px-1" style="font-size: 0.55rem">
                 Esperant missatges...
               </div>
             </div>
@@ -200,52 +150,44 @@
       <div class="h-1"></div>
 
       <!-- 3. PROGRESO DE LA CARRERA -->
-      <section
-        v-if="raceState.length"
-        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm"
-      >
-        <h3
-          class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2"
-        >
+      <section v-if="raceState.length"
+        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+        <h3 class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2">
           Progrés de la carrera
         </h3>
 
         <div class="space-y-4">
-          <div
-            v-for="(p, i) in raceState"
-            :key="p.nickname"
-            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20"
-          >
+          <div v-for="(p, i) in raceState" :key="p.nickname"
+            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20 transition-opacity duration-300" :class="{
+              'opacity-30': p.isAlive === false
+            }">
             <!-- Nombre -->
-            <span class="text-lime-300 font-semibold text-xs w-24 truncate">
+            <span class="text-lime-300 font-semibold text-xs w-24 truncate" :class="{
+              'line-through text-red-400': p.isAlive === false
+            }">
               {{ p.nickname }}
             </span>
 
             <!-- Pista -->
-            <div
-              class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden"
-            >
+            <div class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden">
               <!-- Línea de meta -->
-              <div
-                class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse"
-              ></div>
+              <div class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse">
+              </div>
 
               <!-- ZOMBIE PIXEL ART ANIMADO -->
-              <div
-                class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
-                :style="{ left: p.position * 1.3 + 'px' }"
-              ></div>
+              <div class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out" :class="{
+                'grayscale opacity-50': p.isAlive === false
+              }" :style="{ left: p.position * 1.3 + 'px' }"></div>
             </div>
 
             <!-- Indica el último (va a morir) -->
-            <span
-              :class="[
-                'text-xs font-mono px-2 py-0.5 rounded-md',
-                p.position === Math.min(...raceState.map((r) => r.position))
-                  ? 'bg-red-600/40 text-red-200 animate-pulse'
-                  : 'text-gray-300',
-              ]"
-            >
+            <span :class="[
+              'text-xs font-mono px-2 py-0.5 rounded-md transition-colors duration-300',
+              p.position === Math.min(...raceState.map((r) => r.position)) && p.isAlive !== false
+                ? 'bg-red-600/40 text-red-200 animate-pulse'
+                : 'text-gray-300',
+              p.isAlive === false ? 'line-through' : ''
+            ]">
               {{ p.position }}
             </span>
           </div>
@@ -298,6 +240,9 @@ const isTyping = ref(false);
 const backgroundSpeed = ref(0); // Velocidad actual del fondo (0 = parado, 1 = corriendo)
 const lastTypingTime = ref(0);
 const typingTimeout = ref(null);
+
+// Set para rastrear jugadores ya procesados como muertos
+const processedDeaths = ref(new Set());
 
 // Función para actualizar la velocidad del fondo
 function updateBackgroundSpeed() {
@@ -410,18 +355,18 @@ const textsIds = ref([]); // IDs de textos asignados al usuario
 const raceState = ref([]);
 
 // Función para llenar participants con datos de jugadores
-function loadParticipants(roomData) {
-  if (roomData && roomData.players && Array.isArray(roomData.players)) {
-    participants.value = roomData.players.map((player) => ({
+function loadParticipants(playersList) {
+  if (playersList && Array.isArray(playersList)) {
+    participants.value = playersList.map((player) => ({
       id: player.id,
       nickname: player.nickname,
       color: player.color,
       wpm: player.wpm || 0,
       accuracy: player.accuracy || 0,
-      isAlive: player.isAlive || true,
+      isAlive: player.isAlive !== false, // Asegurar que isAlive se sincronice (default true)
       textsIds: player.textsIds || [],
     }));
-    console.log("Participantes cargados:", participants.value);
+    console.log("✓ Participantes sincronizados:", participants.value);
   }
 }
 socket.on("race:update", (snapshot) => {
@@ -553,6 +498,9 @@ function emitProgressThrottled() {
   });
 }
 
+// Track previous input length to detect backspace
+let previousInputLength = 0;
+
 // INPUT HANDLERS
 function onInput() {
   // Detectar actividad de escritura para el fondo dinámico
@@ -592,12 +540,17 @@ function onInput() {
       room: ROOM.value,
       nickname: user.nickname,
       status: "bad",
-      message: `${user.nickname} está teniendo dificultades (${totalErrors.value} errores).`,
+      message: `${user.nickname} .`,
     });
   }
 
-  // Finalización
-  emitProgressThrottled();
+  // Solo emitir progreso si se escribieron caracteres nuevos (NO en backspace)
+  if (userInput.value.length > previousInputLength) {
+    emitProgressThrottled();
+  }
+
+  // Actualizar la longitud anterior para detectar backspace
+  previousInputLength = userInput.value.length;
 
   if (finished.value && !endedAt.value) {
     if (currentTextId.value === 4) {
@@ -715,11 +668,11 @@ onMounted(async () => {
         )
     );
 
-    // Cargar los datos de los participantes
-    loadParticipants(userRoom);
-
-    // Obtener los textosIds del usuario
-    getTextIds();
+    // Cargar los datos de los participantes (pasar solo el array de players)
+    if (userRoom && userRoom.players) {
+      loadParticipants(userRoom.players);
+      getTextIds(); // Obtener los textosIds del usuario
+    }
 
     if (userRoom) {
       currentRoom.value = userRoom;
@@ -745,20 +698,22 @@ onMounted(async () => {
 
   // Carregar Final de la carrera
   socket.on("endRaceInRoom", () => {
-    // Obtener la posición del jugador actual
-    const currentPlayer = participants.value.find(
-      (p) => p.nickname === user.nickname
-    );
-    const currentPosition = currentPlayer ? currentPlayer.position : 0;
+    // Calcular WPM correctamente
+    const wpmValue = getWpm();
 
-    // Enviar resultados al servidor
+    // Obtener la posición actual del jugador
+    const playerPosition = raceState.value.find(
+      (p) => p.nickname === user.nickname
+    )?.position || 0;
+
+    // Enviar resultados al servidor con todos los datos
     socket.emit("gameFinished", {
       room: ROOM.value,
       nickname: user.nickname,
-      wpm: getWpm(),
-      position: currentPosition,
+      wpm: wpmValue,
+      accuracy: accuracy.value,
       errors: totalErrors.value,
-      isAlive: !isPlayerDead.value,
+      position: playerPosition,
     });
     console.log("La carrera ha terminado");
     router.push({ name: "fin" });
@@ -780,29 +735,31 @@ onMounted(async () => {
 
   // Escuchar lista de usuarios en la sala
   socket.on("updateUserList", (list) => {
-    if (list && list.length > 0) {
-      // Si list es un array de salas, extraemos los jugadores de la sala actual
-      const room = list.find((r) => r.name === ROOM.value);
-      if (room) {
-        loadParticipants(room);
-        getTextIds(); // Actualizar textsIds cuando se actualiza la lista de usuarios
-      }
-    }
-    console.log("Sala actualizada:", roomList.value);
+    loadParticipants(list);
+    getTextIds(); // Actualizar textsIds cuando se actualiza la lista de usuarios
   });
 
   // Matar jugador
   // Auto-kill every 15s: encuentra al jugador con menor posición y avisa al servidor
+  let lastKilledNickname = null; // Track the last killed player to avoid killing the same player multiple times
+
   const autoKillInterval = setInterval(() => {
     if (!raceState.value || raceState.value.length === 0) return;
 
-    // Calcular la posición mínima
-    const minPos = Math.min(...raceState.value.map((p) => p.position));
-    // Elegir el primer jugador con esa posición mínima que aún esté vivo (si hay isAlive)
-    const victim = raceState.value.find(
-      (p) =>
-        p.position === minPos &&
-        (typeof p.isAlive === "undefined" ? true : p.isAlive)
+    // Filtrar solo jugadores vivos
+    const alivePlayers = raceState.value.filter(
+      (p) => typeof p.isAlive === "undefined" ? true : p.isAlive
+    );
+
+    if (alivePlayers.length === 0) return;
+
+    // Calcular la posición mínima entre los vivos
+    const minPos = Math.min(...alivePlayers.map((p) => p.position));
+
+    // Elegir el primer jugador con esa posición mínima que aún esté vivo
+    // y que no sea el que fue eliminado en la ronda anterior
+    const victim = alivePlayers.find(
+      (p) => p.position === minPos && p.nickname !== lastKilledNickname
     );
 
     if (victim) {
@@ -811,20 +768,41 @@ onMounted(async () => {
         victim.nickname,
         "con posición",
         minPos,
-        "ss",
-        user.roomName
+        "en sala",
+        ROOM.value
       );
+
+      lastKilledNickname = victim.nickname;
+
       socket.emit("player:isDeath", {
-        roomName: user.roomName,
+        roomName: ROOM.value,
         nickname: victim.nickname,
       });
     }
-  }, 15000);
+  }, 30000);
 
   socket.on("player:dead", (data) => {
     console.log("Jugador muerto recibido:", data);
+    const roomName = data.roomName || ROOM.value;
+
+    // Evitar procesar el mismo jugador múltiples veces
+    if (processedDeaths.value.has(data.nickname)) {
+      console.log(`Muerte de ${data.nickname} ya fue procesada, ignorando duplicado`);
+      return;
+    }
+
+    // Marcar este jugador como ya procesado
+    processedDeaths.value.add(data.nickname);
+
+    // Reproducir sonido de muerte
+    const deathSound = new Audio("/src/assets/shoot.mp3");
+    deathSound.volume = 0.7;
+    deathSound.play().catch((err) => console.log("Error reproduciendo sonido:", err));
+
     if (data.nickname === user.nickname) {
+      // Marcar al jugador actual como muerto (UI local)
       isPlayerDead.value = true;
+
       addServerMessage("Has mort!", "error");
 
       // Solo mostrar el SweetAlert una vez
@@ -847,6 +825,40 @@ onMounted(async () => {
     } else {
       addServerMessage(`${data.nickname} ha mort!`, "warning");
     }
+
+    // Verificar después de 2 segundos usando participants.value (que está sincronizado con updateUserList)
+    setTimeout(() => {
+      if (participants.value && participants.value.length > 0) {
+        // Contar cuántos jugadores están vivos según participants.value
+        const playersAlive = participants.value.filter((p) => p.isAlive !== false).length;
+
+        console.log(
+          `Jugadores vivos en sala ${roomName}: ${playersAlive} de ${participants.value.length}`
+        );
+
+        // Si solo queda una persona viva, terminar la partida
+        if (playersAlive === 1) {
+          console.log("¡Solo queda un jugador vivo! Terminando la partida.");
+
+          const lastPlayer = participants.value.find((p) => p.isAlive !== false);
+
+          if (lastPlayer && lastPlayer.nickname === user.nickname) {
+            // Si el último jugador vivo es el usuario actual, mostrar alerta de victoria
+            Swal.fire({
+              title: "Felicitats!",
+              text: "Has guanyat!",
+              icon: "success",
+              showConfirmButton: false,
+              timer: 5000,
+            }).then(() => {
+              socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+            });
+          }
+        }
+      } else {
+        console.warn("No hay participantes para verificar jugadores vivos");
+      }
+    }, 2000);
   });
 
   // Obtener textos inicialmente si ya tenemos participantes
@@ -893,6 +905,9 @@ onBeforeUnmount(() => {
   socket.off("race:update");
   socket.off("connect");
   socket.off("roomList");
+  socket.off("player:dead");
+  socket.off("updateUserList");
+  socket.off("endRaceInRoom");
 });
 
 // When target changes (Next Text), reset everything
@@ -1093,6 +1108,7 @@ function findResult(nick) {
 }
 
 @keyframes blink {
+
   0%,
   50% {
     opacity: 1;
