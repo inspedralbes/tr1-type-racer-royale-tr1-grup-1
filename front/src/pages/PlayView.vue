@@ -794,7 +794,8 @@ onMounted(async () => {
     processedDeaths.value.add(data.nickname);
 
     // Reproducir sonido de muerte
-    const deathSound = new Audio("/src/assets/shoot.mp3");
+    const deathSound = new Audio("/sounds/shoot.mp3");
+    // En dev seria /src/assets/shoot.mp3
     deathSound.volume = 0.7;
     deathSound.play().catch((err) => console.log("Error reproduciendo sonido:", err));
 
