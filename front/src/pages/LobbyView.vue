@@ -138,6 +138,7 @@ import { useRouter } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { socket } from "@/services/socket.js";
 import Swal from "sweetalert2";
+import snowImg from "@/assets/nice-snow.png";
 
 const router = useRouter();
 const user = useUserStore();
@@ -171,7 +172,7 @@ const fogStyle = computed(() => {
   const contrast = 0.9 + intensity * 0.2; // de 0.9 a 1.1
 
   return {
-    background: 'url("/src/assets/nice-snow.png") repeat',
+    background: `url("${snowImg}") repeat`,
     backgroundSize: "600px 600px",
     opacity: opacity.toFixed(2),
     filter: `brightness(${brightness.toFixed(2)}) contrast(${contrast.toFixed(
