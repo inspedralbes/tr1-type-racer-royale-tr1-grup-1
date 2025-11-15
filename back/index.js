@@ -797,6 +797,14 @@ io.on("connection", (socket) => {
       );
       return;
     }
+    // Verificar que el socket que envía es del jugador a matar
+    const requestingPlayer = room.players.find((p) => p.id === socket.playerId);
+    if (!requestingPlayer || requestingPlayer.nickname !== nickname) {
+      console.log(
+        `SEGURIDAD: Socket ${socket.id} intentó matar a ${nickname} pero el jugador asociado es ${requestingPlayer?.nickname}. Se ignora.`
+      );
+      return;
+    }
 
     // Verificar si el jugador ya está muerto
     if (room && room.players) {
