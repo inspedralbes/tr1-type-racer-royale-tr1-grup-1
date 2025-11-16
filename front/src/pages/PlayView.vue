@@ -48,10 +48,17 @@
             <h3 class="text-lime-300 font-semibold text-sm mb-2">
               Informació del panteó
             </h3>
-            <p class="text-gray-300 text-xs">Panteó: {{ ROOM }}</p>
-            <p class="text-gray-300 text-xs">Usuari: {{ user.nickname }}</p>
-            <p class="text-gray-300 text-xs">
-              Nº zombies: {{ participants.length }}
+            <p class="text-xs">
+              <span class="text-white">Panteó:</span>
+              <span class="text-gray-300">{{ ROOM }}</span>
+            </p>
+            <p class="text-xs">
+              <span class="text-white">Usuari:</span>
+              <span class="text-gray-300">{{ user.nickname }}</span>
+            </p>
+            <p class="text-xs">
+              <span class="text-white">Nº zombies:</span>
+              <span class="text-gray-300">{{ participants.length }}</span>
             </p>
           </div>
 
@@ -160,8 +167,10 @@
               <h3 class="text-purple-400 font-semibold text-sm mb-2">
                 Has mort!
               </h3>
-              <p class="text-gray-300 text-xs mb-2">Mode espectador activat</p>
-              <div class="text-xs text-purple-300 italic">
+              <p class="text-gray-300 mb-2" style="font-size: 0.65rem">
+                Mode espectador activat
+              </p>
+              <div class="text-purple-300 italic" style="font-size: 0.65rem">
                 Continua mirant la partida...
               </div>
             </div>
