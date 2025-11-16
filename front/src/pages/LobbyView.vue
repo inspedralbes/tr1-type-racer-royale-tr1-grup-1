@@ -398,20 +398,21 @@ function startTimer() {
 }
 
 function logout() {
-  console.log("Sortint de la sala...");
+  console.log("leaveRoom called with:", {
+    roomName: user.roomName,
+    nickname: user.nickname,
+  });
+
+  socket.emit("leaveRoom", {
+    roomName: user.roomName,
+    nickname: user.nickname,
+  });
+
+  // Limpiar roomName del store (para que no intente reconectar a la misma sala)
+  user.clearRoomName();
 
   // Limpiar listeners antes de salir
   cleanupSocketListeners();
-
-  // Si hay información de la sala, notificar al servidor que salimos
-  if (roomInfo.value) {
-    console.log(`Notificant sortida de la sala: ${roomInfo.value.roomName}`);
-    // Emitir evento de desconexión explícita de la sala
-    socket.emit("leaveRoom", {
-      roomName: roomInfo.value.roomName,
-      nickname: user.nickname,
-    });
-  }
 
   // Limpiar estado local
   players.value = [];
@@ -419,8 +420,11 @@ function logout() {
   seconds.value = 0;
   isTimerActive.value = false;
 
-  // Redirigir al home (mantenemos el nickname para que no tenga que volver a introducirlo)
-  router.push({ name: "home" });
+  // Dar tiempo para que se procese antes de redirigir
+  setTimeout(() => {
+    console.log("Redirecting to home after leaving room");
+    router.push("/");
+  }, 500);
 }
 
 // Función para limpiar los listeners de socket.io
