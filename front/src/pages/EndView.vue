@@ -26,7 +26,7 @@
             <select v-model="sortKey"
               class="bg-gray-900/60 border border-lime-400 rounded-md px-2 py-1 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
               <option value="wpm">PPM</option>
-              <option value="position">Posició</option>
+              <option value="position">Puntuació</option>
               <option value="accuracy">Precisió</option>
               <option value="errors">Errors</option>
               <option value="nickname">Nom (A–Z)</option>
@@ -60,7 +60,7 @@
                 </th>
                 <th @click="setSort('position')"
                   class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
-                  Posició
+                  Puntuació
                 </th>
                 <th @click="setSort('wpm')"
                   class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
@@ -153,6 +153,37 @@ const sortDir = ref("desc");
 const page = ref(1);
 const pageSize = 10;
 
+// Estado para el ranking por WPM
+const currentPlayerResult = computed(() => {
+  const userNick = (user.nickname || "").trim();
+  console.log("Looking for player:", userNick, "in rows:", rows.value);
+  const result = rows.value.find((r) => {
+    const rowNick = (r.nickname || "").trim();
+    const matches = rowNick === userNick;
+    if (!matches) {
+      console.log("Comparing:", rowNick, "with", userNick, "=>", matches);
+    }
+    return matches;
+  });
+  console.log("Found result:", result);
+  return result;
+});
+
+const sortedByWPM = computed(() => {
+  return [...rows.value].sort((a, b) => {
+    const wpmA = Number(a.wpm) || 0;
+    const wpmB = Number(b.wpm) || 0;
+    return wpmB - wpmA;
+  });
+});
+
+const currentPlayerPosition = computed(() => {
+  const position = sortedByWPM.value.findIndex(
+    (r) => r.nickname === user.nickname
+  );
+  return position !== -1 ? position + 1 : null;
+});
+
 onMounted(() => {
   socket.emit("requestRoomResults", { roomName: user.roomName });
 
@@ -165,7 +196,10 @@ onMounted(() => {
       ...result,
       wpm: Number(result.wpm) || 0,
       accuracy: Number(result.accuracy) || 0,
-      errors: Number(result.errors) !== undefined ? Number(result.errors) : (100 - Number(result.accuracy || 0)),
+      errors:
+        Number(result.errors) !== undefined
+          ? Number(result.errors)
+          : 100 - Number(result.accuracy || 0),
       timestamp: result.timestamp || Date.now(),
     }));
   });
@@ -230,7 +264,7 @@ function setSort(key) {
     sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
   } else {
     sortKey.value = key;
-    sortDir.value = (key === "nickname" || key === "position") ? "asc" : "desc";
+    sortDir.value = key === "nickname" || key === "position" ? "asc" : "desc";
   }
   page.value = 1;
 }
@@ -242,11 +276,14 @@ function displayErrors(row) {
 }
 
 function leaveRoom() {
-  console.log("leaveRoom called with:", { roomName: user.roomName, nickname: user.nickname });
+  console.log("leaveRoom called with:", {
+    roomName: user.roomName,
+    nickname: user.nickname,
+  });
 
   socket.emit("leaveRoom", {
     roomName: user.roomName,
-    nickname: user.nickname
+    nickname: user.nickname,
   });
 
   // Limpiar roomName del store (para que no intente reconectar a la misma sala)
@@ -278,56 +315,32 @@ function relativeTime(dt) {
 </script>
 
 <style scoped>
-/* ===== CONFETTI CELEBRATION ===== */
-@keyframes confettiFall {
-  0% {
-    transform: translateY(-10vh) rotateZ(0deg);
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(100vh) rotateZ(720deg);
-    opacity: 0;
-  }
-}
-
-.confetti {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 100;
-}
-
-.confetti::before {
-  content: "✨🎉🏆⭐🎊";
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  font-size: 2rem;
-  animation: confettiFall 3s ease-in forwards;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
 /* ===== PANEL DE RESULTADOS PERSONALES ===== */
 .player-result-panel {
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(26, 37, 38, 0.4) 100%);
+  background: linear-gradient(135deg,
+      rgba(0, 0, 0, 0.6) 0%,
+      rgba(26, 37, 38, 0.4) 100%);
   border: 2px solid #66fcf1;
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 0 20px rgba(102, 252, 241, 0.3), inset 0 0 20px rgba(102, 252, 241, 0.1);
+  box-shadow: 0 0 20px rgba(102, 252, 241, 0.3),
+    inset 0 0 20px rgba(102, 252, 241, 0.1);
   transition: all 0.3s ease;
 }
 
 .player-result-panel:hover {
-  box-shadow: 0 0 40px rgba(102, 252, 241, 0.5), inset 0 0 30px rgba(102, 252, 241, 0.15);
+  box-shadow: 0 0 40px rgba(102, 252, 241, 0.5),
+    inset 0 0 30px rgba(102, 252, 241, 0.15);
   transform: translateY(-2px);
 }
 
 .player-result-panel.winner-panel {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 165, 0, 0.1) 100%);
+  background: linear-gradient(135deg,
+      rgba(255, 215, 0, 0.15) 0%,
+      rgba(255, 165, 0, 0.1) 100%);
   border-color: #ffd700;
-  box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.2);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.4),
+    inset 0 0 20px rgba(255, 215, 0, 0.2);
   animation: winner-pulse 1s ease-in-out infinite;
 }
 
@@ -335,11 +348,13 @@ function relativeTime(dt) {
 
   0%,
   100% {
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.2);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4),
+      inset 0 0 20px rgba(255, 215, 0, 0.2);
   }
 
   50% {
-    box-shadow: 0 0 50px rgba(255, 215, 0, 0.6), inset 0 0 30px rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.6),
+      inset 0 0 30px rgba(255, 215, 0, 0.3);
   }
 }
 

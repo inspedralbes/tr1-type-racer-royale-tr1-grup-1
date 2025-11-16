@@ -1,6 +1,7 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
+    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
+  >
     <!-- FONDO EN CAPAS -->
     <div class="absolute inset-0 overflow-hidden">
       <div class="absolute inset-0 bg-layer-1 z-0"></div>
@@ -11,11 +12,16 @@
     </div>
 
     <!-- CONTENIDO -->
-    <main class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn">
+    <main
+      class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn"
+    >
       <!-- 1. TEXTOS Y ESTADÍSTICAS (HEADER MANTENIDO) -->
       <header
-        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
-        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest">
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
+      >
+        <h1
+          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] tracking-widest"
+        >
           Escapa dels atacants!
         </h1>
 
@@ -32,7 +38,9 @@
       </header>
 
       <!-- 2. LAYOUT PRINCIPAL: SIDEBAR IZQUIERDO + ÁREA DE TEXTO + PANEL DERECHO -->
-      <section class="grid grid-cols-1 lg:grid-cols-8 gap-6 animate-fadeItem delay-[200ms]">
+      <section
+        class="grid grid-cols-1 lg:grid-cols-8 gap-6 animate-fadeItem delay-[200ms]"
+      >
         <!-- SIDEBAR IZQUIERDO: INFO DE SALA Y POSICIONES -->
         <div class="lg:col-span-2 space-y-4">
           <!-- INFO DE LA SALA -->
@@ -40,29 +48,50 @@
             <h3 class="text-lime-300 font-semibold text-sm mb-2">
               Informació del panteó
             </h3>
-            <p class="text-gray-300 text-xs">Panteó: {{ ROOM }}</p>
-            <p class="text-gray-300 text-xs">Usuari: {{ user.nickname }}</p>
-            <p class="text-gray-300 text-xs">
-              Nº zombies: {{ participants.length }}
+            <p class="text-xs">
+              <span class="text-white">Panteó:</span>
+              <span class="text-gray-300">{{ ROOM }}</span>
+            </p>
+            <p class="text-xs">
+              <span class="text-white">Usuari:</span>
+              <span class="text-gray-300">{{ user.nickname }}</span>
+            </p>
+            <p class="text-xs">
+              <span class="text-white">Nº zombies:</span>
+              <span class="text-gray-300">{{ participants.length }}</span>
             </p>
           </div>
 
           <!-- POSICIONES EN TIEMPO REAL -->
           <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
-            <h3 class="text-lime-300 font-semibold text-sm mb-2">Posicions</h3>
+            <h3 class="text-lime-300 font-semibold text-sm mb-2">
+              Puntuacions
+            </h3>
             <div class="space-y-1">
-              <div v-for="p in [...raceState].sort(
-                (a, b) => b.position - a.position
-              )" :key="p.nickname" class="flex justify-between text-xs" :class="{
-                'opacity-40': p.isAlive === false
-              }">
+              <div
+                v-for="p in [...raceState].sort(
+                  (a, b) => b.position - a.position
+                )"
+                :key="p.nickname"
+                class="flex justify-between text-xs"
+                :class="{
+                  'opacity-40': p.isAlive === false,
+                }"
+              >
                 <template v-if="p.nickname === user.nickname">
-                  <span class="text-purple-600" :class="{ 'line-through': p.isAlive === false }">{{ user.nickname }}
-                    (Tú)</span>
+                  <span
+                    class="text-purple-600"
+                    :class="{ 'line-through': p.isAlive === false }"
+                    >{{ user.nickname }} (Tú)</span
+                  >
                   <span class="text-purple-600">{{ p.position }}</span>
                 </template>
                 <template v-else>
-                  <span class="text-gray-300" :class="{ 'line-through': p.isAlive === false }">{{ p.nickname }}</span>
+                  <span
+                    class="text-gray-300"
+                    :class="{ 'line-through': p.isAlive === false }"
+                    >{{ p.nickname }}</span
+                  >
                   <span class="text-gray-400">{{ p.position }}</span>
                 </template>
               </div>
@@ -73,8 +102,11 @@
         <!-- ÁREA CENTRAL: TEXTO Y TECLADO -->
         <div class="lg:col-span-5 space-y-4">
           <!-- ÁREA DE TEXTO A ESCRIBIR -->
-          <div class="bg-black/70 border border-lime-400 rounded-lg p-3 shadow-lg transition-opacity duration-500"
-            :class="{ 'opacity-30 pointer-events-none': isPlayerDead }" @click="focusInput">
+          <div
+            class="bg-black/70 border border-lime-400 rounded-lg p-3 shadow-lg transition-opacity duration-500"
+            :class="{ 'opacity-30 pointer-events-none': isPlayerDead }"
+            @click="focusInput"
+          >
             <div v-if="loading" class="text-center py-12 text-lime-400">
               Carregant text...
             </div>
@@ -83,62 +115,102 @@
             </div>
 
             <div v-else class="text-wrapper relative" ref="textWrapper">
-              <span v-for="(ch, i) in targetChars" :key="i" :class="charClass(i)">{{ ch }}</span>
-              <span v-if="!finished && !isPlayerDead" class="caret" :style="caretStyle"></span>
+              <span
+                v-for="(ch, i) in targetChars"
+                :key="i"
+                :class="charClass(i)"
+                >{{ ch }}</span
+              >
+              <span
+                v-if="!finished && !isPlayerDead"
+                class="caret"
+                :style="caretStyle"
+              ></span>
             </div>
 
-            <textarea ref="hiddenInput" v-model="userInput" class="hidden-input" @input="onInput" @keydown="onKeydown"
-              @paste.prevent :maxlength="target.length" aria-label="Typing input"></textarea>
+            <textarea
+              ref="hiddenInput"
+              v-model="userInput"
+              class="hidden-input"
+              @input="onInput"
+              @keydown="onKeydown"
+              @paste.prevent
+              :maxlength="target.length"
+              aria-label="Typing input"
+            ></textarea>
           </div>
 
           <!-- TECLADO -->
-          <div class="relative z-20 w-full transition-opacity duration-500" :class="{ 'opacity-50': isPlayerDead }">
+          <div
+            class="relative z-20 w-full transition-opacity duration-500"
+            :class="{ 'opacity-50': isPlayerDead }"
+          >
             <Keyboard :nickname="user.nickname" :room="ROOM" />
           </div>
         </div>
 
         <!-- PANEL DERECHO: ESPECTADOR / NOTIFICACIONES -->
         <div class="lg:col-span-1 relative z-40">
-          <div id="notification-panel" class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0" :class="{
-            'border-purple-500': isPlayerDead,
-            'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
-            'border-gray-600/30':
-              !isPlayerDead && serverMessages.length === 0,
-          }" style="pointer-events: auto">
+          <div
+            id="notification-panel"
+            class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0"
+            :class="{
+              'border-purple-500': isPlayerDead,
+              'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
+              'border-gray-600/30':
+                !isPlayerDead && serverMessages.length === 0,
+            }"
+            style="pointer-events: auto"
+          >
             <!-- MODO ESPECTADOR: Cuando el jugador ha muerto -->
             <div v-if="isPlayerDead">
               <h3 class="text-purple-400 font-semibold text-sm mb-2">
                 Has mort!
               </h3>
-              <p class="text-gray-300 text-xs mb-2">Mode espectador activat</p>
-              <div class="text-xs text-purple-300 italic">
+              <p class="text-gray-300 mb-2" style="font-size: 0.65rem">
+                Mode espectador activat
+              </p>
+              <div class="text-purple-300 italic" style="font-size: 0.65rem">
                 Continua mirant la partida...
               </div>
             </div>
 
             <!-- MODO NOTIFICACIONES: Cuando el jugador está vivo -->
             <div v-else>
-              <h3 class="text-lime-400 font-semibold text-xs mb-2 tracking-wider">
+              <h3
+                class="text-lime-400 font-semibold text-xs mb-2 tracking-wider"
+              >
                 VEUS DEL PANTEÓ
               </h3>
 
               <!-- Lista de mensajes -->
-              <div v-if="serverMessages.length > 0" class="space-y-1 max-h-24 overflow-y-auto">
-                <div v-for="message in serverMessages" :key="message.id"
-                  class="text-xs p-1 rounded border-l-2 animate-fadeItem" :class="{
+              <div
+                v-if="serverMessages.length > 0"
+                class="space-y-1 max-h-24 overflow-y-auto"
+              >
+                <div
+                  v-for="message in serverMessages"
+                  :key="message.id"
+                  class="text-xs p-1 rounded border-l-2 animate-fadeItem"
+                  :class="{
                     'border-l-lime-400 bg-lime-400/10 text-lime-300':
                       message.type === 'info' || message.type === 'success',
                     'border-l-yellow-400 bg-yellow-400/10 text-yellow-300':
                       message.type === 'warning',
                     'border-l-purple-400 bg-purple-400/10 text-purple-300':
                       message.type === 'error',
-                  }">
+                  }"
+                >
                   {{ message.text }}
                 </div>
               </div>
 
               <!-- Mensaje cuando no hay notificaciones -->
-              <div v-else class="text-center text-gray-500 italic leading-tight px-1" style="font-size: 0.55rem">
+              <div
+                v-else
+                class="text-center text-gray-500 italic leading-tight px-1"
+                style="font-size: 0.55rem"
+              >
                 Esperant missatges...
               </div>
             </div>
@@ -150,44 +222,65 @@
       <div class="h-1"></div>
 
       <!-- 3. PROGRESO DE LA CARRERA -->
-      <section v-if="raceState.length"
-        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-        <h3 class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2">
-          Sé l'últim zombie en morir!
+      <section
+        v-if="raceState.length"
+        class="bg-neutral-900/60 border border-lime-400/40 rounded-xl p-4 shadow-xl backdrop-blur-sm"
+      >
+        <h3
+          class="text-lime-400 font-semibold text-sm mb-3 flex items-center gap-2"
+        >
+          No deixis que t'atrapin. Escriu!
         </h3>
 
         <div class="space-y-4">
-          <div v-for="(p, i) in raceState" :key="p.nickname"
-            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20 transition-opacity duration-300" :class="{
-              'opacity-30': p.isAlive === false
-            }">
+          <div
+            v-for="(p, i) in sortedRaceState"
+            :key="p.nickname"
+            class="relative flex items-center gap-3 p-2 rounded-lg bg-black/20 transition-opacity duration-300"
+            :class="{
+              'opacity-30': p.isAlive === false,
+            }"
+          >
             <!-- Nombre -->
-            <span class="text-lime-300 font-semibold text-xs w-24 truncate" :class="{
-              'line-through text-red-400': p.isAlive === false
-            }">
+            <span
+              class="text-lime-300 font-semibold text-xs w-24 truncate"
+              :class="{
+                'line-through text-red-400': p.isAlive === false,
+              }"
+            >
               {{ p.nickname }}
             </span>
 
             <!-- Pista -->
-            <div class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden">
+            <div
+              class="relative flex-1 h-12 bg-neutral-800/50 rounded-xl border border-neutral-700 overflow-hidden"
+            >
               <!-- Línea de meta -->
-              <div class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse">
-              </div>
+              <div
+                class="absolute right-0 top-0 h-full w-2 bg-gradient-to-b from-lime-200 to-lime-400 animate-pulse"
+              ></div>
 
               <!-- ZOMBIE PIXEL ART ANIMADO -->
-              <div class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out" :class="{
-                'grayscale opacity-50': p.isAlive === false
-              }" :style="{ left: p.position * 1.3 + 'px' }"></div>
+              <div
+                class="zombie-sprite absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+                :class="{
+                  'grayscale opacity-50': p.isAlive === false,
+                }"
+                :style="{ left: p.position * 1.3 + 'px' }"
+              ></div>
             </div>
 
             <!-- Indica el último (va a morir) -->
-            <span :class="[
-              'text-xs font-mono px-2 py-0.5 rounded-md transition-colors duration-300',
-              p.position === Math.min(...raceState.map((r) => r.position)) && p.isAlive !== false
-                ? 'bg-red-600/40 text-red-200 animate-pulse'
-                : 'text-gray-300',
-              p.isAlive === false ? 'line-through' : ''
-            ]">
+            <span
+              :class="[
+                'text-xs font-mono px-2 py-0.5 rounded-md transition-colors duration-300',
+                p.position === Math.min(...raceState.map((r) => r.position)) &&
+                p.isAlive !== false
+                  ? 'bg-red-600/40 text-red-200 animate-pulse'
+                  : 'text-gray-300',
+                p.isAlive === false ? 'line-through' : '',
+              ]"
+            >
               {{ p.position }}
             </span>
           </div>
@@ -441,6 +534,48 @@ const minutes = computed(() => (elapsedMs.value || 1) / 60000);
 const accuracy = computed(() => {
   if (typedChars.value === 0) return 100;
   return Math.round((correctChars.value / typedChars.value) * 100);
+});
+
+// Computed para ordenar el estado de la carrera con el jugador actual primero
+const sortedRaceState = computed(() => {
+  if (!raceState.value || raceState.value.length === 0) return [];
+
+  const result = [];
+  let currentPlayer = null;
+  const otherPlayers = [];
+
+  // Buscar al jugador actual y separar a los demás
+  for (let i = 0; i < raceState.value.length; i++) {
+    if (raceState.value[i].nickname === user.nickname) {
+      currentPlayer = raceState.value[i];
+    } else {
+      otherPlayers.push(raceState.value[i]);
+    }
+  }
+
+  // Ordenar otros jugadores por posición (de mayor a menor)
+  for (let i = 0; i < otherPlayers.length - 1; i++) {
+    for (let j = 0; j < otherPlayers.length - 1 - i; j++) {
+      if (otherPlayers[j].position < otherPlayers[j + 1].position) {
+        // Intercambiar posiciones
+        const temp = otherPlayers[j];
+        otherPlayers[j] = otherPlayers[j + 1];
+        otherPlayers[j + 1] = temp;
+      }
+    }
+  }
+
+  // Poner al jugador actual primero
+  if (currentPlayer) {
+    result.push(currentPlayer);
+  }
+
+  // Agregar los demás jugadores
+  for (let i = 0; i < otherPlayers.length; i++) {
+    result.push(otherPlayers[i]);
+  }
+
+  return result;
 });
 
 // CARET POSITION
@@ -701,9 +836,8 @@ onMounted(async () => {
     const wpmValue = getWpm();
 
     // Obtener la posición actual del jugador
-    const playerPosition = raceState.value.find(
-      (p) => p.nickname === user.nickname
-    )?.position || 0;
+    const playerPosition =
+      raceState.value.find((p) => p.nickname === user.nickname)?.position || 0;
 
     // Enviar resultados al servidor con todos los datos
     socket.emit("gameFinished", {
@@ -745,7 +879,9 @@ onMounted(async () => {
 
     // Evitar procesar el mismo jugador múltiples veces
     if (processedDeaths.value.has(data.nickname)) {
-      console.log(`Muerte de ${data.nickname} ya fue procesada, ignorando duplicado`);
+      console.log(
+        `Muerte de ${data.nickname} ya fue procesada, ignorando duplicado`
+      );
       return;
     }
 
@@ -756,7 +892,9 @@ onMounted(async () => {
     const deathSound = new Audio("/sounds/shoot.mp3");
     // En dev seria /src/assets/shoot.mp3
     deathSound.volume = 0.7;
-    deathSound.play().catch((err) => console.log("Error reproduciendo sonido:", err));
+    deathSound
+      .play()
+      .catch((err) => console.log("Error reproduciendo sonido:", err));
 
     if (data.nickname === user.nickname) {
       // Marcar al jugador actual como muerto (UI local)
@@ -789,7 +927,9 @@ onMounted(async () => {
     setTimeout(() => {
       if (participants.value && participants.value.length > 0) {
         // Contar cuántos jugadores están vivos según participants.value
-        const playersAlive = participants.value.filter((p) => p.isAlive !== false).length;
+        const playersAlive = participants.value.filter(
+          (p) => p.isAlive !== false
+        ).length;
 
         console.log(
           `Jugadores vivos en sala ${roomName}: ${playersAlive} de ${participants.value.length}`
@@ -799,7 +939,9 @@ onMounted(async () => {
         if (playersAlive === 1) {
           console.log("¡Solo queda un jugador vivo! Terminando la partida.");
 
-          const lastPlayer = participants.value.find((p) => p.isAlive !== false);
+          const lastPlayer = participants.value.find(
+            (p) => p.isAlive !== false
+          );
 
           if (lastPlayer && lastPlayer.nickname === user.nickname) {
             // Si el último jugador vivo es el usuario actual, mostrar alerta de victoria
@@ -810,7 +952,10 @@ onMounted(async () => {
               showConfirmButton: false,
               timer: 5000,
             }).then(() => {
-              socket.emit("endRace", { room: ROOM.value, nickname: user.nickname });
+              socket.emit("endRace", {
+                room: ROOM.value,
+                nickname: user.nickname,
+              });
             });
           }
         }
@@ -1067,7 +1212,6 @@ function findResult(nick) {
 }
 
 @keyframes blink {
-
   0%,
   50% {
     opacity: 1;
