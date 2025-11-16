@@ -1,13 +1,9 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
-  >
+    class="relative min-h-screen flex flex-col items-center justify-start px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden">
     <!-- Fondo e iluminación -->
-    <img
-      src="/src/assets/opt2_img1.png"
-      alt="Zombie sky background"
-      class="absolute inset-0 w-full h-full object-cover opacity-80"
-    />
+    <img src="/src/assets/opt2_img1.png" alt="Zombie sky background"
+      class="absolute inset-0 w-full h-full object-cover opacity-80" />
     <div class="absolute inset-0 bg-black/40"></div>
     <!-- capa de niebla animada -->
     <div class="bg-fog absolute inset-0 z-10 pointer-events-none"></div>
@@ -15,30 +11,20 @@
     <!-- Contenido principal -->
     <main class="relative z-20 w-full max-w-6xl space-y-6 animate-fadeIn">
       <!-- Header -->
-      <header
-        class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]"
-      >
-        <h1
-          class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
-        >
+      <header class="flex flex-col lg:flex-row items-center justify-between gap-4 animate-fadeItem delay-[100ms]">
+        <h1 class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest">
           Taula de Classificació
         </h1>
 
         <div class="flex flex-wrap gap-3 items-center">
-          <input
-            v-model.trim="q"
-            type="text"
-            placeholder="Cercar jugador..."
+          <input v-model.trim="q" type="text" placeholder="Cercar jugador..."
             class="bg-gray-900/60 border border-lime-400 rounded-md px-3 py-2 text-lime-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-lime-400 min-w-[200px]"
-            @keydown.stop
-          />
+            @keydown.stop />
 
           <div class="flex items-center gap-2 text-lime-300 text-sm">
             <span>Ordenar per:</span>
-            <select
-              v-model="sortKey"
-              class="bg-gray-900/60 border border-lime-400 rounded-md px-2 py-1 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400"
-            >
+            <select v-model="sortKey"
+              class="bg-gray-900/60 border border-lime-400 rounded-md px-2 py-1 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
               <option value="wpm">PPM</option>
               <option value="position">Puntuació</option>
               <option value="accuracy">Precisió</option>
@@ -49,10 +35,8 @@
 
           <div class="flex items-center gap-2 text-lime-300 text-sm">
             <span>Ordre:</span>
-            <select
-              v-model="sortDir"
-              class="bg-gray-900/60 border border-lime-400 rounded-md px-2 py-1 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400"
-            >
+            <select v-model="sortDir"
+              class="bg-gray-900/60 border border-lime-400 rounded-md px-2 py-1 text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-400">
               <option value="desc">Desc</option>
               <option value="asc">Asc</option>
             </select>
@@ -62,8 +46,7 @@
 
       <!-- Tabla de clasificación -->
       <section
-        class="bg-black/40 border border-lime-400 rounded-lg overflow-hidden shadow-lg animate-fadeItem delay-[200ms]"
-      >
+        class="bg-black/40 border border-lime-400 rounded-lg overflow-hidden shadow-lg animate-fadeItem delay-[200ms]">
         <div class="overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gray-900/60 border-b border-lime-400">
@@ -71,44 +54,32 @@
                 <th class="px-4 py-3 text-left text-lime-400 font-semibold">
                   #
                 </th>
-                <th
-                  @click="setSort('nickname')"
-                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition"
-                >
+                <th @click="setSort('nickname')"
+                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
                   Jugador
                 </th>
-                <th
-                  @click="setSort('position')"
-                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition"
-                >
+                <th @click="setSort('position')"
+                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
                   Puntuació
                 </th>
-                <th
-                  @click="setSort('wpm')"
-                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition"
-                >
+                <th @click="setSort('wpm')"
+                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
                   PPM
                 </th>
-                <th
-                  @click="setSort('accuracy')"
-                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition"
-                >
+                <th @click="setSort('accuracy')"
+                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
                   Precisió
                 </th>
-                <th
-                  @click="setSort('errors')"
-                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition"
-                >
+                <th @click="setSort('errors')"
+                  class="px-4 py-3 text-left text-lime-400 font-semibold cursor-pointer hover:text-lime-300 transition">
                   Errors
                 </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-700">
-              <tr
-                v-for="(row, i) in pagedRows"
-                :key="row.id || i"
-                class="hover:bg-gray-800/30 transition"
-              >
+              <tr v-for="(row, i) in pagedRows" :key="row.id || i"
+                :class="{ 'current-player-row': row.nickname === user.nickname, 'hover:bg-gray-800/30': row.nickname !== user.nickname }"
+                class="transition">
                 <td class="px-4 py-3 text-gray-300">
                   {{ startIndex + i + 1 }}
                 </td>
@@ -123,10 +94,7 @@
                 </td>
               </tr>
               <tr v-if="pagedRows.length === 0">
-                <td
-                  colspan="5"
-                  class="px-4 py-8 text-center text-gray-500 italic"
-                >
+                <td colspan="5" class="px-4 py-8 text-center text-gray-500 italic">
                   No hi ha jugadors.
                 </td>
               </tr>
@@ -136,33 +104,24 @@
       </section>
 
       <!-- Paginación -->
-      <footer
-        v-if="pages > 1"
-        class="flex items-center justify-center gap-4 animate-fadeItem delay-[300ms]"
-      >
+      <footer v-if="pages > 1" class="flex items-center justify-center gap-4 animate-fadeItem delay-[300ms]">
         <button
           class="px-4 py-2 border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-lime-400"
-          :disabled="page === 1"
-          @click="page--"
-        >
+          :disabled="page === 1" @click="page--">
           Anterior
         </button>
         <span class="text-lime-300">Pàgina {{ page }} / {{ pages }}</span>
         <button
           class="px-4 py-2 border border-lime-400 text-lime-400 rounded-md font-bold uppercase tracking-wider hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-lime-400"
-          :disabled="page === pages"
-          @click="page++"
-        >
+          :disabled="page === pages" @click="page++">
           Següent
         </button>
       </footer>
 
       <!-- Botón volver -->
       <div class="flex justify-center animate-fadeItem delay-[400ms]">
-        <button
-          @click="leaveRoom"
-          class="border border-lime-400 text-lime-400 rounded-md px-6 py-2 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition"
-        >
+        <button @click="leaveRoom"
+          class="border border-lime-400 text-lime-400 rounded-md px-6 py-2 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition">
           Tornar a l'inici
         </button>
       </div>
@@ -170,8 +129,7 @@
 
     <!-- Footer -->
     <footer
-      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[500ms]"
-    >
+      class="relative z-20 text-center text-xs text-gray-500 italic mt-8 tracking-widest animate-fadeItem delay-[500ms]">
       "Els supervivents deixen empremta... Els altres només records."
     </footer>
   </section>
@@ -272,14 +230,14 @@ const sorted = computed(() => {
         a.errors != null
           ? Number(a.errors)
           : a.accuracy != null
-          ? 100 - Number(a.accuracy)
-          : 0;
+            ? 100 - Number(a.accuracy)
+            : 0;
       const errsB =
         b.errors != null
           ? Number(b.errors)
           : b.accuracy != null
-          ? 100 - Number(b.accuracy)
-          : 0;
+            ? 100 - Number(b.accuracy)
+            : 0;
       va = errsA;
       vb = errsB;
     } else {
@@ -361,11 +319,9 @@ function relativeTime(dt) {
 <style scoped>
 /* ===== PANEL DE RESULTADOS PERSONALES ===== */
 .player-result-panel {
-  background: linear-gradient(
-    135deg,
-    rgba(0, 0, 0, 0.6) 0%,
-    rgba(26, 37, 38, 0.4) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(0, 0, 0, 0.6) 0%,
+      rgba(26, 37, 38, 0.4) 100%);
   border: 2px solid #66fcf1;
   border-radius: 12px;
   padding: 2rem;
@@ -381,11 +337,9 @@ function relativeTime(dt) {
 }
 
 .player-result-panel.winner-panel {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 215, 0, 0.15) 0%,
-    rgba(255, 165, 0, 0.1) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 215, 0, 0.15) 0%,
+      rgba(255, 165, 0, 0.1) 100%);
   border-color: #ffd700;
   box-shadow: 0 0 30px rgba(255, 215, 0, 0.4),
     inset 0 0 20px rgba(255, 215, 0, 0.2);
@@ -393,6 +347,7 @@ function relativeTime(dt) {
 }
 
 @keyframes winner-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 30px rgba(255, 215, 0, 0.4),
