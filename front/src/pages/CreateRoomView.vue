@@ -19,7 +19,7 @@
       <h2
         class="text-3xl text-center text-lime-400 tracking-widest drop-shadow-[0_0_15px_#66FCF1]"
       >
-        Crear Nou Panteó
+        Crear Nova Làpida
       </h2>
 
       <!-- Formulario -->
@@ -27,7 +27,7 @@
         <!-- Nombre sala -->
         <div class="animate-fadeItem delay-[100ms]">
           <label class="text-lime-300 text-sm uppercase tracking-wider"
-            >Nom del panteó
+            >Nom de la lapida
             <input
               id="roomName"
               v-model="roomName"
@@ -104,7 +104,7 @@
               {{
                 userStore.hasNick
                   ? "Pots canviar el teu nom si vols"
-                  : "Aquest serà el teu nom al panteó"
+                  : "Aquest serà el teu nom a la làpida"
               }}
             </small>
           </label>
@@ -122,7 +122,7 @@
                 : 'bg-lime-400 hover:bg-lime-300'
             "
           >
-            {{ sending ? "Creant..." : "Crear Panteó" }}
+            {{ sending ? "Creant..." : "Crear làpida" }}
           </button>
         </div>
 
@@ -241,7 +241,7 @@ function onSubmit() {
 
   socket.once("roomCreated", (data) => {
     console.log("Room creada con éxito:", data);
-    success.value = `Panteó "${payload.roomName}" creat amb èxit`;
+    success.value = `Làpida "${payload.roomName}" creada amb èxit`;
 
     // Navegar al lobby
     setTimeout(() => {
@@ -253,8 +253,8 @@ function onSubmit() {
     console.log("Error al crear room:", data);
     error.value =
       data.message === "Existent ROOM"
-        ? "Ja existeix un panteó amb aquest nom"
-        : "Error al crear el panteó";
+        ? "Ja existeix una làpida amb aquest nom"
+        : "Error al crear la làpida";
     sending.value = false;
   });
 

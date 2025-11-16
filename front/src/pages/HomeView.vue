@@ -28,7 +28,7 @@
         v-if="route.query.needNick"
         class="bg-red-900/40 border border-red-500 text-red-300 p-3 rounded-md text-sm text-center font-dogica animate-fadeItem delay-[100ms]"
       >
-        Si us plau, introdueix un nom d'usuari abans d'unirte a un panteó.
+        Si us plau, introdueix un nom d'usuari abans d'unirte a una làpida.
       </p>
 
       <!-- INPUT NICKNAME - Estilo mockup correcto -->
@@ -48,7 +48,7 @@
       <div class="animate-fadeItem delay-[300ms] w-fit mx-auto">
         <!-- Sin salas -->
         <div v-if="rooms.length === 0" class="text-gray-400 italic text-center">
-          No hi ha panteons disponibles.
+          No hi ha làpides disponibles.
         </div>
 
         <!-- Con salas - Lápidas en fila horizontal -->
@@ -133,14 +133,14 @@
           :disabled="!nick?.trim()"
           class="w-full py-2 rounded-md border border-lime-400 text-lime-400 font-bold uppercase tracking-widest hover:bg-lime-400 hover:text-black transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Crear Nou Panteo
+          Crear Nova Làpida
         </button>
 
         <!-- MENSAJE DE ERROR -->
         <p class="text-red-400 text-center mt-2 font-dogica text-sm h-5">
           {{
             !nick?.trim()
-              ? "Introdueix un nom d'usuari per crear un panteó"
+              ? "Introdueix un nom d'usuari per crear una làpida"
               : ""
           }}
         </p>
@@ -212,7 +212,7 @@ socket.on("errorJoin", () => {
   Swal.fire({
     icon: "error",
     title: "Error",
-    text: "No s'ha pogut unir al panteó. El panteó no existeix o no està disponible.",
+    text: "No s'ha pogut unir a la làpida. La làpida no existeix o no està disponible.",
   });
 });
 
@@ -240,7 +240,7 @@ function translateDifficulty(difficulty) {
   }
   if (typeof difficulty === "string") {
     if (difficulty === "facil") return "fàcil";
-    if (difficulty === "intermig") return "intermig";
+    if (difficulty === "intermedi") return "intermig";
     if (difficulty === "dificil") return "difícil";
   }
   return "N/A";
@@ -391,7 +391,7 @@ function join() {
   font-family: "dogica", monospace;
 }
 
-/* Título destacado como 'PANTEONS' en el mockup */
+/* Título destacado como */
 .tombstone-title-highlight {
   font-family: "dogica", monospace;
   text-shadow: 0 0 8px #a3e635, 0 0 15px #a3e635,

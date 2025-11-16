@@ -20,7 +20,7 @@
       <h2
         class="text-3xl text-lime-400 font-bold drop-shadow-[0_0_15px_#66FCF1] text-center tracking-widest"
       >
-        Panteó d'espera
+        Tomba d'espera
       </h2>
       <p class="text-center text-gray-300 animate-fadeItem delay-[100ms]">
         Benvingut, <span class="text-lime-400">{{ user.nickname }}</span>
@@ -32,7 +32,7 @@
         class="bg-black/40 border border-lime-400 rounded-lg p-4 text-sm text-gray-300 space-y-2 animate-fadeItem delay-[200ms]"
       >
         <h3 class="text-lime-400 font-semibold text-lg">
-          Panteó: {{ roomInfo.roomName }}
+          Làpida: {{ roomInfo.roomName }}
         </h3>
         <ul class="space-y-1 text-xs md:text-sm ml-4">
           <li>
@@ -167,7 +167,7 @@
           :disabled="deleting"
           class="border border-purple-600 text-purple-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-purple-600 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ deleting ? "Eliminant..." : "Eliminar panteó" }}
+          {{ deleting ? "Eliminant..." : "Eliminar làpida" }}
         </button>
 
         <!-- Salir -->
@@ -175,7 +175,7 @@
           @click="logout"
           class="border border-lime-400 text-lime-400 rounded-md px-4 py-2 font-bold uppercase text-sm hover:bg-lime-400 hover:text-black transition"
         >
-          Sortir del panteó
+          Sortir de la tomba
         </button>
       </div>
     </main>
@@ -367,8 +367,8 @@ async function deleteRoom() {
   if (!roomInfo.value) return;
 
   const result = await Swal.fire({
-    title: "Eliminar panteó",
-    text: `Estàs segur que vols eliminar el panteó "${roomInfo.value.roomName}"? Aquesta acció no es pot desfer.`,
+    title: "Eliminar làpida",
+    text: `Estàs segur que vols eliminar la làpida "${roomInfo.value.roomName}"? Aquesta acció no es pot desfer.`,
     icon: "warning",
     showCancelButton: true,
     confirmButtonText: "Eliminar",

@@ -1,6 +1,6 @@
 <template>
   <section
-    class="relative min-h-screen flex flex-col px-6 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
+    class="relative min-h-screen flex flex-col px-2 md:px-4 py-8 font-dogica text-gray-200 bg-gradient-to-b from-[#0B0C10] to-[#1F2833] overflow-hidden"
   >
     <!-- FONDO EN CAPAS -->
     <div class="absolute inset-0 overflow-hidden">
@@ -13,7 +13,7 @@
 
     <!-- CONTENIDO -->
     <main
-      class="relative z-30 w-full max-w-6xl mx-auto flex flex-col gap-6 animate-fadeIn"
+      class="relative z-30 w-full max-w-7xl mx-auto flex flex-col gap-6 animate-fadeIn"
     >
       <!-- 1. TEXTOS Y ESTADÍSTICAS (HEADER MANTENIDO) -->
       <header
@@ -46,10 +46,10 @@
           <!-- INFO DE LA SALA -->
           <div class="bg-black/40 border border-gray-500/60 rounded-lg p-3">
             <h3 class="text-lime-300 font-semibold text-sm mb-2">
-              Informació del panteó
+              Informació de la làpida
             </h3>
             <p class="text-xs">
-              <span class="text-white">Panteó:</span>
+              <span class="text-white">Làpida:</span>
               <span class="text-gray-300">{{ ROOM }}</span>
             </p>
             <p class="text-xs">
@@ -57,7 +57,7 @@
               <span class="text-gray-300">{{ user.nickname }}</span>
             </p>
             <p class="text-xs">
-              <span class="text-white">Nº zombies:</span>
+              <span class="text-white">Zombies actius:</span>
               <span class="text-gray-300">{{ participants.length }}</span>
             </p>
           </div>
@@ -153,7 +153,7 @@
         <div class="lg:col-span-1 relative z-40">
           <div
             id="notification-panel"
-            class="bg-black/40 border rounded-lg p-3 relative z-50 h-fit min-w-0"
+            class="bg-black/40 border rounded-lg p-4 relative z-50 min-w-[150px] min-h-[190px] w-full"
             :class="{
               'border-purple-500': isPlayerDead,
               'border-lime-400/60': !isPlayerDead && serverMessages.length > 0,
@@ -180,13 +180,13 @@
               <h3
                 class="text-lime-400 font-semibold text-xs mb-2 tracking-wider"
               >
-                VEUS DEL PANTEÓ
+                VEUS DEL CEMENTIRI
               </h3>
 
               <!-- Lista de mensajes -->
               <div
                 v-if="serverMessages.length > 0"
-                class="space-y-1 max-h-24 overflow-y-auto"
+                class="space-y-1 max-h-36 overflow-y-auto"
               >
                 <div
                   v-for="message in serverMessages"
@@ -208,8 +208,8 @@
               <!-- Mensaje cuando no hay notificaciones -->
               <div
                 v-else
-                class="text-center text-gray-500 italic leading-tight px-1"
-                style="font-size: 0.55rem"
+                class="text-left text-gray-500 italic leading-tight"
+                style="font-size: 0.6rem"
               >
                 Esperant missatges...
               </div>
@@ -848,7 +848,6 @@ onMounted(async () => {
       errors: totalErrors.value,
       position: playerPosition,
     });
-    console.log("La carrera ha terminado");
     router.push({ name: "fin" });
   });
 
@@ -871,7 +870,6 @@ onMounted(async () => {
     loadParticipants(list);
     getTextIds(); // Actualizar textsIds cuando se actualiza la lista de usuarios
   });
-
 
   socket.on("player:dead", (data) => {
     console.log("Jugador muerto recibido:", data);
@@ -1181,17 +1179,14 @@ function findResult(nick) {
 
 .correct {
   color: #a3e635;
-  /* background-color: rgba(16, 185, 129, 0.1); */
 }
 
 .wrong {
   color: #8f1de0;
-  /* púrpura  */
   background-color: rgba(190, 164, 231, 0.15);
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-shadow: 0 0 9px rgba(129, 30, 249, 0.6);
-  /* leve glow sangriento */
 }
 
 .current {
