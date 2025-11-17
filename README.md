@@ -1,6 +1,7 @@
 # transversals
 
 - Nom dels integrants
+
   -Llorenç Carnice
 
   -Roman Novytsky
